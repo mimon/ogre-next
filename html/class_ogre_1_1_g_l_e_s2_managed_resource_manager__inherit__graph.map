@@ -1,0 +1,4 @@
+<map id="Ogre::GLES2ManagedResourceManager" name="Ogre::GLES2ManagedResourceManager">
+<area shape="rect" id="node1" title=" " alt="" coords="5,80,212,121"/>
+<area shape="rect" id="node2" href="$class_ogre_1_1_allocated_object.html" title="Superclass for all objects that wish to use custom memory allocators when their new / delete operator..." alt="" coords="55,5,162,32"/>
+</map>
