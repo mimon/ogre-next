@@ -20,7 +20,7 @@ echo Remove repository...
 rmdir /S/Q .hg
 rem Gen docs
 cd Docs\src
-doxygen html.cfg
+doxygen Doxyfile
 rem remove unnecessary files
 cd ..\api\html
 del /Q/F *.hhk *.hhc *.map *.md5 *.dot *.hhp *.plist ..\*.tmp

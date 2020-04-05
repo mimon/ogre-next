@@ -73,7 +73,7 @@ brew install Graphviz
 
 and then
 ```
-doxygen html.cfg
+doxygen Doxyfile
 ```
 
-Doc files should now be located at `sdk/Docs/api/index.html` or whatever the `OUTPUT_DIRECTORY` is set to in `/html.cfg`.
+Doc files should now be located at `sdk/Docs/api/index.html` or whatever the `OUTPUT_DIRECTORY` is set to in `/Doxyfile`.
