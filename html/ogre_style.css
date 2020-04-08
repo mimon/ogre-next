@@ -343,3 +343,19 @@ img {
   -webkit-box-shadow: none;
 }
 
+#projectlogo {
+  display: none;
+}
+
+#projectalign {
+  padding: 4px 0;
+}
+
+.sm-dox,
+.sm-dox a {
+  background-image: none;
+}
+
+#nav-tree {
+  background-color: #fff;
+}
