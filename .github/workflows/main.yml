@@ -10,6 +10,8 @@ on:
 
 env:
   INPUT: "Components Docs/src/SettingUpOgre/SettingUpOgre.md Docs/src/SettingUpOgre/SettingUpOgreLinux.md Docs/src/SettingUpOgre/SettingUpOgreWindows.md Docs/src/SettingUpOgre/SettingUpOgre_iOS.md Docs/src/SettingUpOgre/SettingUpOgre_macOS.md Docs/src/UsingOgre/UsingOgreInYourApp.md Docs/src/apimainpage.md Docs/src/manual/BehaviorOfStagingTexturesD3D11.md Docs/src/manual/Ogre2.2.Changes.md Docs/src/manual/azdo.md Docs/src/manual/changes.md Docs/src/manual/commandbuffer.md Docs/src/manual/compositor.md Docs/src/manual/hlms.md Docs/src/manual/instancing.md Docs/src/manual/manual.md Docs/src/manual/performance.md Docs/src/manual/tech.md Docs/src/manual/threading.md OgreMain PlugIns RenderSystems"
+  OGRE_SOURCE_DIR: "./"
+  OGRE_BINARY_DIR: "./"
 
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
