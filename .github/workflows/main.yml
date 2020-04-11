@@ -9,7 +9,7 @@ on:
     branches: '*'
 
 env:
-  INPUT: "Components Docs/src OgreMain PlugIns RenderSystems"
+  CMAKE_DOXYGEN_INPUT_LIST: "Components Docs/src OgreMain PlugIns RenderSystems"
   OGRE_SOURCE_DIR: "./"
   OGRE_BINARY_DIR: "./"
 
