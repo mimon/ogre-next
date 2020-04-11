@@ -166,7 +166,7 @@ Public Member Functions</h2></td></tr>
 <tr class="memdesc:afe6ecfd943083ab075cf4a290dcd9cdd"><td class="mdescLeft">&#160;</td><td class="mdescRight">Destroys a texture.  <a href="class_ogre_1_1_hlms_texture_manager.html#afe6ecfd943083ab075cf4a290dcd9cdd">More...</a><br /></td></tr>
 <tr class="separator:afe6ecfd943083ab075cf4a290dcd9cdd"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a466588c098af322f482177db59fd8c56"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_ogre_1_1_hlms_texture_manager.html#a466588c098af322f482177db59fd8c56">dumpMemoryUsage</a> (<a class="el" href="class_ogre_1_1_log.html">Log</a> *log=NULL) const</td></tr>
-<tr class="memdesc:a466588c098af322f482177db59fd8c56"><td class="mdescLeft">&#160;</td><td class="mdescRight">Dumps to the <a class="el" href="namespace_ogre.html" title="Undefine in &lt;sys/endian.h&gt; defined bswap macros for FreeBSD.">Ogre</a> log passed as parameter (if NULL, uses the default one) in csv format (separator is '|') the usage statistics of all textures currently loaded by the texture manager.  <a href="class_ogre_1_1_hlms_texture_manager.html#a466588c098af322f482177db59fd8c56">More...</a><br /></td></tr>
+<tr class="memdesc:a466588c098af322f482177db59fd8c56"><td class="mdescLeft">&#160;</td><td class="mdescRight">Dumps to the <a class="el" href="namespace_ogre.html">Ogre</a> log passed as parameter (if NULL, uses the default one) in csv format (separator is '|') the usage statistics of all textures currently loaded by the texture manager.  <a href="class_ogre_1_1_hlms_texture_manager.html#a466588c098af322f482177db59fd8c56">More...</a><br /></td></tr>
 <tr class="separator:a466588c098af322f482177db59fd8c56"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ae72eb86affc2c5766c4c6966d1c6e040"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_ogre_1_1_hlms_texture_manager.html#ae72eb86affc2c5766c4c6966d1c6e040">exportTextureMetadataCache</a> (<a class="el" href="namespace_ogre.html#af73bbdc8bed8a3e6fcd56bb8fa188c45">String</a> &amp;outJson)</td></tr>
 <tr class="separator:ae72eb86affc2c5766c4c6966d1c6e040"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -449,7 +449,7 @@ Public Member Functions</h2></td></tr>
 <p>See other overload. </p>
 <p>This one allows aliasing a texture. If you have "VERY_TECHNICAL_NAME_HASH_1234.png" as texName, you can make your first call with aliasName as "Tree Wood", and the next calls to createOrRetrieveTexture( "Tree Wood", mapType ) will refer to this texture NOTE: aliasName cannot be blank/empty. </p><dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">uniqueSpecialId</td><td>Textures loaded with a value uniqueSpecialId != 0 will tried to be pooled together inside the same pool that has the same uniqueSpecialId. If we have to create more than one pool, you will get log warnings. This pool ID is intended for Decals and Area Lights as <a class="el" href="namespace_ogre.html" title="Undefine in &lt;sys/endian.h&gt; defined bswap macros for FreeBSD.">Ogre</a> implementations only allow one global texture per pass; thus all decal/area light texture must have the same resolution, pixel format and live in the same array texture. See <a class="el" href="class_ogre_1_1_hlms_texture_manager.html#a31364763866ec07658ca28a274dbf5fc" title="Reserves a specific pool ID with the given parameters and immediately creates that texture.">HlmsTextureManager::reservePoolId</a> </td></tr>
+    <tr><td class="paramname">uniqueSpecialId</td><td>Textures loaded with a value uniqueSpecialId != 0 will tried to be pooled together inside the same pool that has the same uniqueSpecialId. If we have to create more than one pool, you will get log warnings. This pool ID is intended for Decals and Area Lights as <a class="el" href="namespace_ogre.html">Ogre</a> implementations only allow one global texture per pass; thus all decal/area light texture must have the same resolution, pixel format and live in the same array texture. See <a class="el" href="class_ogre_1_1_hlms_texture_manager.html#a31364763866ec07658ca28a274dbf5fc" title="Reserves a specific pool ID with the given parameters and immediately creates that texture.">HlmsTextureManager::reservePoolId</a> </td></tr>
     <tr><td class="paramname">imgSource</td><td>When null, texture is loaded from texName as a file. When not null, texture is loaded from imgSource and texName is ignored (still used in logging messages though). Note imgSource may be modified (e.g. to generate mipmaps). Note this pointer is ignored if the texture already exists and is just being retrieved. </td></tr>
   </table>
   </dd>
@@ -533,7 +533,7 @@ Public Member Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
-<p>Dumps to the <a class="el" href="namespace_ogre.html" title="Undefine in &lt;sys/endian.h&gt; defined bswap macros for FreeBSD.">Ogre</a> log passed as parameter (if NULL, uses the default one) in csv format (separator is '|') the usage statistics of all textures currently loaded by the texture manager. </p>
+<p>Dumps to the <a class="el" href="namespace_ogre.html">Ogre</a> log passed as parameter (if NULL, uses the default one) in csv format (separator is '|') the usage statistics of all textures currently loaded by the texture manager. </p>
 <p>Useful for profiling or determining sources of waste GPU RAM. </p>
 
 </div>
@@ -1349,7 +1349,7 @@ template&lt;class Alloc &gt; </div>
     <tr><td class="paramname">texLocation</td><td></td></tr>
     <tr><td class="paramname">folderPath</td><td>Folder where to dump the textures. </td></tr>
     <tr><td class="paramname">savedTextures</td><td>[in/out] Set of texture names. Textures whose name is already in the set won't be saved again. Textures that were saved will be inserted into the set. </td></tr>
-    <tr><td class="paramname">saveOitd</td><td>When true, we will download the texture from GPU and save it in OITD format. OITD is faster to load as it's stored in <a class="el" href="namespace_ogre.html" title="Undefine in &lt;sys/endian.h&gt; defined bswap macros for FreeBSD.">Ogre</a>'s native format it understands, but it cannot be opened by traditional image editors; also OITD is not backwards compatible with older versions of <a class="el" href="namespace_ogre.html" title="Undefine in &lt;sys/endian.h&gt; defined bswap macros for FreeBSD.">Ogre</a>. </td></tr>
+    <tr><td class="paramname">saveOitd</td><td>When true, we will download the texture from GPU and save it in OITD format. OITD is faster to load as it's stored in <a class="el" href="namespace_ogre.html">Ogre</a>'s native format it understands, but it cannot be opened by traditional image editors; also OITD is not backwards compatible with older versions of <a class="el" href="namespace_ogre.html">Ogre</a>. </td></tr>
     <tr><td class="paramname">saveOriginal</td><td>When true, we will attempt to read the raw filestream of the original texture and save it (i.e. copy the original png/dds/etc file). </td></tr>
     <tr><td class="paramname">listener</td><td></td></tr>
   </table>
@@ -1367,7 +1367,7 @@ template&lt;class Alloc &gt; </div>
 <div id="nav-path" class="navpath"><!-- id is needed for treeview function! -->
   <ul>
     <li class="navelem"><a class="el" href="namespace_ogre.html">Ogre</a></li><li class="navelem"><a class="el" href="class_ogre_1_1_hlms_texture_manager.html">HlmsTextureManager</a></li>
-    <li class="footer">Generated on Sat Apr 11 2020 21:39:58 for OGRE by
+    <li class="footer">Generated by
     <a href="http://www.doxygen.org/index.html">
     <img class="footer" src="doxygen.png" alt="doxygen"/></a> 1.8.17 </li>
   </ul>

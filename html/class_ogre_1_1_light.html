@@ -599,7 +599,7 @@ Static Public Attributes</h2></td></tr>
 <div class="textblock"><p>Representation of a dynamic light source in the scene. </p>
 <dl class="section remark"><dt>Remarks</dt><dd>Lights are added to the scene like any other object. They contain various parameters like type, position, attenuation (how light intensity fades with distance), colour etc. </dd></dl>
 <dl class="section user"><dt></dt><dd>The defaults when a light is created is pure white diffuse light, with no attenuation (does not decrease with distance) and a range of 1000 world units. </dd></dl>
-<dl class="section user"><dt></dt><dd>Lights are created by using the <a class="el" href="class_ogre_1_1_scene_manager.html#a417bdd216730a8d171c3184b0d49c32e" title="Creates a light for use in the scene.">SceneManager::createLight</a> method. Starting <a class="el" href="namespace_ogre.html" title="Undefine in &lt;sys/endian.h&gt; defined bswap macros for FreeBSD.">Ogre</a> 2.0 all Lights must be associated to a <a class="el" href="class_ogre_1_1_scene_node.html" title="Class representing a node in the scene graph.">SceneNode</a> in order to work; which holds the position and direction. <a class="el" href="class_ogre_1_1_light.html#a1659111f4eb55f3b3227e87c8bfce8d9" title="Sets the direction in which a light points.">Light::setDirection</a> and <a class="el" href="class_ogre_1_1_light.html#a11d3640138e32ff2d4644dadf5e24c74" title="Returns the light&#39;s direction.">Light::getDirection</a> will redirect to the <a class="el" href="class_ogre_1_1_scene_node.html" title="Class representing a node in the scene graph.">SceneNode</a> and assert or crash if not attached to one. </dd></dl>
+<dl class="section user"><dt></dt><dd>Lights are created by using the <a class="el" href="class_ogre_1_1_scene_manager.html#a417bdd216730a8d171c3184b0d49c32e" title="Creates a light for use in the scene.">SceneManager::createLight</a> method. Starting <a class="el" href="namespace_ogre.html">Ogre</a> 2.0 all Lights must be associated to a <a class="el" href="class_ogre_1_1_scene_node.html" title="Class representing a node in the scene graph.">SceneNode</a> in order to work; which holds the position and direction. <a class="el" href="class_ogre_1_1_light.html#a1659111f4eb55f3b3227e87c8bfce8d9" title="Sets the direction in which a light points.">Light::setDirection</a> and <a class="el" href="class_ogre_1_1_light.html#a11d3640138e32ff2d4644dadf5e24c74" title="Returns the light&#39;s direction.">Light::getDirection</a> will redirect to the <a class="el" href="class_ogre_1_1_scene_node.html" title="Class representing a node in the scene graph.">SceneNode</a> and assert or crash if not attached to one. </dd></dl>
 <dl class="section user"><dt></dt><dd>Remember also that dynamic lights rely on modifying the colour of vertices based on the position of the light compared to an object's vertex normals. Dynamic lighting will only look good if the object being lit has a fair level of tessellation and the normals are properly set. This is particularly true for the spotlight which will only look right on highly tessellated models. In the future OGRE may be extended for certain scene types so an alternative to the standard dynamic lighting may be used, such as dynamic lightmaps. </dd></dl>
 </div><h2 class="groupheader">Member Typedef Documentation</h2>
 <a id="afb58624fb567bb790c55d8a716b472da"></a>
@@ -719,7 +719,7 @@ Static Public Attributes</h2></td></tr>
 <p>Note this may happen on device lost, and a new GPU became in use; thus it's possible for a <a class="el" href="class_ogre_1_1_texture_gpu.html">TextureGpu</a> to initially support certain FSAA but later change. </p>
 </td></tr>
 <tr><td class="fieldname"><a id="afe11bd546cf7315f4526488e7078cc7dad4d9c6e3b7755f38d8d5f003be100257"></a>ReadyForRendering&#160;</td><td class="fielddoc"><p>This Reason is called when <a class="el" href="class_ogre_1_1_texture_gpu.html#abe10b3ea1bc20e616134af7b7f567446" title="Notifies it is safe to use the real data. Everything has been uploaded.">TextureGpu::notifyDataIsReady</a> is called. </p>
-<p>This normally means worker thread is done loading texture from file and uploading it to GPU; and can now be used for rendering. It does NOT mean that <a class="el" href="namespace_ogre.html" title="Undefine in &lt;sys/endian.h&gt; defined bswap macros for FreeBSD.">Ogre</a> has finished issueing rendering commands to a <a class="el" href="class_ogre_1_1_render_texture.html" title="This class represents a RenderTarget that renders to a Texture.">RenderTexture</a> and is now ready to be presented to the monitor. </p>
+<p>This normally means worker thread is done loading texture from file and uploading it to GPU; and can now be used for rendering. It does NOT mean that <a class="el" href="namespace_ogre.html">Ogre</a> has finished issueing rendering commands to a <a class="el" href="class_ogre_1_1_render_texture.html" title="This class represents a RenderTarget that renders to a Texture.">RenderTexture</a> and is now ready to be presented to the monitor. </p>
 </td></tr>
 <tr><td class="fieldname"><a id="afe11bd546cf7315f4526488e7078cc7dabb2a61a0002ccca6afbde7588787e58e"></a>Deleted&#160;</td><td class="fielddoc"></td></tr>
 </table>
@@ -4070,7 +4070,7 @@ template&lt;class Alloc &gt; </div>
 <p>Sets the attenuation parameters (range, constant, linear &amp; quadratic,. </p>
 <dl class="section see"><dt>See also</dt><dd><a class="el" href="class_ogre_1_1_light.html#a2880f26669477a55cf01919f906bb65d" title="Sets the attenuation parameters of the light source i.e.">setAttenuation</a>) based on a given radius. </dd></dl>
 <dl class="section remark"><dt>Remarks</dt><dd>The actual attenuation formula is: </dd></dl>
-<h2><a class="anchor" id="autotoc_md34"></a>
+<h2><a class="anchor" id="autotoc_md35"></a>
 1</h2>
 <p>(distance / radius)² * 0.5 + 0.5</p>
 <p>The original formula never ends, that is the range is infinity. This function calculates a range based on "lumThreshold": When the luminosity past certain distance is below the established threshold, the light calculations are cut. </p><dl class="params"><dt>Parameters</dt><dd>
@@ -5371,7 +5371,7 @@ template&lt;class Alloc &gt; </div>
 <div id="nav-path" class="navpath"><!-- id is needed for treeview function! -->
   <ul>
     <li class="navelem"><a class="el" href="namespace_ogre.html">Ogre</a></li><li class="navelem"><a class="el" href="class_ogre_1_1_light.html">Light</a></li>
-    <li class="footer">Generated on Sat Apr 11 2020 21:39:59 for OGRE by
+    <li class="footer">Generated by
     <a href="http://www.doxygen.org/index.html">
     <img class="footer" src="doxygen.png" alt="doxygen"/></a> 1.8.17 </li>
   </ul>

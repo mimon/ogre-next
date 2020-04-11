@@ -4813,12 +4813,12 @@ However, this technique is more expensive, and typically you will want an additi
 </div><div class="memdoc">
 
 <p>Sets the details of the fragment program to use when rendering as a shadow caster. </p>
-<dl class="section remark"><dt>Remarks</dt><dd>Texture-based shadows require that the caster is rendered to a texture in a solid colour (the shadow colour in the case of modulative texture shadows). Whilst <a class="el" href="namespace_ogre.html" title="Undefine in &lt;sys/endian.h&gt; defined bswap macros for FreeBSD.">Ogre</a> can arrange this for the fixed function pipeline, passes which use vertex programs might need the vertex programs still to run in order to preserve any deformation etc that it does. However, lighting calculations must be a lot simpler, with only the ambient colour being used (which the engine will ensure is bound to the shadow colour). </dd></dl>
+<dl class="section remark"><dt>Remarks</dt><dd>Texture-based shadows require that the caster is rendered to a texture in a solid colour (the shadow colour in the case of modulative texture shadows). Whilst <a class="el" href="namespace_ogre.html">Ogre</a> can arrange this for the fixed function pipeline, passes which use vertex programs might need the vertex programs still to run in order to preserve any deformation etc that it does. However, lighting calculations must be a lot simpler, with only the ambient colour being used (which the engine will ensure is bound to the shadow colour). </dd></dl>
 <dl class="section user"><dt></dt><dd>Therefore, it is up to implementors of vertex programs to provide an alternative vertex program which can be used to render the object to a shadow texture. Do all the same vertex transforms, but set the colour of the vertex to the ambient colour, as bound using the standard auto parameter binding mechanism. </dd></dl>
-<dl class="section note"><dt>Note</dt><dd>Some vertex programs will work without doing this, because <a class="el" href="namespace_ogre.html" title="Undefine in &lt;sys/endian.h&gt; defined bswap macros for FreeBSD.">Ogre</a> ensures that all lights except for ambient are set black. However, the chances are that your vertex program is doing a lot of unnecessary work in this case, since the other lights are having no effect, and it is good practice to supply an alternative. </dd>
+<dl class="section note"><dt>Note</dt><dd>Some vertex programs will work without doing this, because <a class="el" href="namespace_ogre.html">Ogre</a> ensures that all lights except for ambient are set black. However, the chances are that your vertex program is doing a lot of unnecessary work in this case, since the other lights are having no effect, and it is good practice to supply an alternative. </dd>
 <dd>
 This is only applicable to programmable passes. </dd></dl>
-<dl class="section user"><dt></dt><dd>The default behaviour is for <a class="el" href="namespace_ogre.html" title="Undefine in &lt;sys/endian.h&gt; defined bswap macros for FreeBSD.">Ogre</a> to switch to fixed-function rendering if an explicit fragment program alternative is not set. </dd></dl>
+<dl class="section user"><dt></dt><dd>The default behaviour is for <a class="el" href="namespace_ogre.html">Ogre</a> to switch to fixed-function rendering if an explicit fragment program alternative is not set. </dd></dl>
 
 </div>
 </div>
@@ -4860,12 +4860,12 @@ This is only applicable to programmable passes. </dd></dl>
 </div><div class="memdoc">
 
 <p>Sets the details of the vertex program to use when rendering as a shadow caster. </p>
-<dl class="section remark"><dt>Remarks</dt><dd>Texture-based shadows require that the caster is rendered to a texture in a solid colour (the shadow colour in the case of modulative texture shadows). Whilst <a class="el" href="namespace_ogre.html" title="Undefine in &lt;sys/endian.h&gt; defined bswap macros for FreeBSD.">Ogre</a> can arrange this for the fixed function pipeline, passes which use vertex programs might need the vertex programs still to run in order to preserve any deformation etc that it does. However, lighting calculations must be a lot simpler, with only the ambient colour being used (which the engine will ensure is bound to the shadow colour). </dd></dl>
+<dl class="section remark"><dt>Remarks</dt><dd>Texture-based shadows require that the caster is rendered to a texture in a solid colour (the shadow colour in the case of modulative texture shadows). Whilst <a class="el" href="namespace_ogre.html">Ogre</a> can arrange this for the fixed function pipeline, passes which use vertex programs might need the vertex programs still to run in order to preserve any deformation etc that it does. However, lighting calculations must be a lot simpler, with only the ambient colour being used (which the engine will ensure is bound to the shadow colour). </dd></dl>
 <dl class="section user"><dt></dt><dd>Therefore, it is up to implementors of vertex programs to provide an alternative vertex program which can be used to render the object to a shadow texture. Do all the same vertex transforms, but set the colour of the vertex to the ambient colour, as bound using the standard auto parameter binding mechanism. </dd></dl>
-<dl class="section note"><dt>Note</dt><dd>Some vertex programs will work without doing this, because <a class="el" href="namespace_ogre.html" title="Undefine in &lt;sys/endian.h&gt; defined bswap macros for FreeBSD.">Ogre</a> ensures that all lights except for ambient are set black. However, the chances are that your vertex program is doing a lot of unnecessary work in this case, since the other lights are having no effect, and it is good practice to supply an alternative. </dd>
+<dl class="section note"><dt>Note</dt><dd>Some vertex programs will work without doing this, because <a class="el" href="namespace_ogre.html">Ogre</a> ensures that all lights except for ambient are set black. However, the chances are that your vertex program is doing a lot of unnecessary work in this case, since the other lights are having no effect, and it is good practice to supply an alternative. </dd>
 <dd>
 This is only applicable to programmable passes. </dd></dl>
-<dl class="section user"><dt></dt><dd>The default behaviour is for <a class="el" href="namespace_ogre.html" title="Undefine in &lt;sys/endian.h&gt; defined bswap macros for FreeBSD.">Ogre</a> to switch to fixed-function rendering if an explicit vertex program alternative is not set. </dd></dl>
+<dl class="section user"><dt></dt><dd>The default behaviour is for <a class="el" href="namespace_ogre.html">Ogre</a> to switch to fixed-function rendering if an explicit vertex program alternative is not set. </dd></dl>
 
 </div>
 </div>
@@ -5208,7 +5208,7 @@ This setting has no effect if dynamic lighting is disabled (see Pass::setLightin
 <div id="nav-path" class="navpath"><!-- id is needed for treeview function! -->
   <ul>
     <li class="navelem"><a class="el" href="namespace_ogre.html">Ogre</a></li><li class="navelem"><a class="el" href="class_ogre_1_1_pass.html">Pass</a></li>
-    <li class="footer">Generated on Sat Apr 11 2020 21:40:03 for OGRE by
+    <li class="footer">Generated by
     <a href="http://www.doxygen.org/index.html">
     <img class="footer" src="doxygen.png" alt="doxygen"/></a> 1.8.17 </li>
   </ul>

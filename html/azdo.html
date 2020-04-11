@@ -98,7 +98,7 @@ $(document).ready(function(){initNavTree('azdo.html',''); initResizable(); });
 </div>
 <div class="textblock"><h1><a class="anchor" id="V2AndV1Objects"></a>
 V2 and v1 objects</h1>
-<p>Because of the big overhaul that <a class="el" href="namespace_ogre.html" title="Undefine in &lt;sys/endian.h&gt; defined bswap macros for FreeBSD.">Ogre</a> 2.0 Final went through, there were a lot of optimizations that were just incompatible with how the old code worked. On the other hand, removing the old code was unwise as there are a lot of features that haven't been ported to v2 interfaces yet.</p>
+<p>Because of the big overhaul that <a class="el" href="namespace_ogre.html">Ogre</a> 2.0 Final went through, there were a lot of optimizations that were just incompatible with how the old code worked. On the other hand, removing the old code was unwise as there are a lot of features that haven't been ported to v2 interfaces yet.</p>
 <p>The solution was to build a parallel system that runs alongside the old one; enclosing the old ones in the v1 namespace.</p>
 <p>As a result, <code>Entity</code> got replaced by <code>Item</code>; and thus now to access them, you need to write <code>v1::Entity</code> and Item.</p>
 <p>Some objects may have the same name but live in a different namespace and thus are not the same: <code>v1::Mesh</code> (defined in <a class="el" href="_ogre_mesh_8h.html">OgreMesh.h</a>) and <code>Mesh</code> (defined in <a class="el" href="_ogre_mesh2_8h.html">OgreMesh2.h</a>)</p>
@@ -116,8 +116,8 @@ Render Queue</h1>
 <p>The RenderQueue has been completely refactored. It sorts based on a 64-bit hash which is calculated in <code>RenderQueue::addRenderable</code>. Mesh ID, material ID, texture hash, depth, macro and blend block IDs are taken into account[^13].</p>
 <p>Each RenderQueue ID can run in any of the following modes of operation:</p>
 <ol type="1">
-<li><code>V1_LEGACY</code>: It runs as closely as possible as <a class="el" href="namespace_ogre.html" title="Undefine in &lt;sys/endian.h&gt; defined bswap macros for FreeBSD.">Ogre</a> 1.x ran. Only low level materials and mobile Hlms materials can work in this mode; and only v1 objects can be stored in RenderQueue IDs operating in this mode. This mode of operation is not recommended for a large number of objects.</li>
-<li><code>V1_FAST</code>: Certain obscures features from <a class="el" href="namespace_ogre.html" title="Undefine in &lt;sys/endian.h&gt; defined bswap macros for FreeBSD.">Ogre</a> 1.x won't be available (i.e. the HW GlobalInstance buffer). The RenderQueue will first iterate through all objects, auto-instancing when possible; and updating the shader's constant and texture buffers; then using the Command Buffer all necessary state changes and draw calls. Only v1 objects can live in these RenderQueue Ids. Originally they could only use desktop Hlms materials, but recently support for Low Level materials was added. Note that low level materials cannot be auto instanced.</li>
+<li><code>V1_LEGACY</code>: It runs as closely as possible as <a class="el" href="namespace_ogre.html">Ogre</a> 1.x ran. Only low level materials and mobile Hlms materials can work in this mode; and only v1 objects can be stored in RenderQueue IDs operating in this mode. This mode of operation is not recommended for a large number of objects.</li>
+<li><code>V1_FAST</code>: Certain obscures features from <a class="el" href="namespace_ogre.html">Ogre</a> 1.x won't be available (i.e. the HW GlobalInstance buffer). The RenderQueue will first iterate through all objects, auto-instancing when possible; and updating the shader's constant and texture buffers; then using the Command Buffer all necessary state changes and draw calls. Only v1 objects can live in these RenderQueue Ids. Originally they could only use desktop Hlms materials, but recently support for Low Level materials was added. Note that low level materials cannot be auto instanced.</li>
 <li><code>FAST</code>: The new system. It's similar to <code>V1_FAST</code>. However, only v2 objects can be used and they must be using dekstop Hlms materials. The API overhead is extremely low; and is more multicore-friendly because <code>RenderQueue::addRenderable</code> is executed in parallel.</li>
 </ol>
 <p>You cannot mix v1 and v2 objects in the same RQ ID, however you can store them in different RQ IDs.</p>
@@ -131,12 +131,12 @@ Render Queue</h1>
 <tr class="markdownTableRowOdd">
 <td class="markdownTableBodyNone">FAST </td><td class="markdownTableBodyNone">v2 </td><td class="markdownTableBodyNone">YES </td><td class="markdownTableBodyNone">NO </td><td class="markdownTableBodyNone">NO  </td></tr>
 </table>
-<p>It is not automatic. Placing a v2 object in a v1 queue or viceversa may result in <a class="el" href="namespace_ogre.html" title="Undefine in &lt;sys/endian.h&gt; defined bswap macros for FreeBSD.">Ogre</a> raising a helpful exception, or an unhelpful crash (it is hard to track all sources of RQ missmatches); however with a debugger hooked, it can be easy to spot the problem by looking at the routine names (e.g. look at the v2/v1 suffixes) and the mVaoPerLod member being non empty (which indicates a v2 object), or the usage of <code>Renderable::getRenderOperation</code> and <code>v1::RenderOperation</code>, which indicates a v1 object.</p>
+<p>It is not automatic. Placing a v2 object in a v1 queue or viceversa may result in <a class="el" href="namespace_ogre.html">Ogre</a> raising a helpful exception, or an unhelpful crash (it is hard to track all sources of RQ missmatches); however with a debugger hooked, it can be easy to spot the problem by looking at the routine names (e.g. look at the v2/v1 suffixes) and the mVaoPerLod member being non empty (which indicates a v2 object), or the usage of <code>Renderable::getRenderOperation</code> and <code>v1::RenderOperation</code>, which indicates a v1 object.</p>
 <p>By default queue ID 0 is set to <code>FAST</code> (v2) while ID 1 is set to <code>V1_FAST</code> (v1); and v2 objects will try to default to ID 0 while v1 objects will try to default to ID 1. You can change the render queue modes with the following snippet:</p>
 <div class="fragment"><div class="line">mSceneManager-&gt;getRenderQueue()-&gt;setRenderQueueMode(5,Ogre::RenderQueue::Modes::V1_FAST);</div>
 <div class="line">Entity*entity;</div>
 <div class="line">entity-&gt;setRenderQueueGroup(5);  </div>
-</div><!-- fragment --><p>In this example, it sets the queue ID 5 to <code>V1_FAST</code>, and later adds the entity to that queue. The RenderQueue mode can be changed later (however you will have to move the Entity out of the queue ID into another valid one by yourself, otherwise <a class="el" href="namespace_ogre.html" title="Undefine in &lt;sys/endian.h&gt; defined bswap macros for FreeBSD.">Ogre</a> may crash)</p>
+</div><!-- fragment --><p>In this example, it sets the queue ID 5 to <code>V1_FAST</code>, and later adds the entity to that queue. The RenderQueue mode can be changed later (however you will have to move the Entity out of the queue ID into another valid one by yourself, otherwise <a class="el" href="namespace_ogre.html">Ogre</a> may crash)</p>
 <h1><a class="anchor" id="VaoMaanger"></a>
 The VaoManager</h1>
 <p>It got its name as it was originally developed to handle just <code>VertexArrayObjects</code>; which is a concept borrowed from OpenGL: a vao is an object that stores the vertex attribute definitions and its vertex and index buffer bindings.</p>
@@ -153,7 +153,7 @@ The VaoManager</h1>
 <div id="nav-path" class="navpath"><!-- id is needed for treeview function! -->
   <ul>
     <li class="navelem"><a class="el" href="manual.html">Manual</a></li>
-    <li class="footer">Generated on Sat Apr 11 2020 21:39:48 for OGRE by
+    <li class="footer">Generated by
     <a href="http://www.doxygen.org/index.html">
     <img class="footer" src="doxygen.png" alt="doxygen"/></a> 1.8.17 </li>
   </ul>

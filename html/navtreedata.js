@@ -23,10 +23,12 @@ for the JavaScript code in this file
 var NAVTREE =
 [
   [ "OGRE", "index.html", [
-    [ "API Reference & manual", "index.html", [
-      [ "Versions", "index.html#autotoc_md2", null ],
-      [ "Useful Add-Ons", "index.html#autotoc_md3", null ],
-      [ "License", "index.html#autotoc_md4", null ]
+    [ "API Reference Start Page", "index.html", [
+      [ "Introduction", "index.html#autotoc_md2", [
+        [ "What is this?", "index.html#autotoc_md3", null ],
+        [ "It's so BIG!", "index.html#autotoc_md4", null ],
+        [ "License", "index.html#autotoc_md5", null ]
+      ] ]
     ] ],
     [ "Manual", "manual.html", "manual" ],
     [ "Setting Up Ogre", "_setting_up_ogre.html", "_setting_up_ogre" ],
@@ -333,18 +335,18 @@ var NAVTREEINDEX =
 "group___resources.html#gga7b904fc5463a8ef1e61f6de39b603fc4a061bd3bd94e92d0d31a76b1030d28a8b",
 "namespace_ogre.html",
 "struct_ogre_1_1_build_light_list_request.html#ae71f1afbdfac70a3eb4dae0bc519a89c",
-"struct_ogre_1_1_const_vector_range.html#abbac80afff529edc25267647a0737cca",
-"struct_ogre_1_1_frame_buffer_desc_key.html#a21e634298bfc5da7a8ff414cb87fd4f9",
-"struct_ogre_1_1_hidden_area_vr_settings.html#a80aa7c9981f0fb82d2516ed2a1e1ef24",
-"struct_ogre_1_1_hlms_pso.html#ac96f79679fcfd8557da866abdbe0cbb7",
-"struct_ogre_1_1_lod_input_buffer_1_1_submesh.html#a45430c40a1beecf29b83ea08f06ef88b",
-"struct_ogre_1_1_pbs_mobile_property.html#ae2065f5ea1292c3c6c223ce01a2ee9e8",
+"struct_ogre_1_1_const_vector_range.html#ab43c3edd2f1fe8ce13634ce6fa7af386",
+"struct_ogre_1_1_frame_buffer_desc_key.html#a0d7b01b664598e932ce6f8ae815c209b",
+"struct_ogre_1_1_hidden_area_vr_settings.html#a804e9f115a1c7d5be10fc8e0dfca8226",
+"struct_ogre_1_1_hlms_pso.html#ac604b5d0efc71adb1c8b9d50e7c9c3d5",
+"struct_ogre_1_1_lod_input_buffer_1_1_submesh.html",
+"struct_ogre_1_1_pbs_mobile_property.html#adcb9b6ad6056869f47880cb1a093e8f4",
 "struct_ogre_1_1_ray_scene_query_result_entry.html",
-"struct_ogre_1_1_shadow_node_helper_1_1_resolution.html#a9f23e2f0b3877884e4d1c54b70721806",
-"struct_ogre_1_1_texture_box.html#a809d00c601a80d541f98feb6046740f4",
-"struct_ogre_1_1_update_lod_request.html#a284f5d9b223893111d554206d4908ffe",
+"struct_ogre_1_1_shadow_node_helper_1_1_resolution.html#a807734505a47f62ab483b5c07605a868",
+"struct_ogre_1_1_texture_box.html#a7b4127c17633b98c6957f5362438f726",
+"struct_ogre_1_1_update_lod_request.html#a1d3f5565a1f0cef3c484ac9898121dd6",
 "struct_ogre_1_1_view_point.html#a6a25f94ff18e79c7bf0e275f60494d89",
-"struct_ogre_1_1v1_1_1_linked_skeleton_animation_source.html"
+"struct_ogre_1_1v1_1_1_hardware_buffer_lock_guard.html#abbb10eb66176e02e88c872330e780991"
 ];
 
 var SYNCONMSG = 'click to disable panel synchronisation';

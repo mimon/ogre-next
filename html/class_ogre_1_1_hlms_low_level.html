@@ -94,7 +94,7 @@ $(document).ready(function(){initNavTree('class_ogre_1_1_hlms_low_level.html',''
 </div><!--header-->
 <div class="contents">
 
-<p>This is an HLMS implementation that acts as proxy to use the <a class="el" href="class_ogre_1_1_material.html" title="Class encapsulates rendering properties of an object.">Material</a> system from <a class="el" href="namespace_ogre.html" title="Undefine in &lt;sys/endian.h&gt; defined bswap macros for FreeBSD.">Ogre</a> 1.9 The older material system is data-driven (thanks to <a class="el" href="class_ogre_1_1_auto_param_data_source.html" title="This utility class is used to hold the information used to generate the matrices and other informatio...">AutoParamDataSource</a>) compared to HLMS where the user needs to write its own implementation in C++ (or modify an exisiting one).  
+<p>This is an HLMS implementation that acts as proxy to use the <a class="el" href="class_ogre_1_1_material.html" title="Class encapsulates rendering properties of an object.">Material</a> system from <a class="el" href="namespace_ogre.html">Ogre</a> 1.9 The older material system is data-driven (thanks to <a class="el" href="class_ogre_1_1_auto_param_data_source.html" title="This utility class is used to hold the information used to generate the matrices and other informatio...">AutoParamDataSource</a>) compared to HLMS where the user needs to write its own implementation in C++ (or modify an exisiting one).  
  <a href="class_ogre_1_1_hlms_low_level.html#details">More...</a></p>
 
 <p><code>#include &lt;OgreHlmsLowLevel.h&gt;</code></p>
@@ -295,7 +295,7 @@ Static Public Member Functions</h2></td></tr>
 <tr class="separator:a85c00acdba7c9a0bcab3c6a0a48d587f"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
-<div class="textblock"><p>This is an HLMS implementation that acts as proxy to use the <a class="el" href="class_ogre_1_1_material.html" title="Class encapsulates rendering properties of an object.">Material</a> system from <a class="el" href="namespace_ogre.html" title="Undefine in &lt;sys/endian.h&gt; defined bswap macros for FreeBSD.">Ogre</a> 1.9 The older material system is data-driven (thanks to <a class="el" href="class_ogre_1_1_auto_param_data_source.html" title="This utility class is used to hold the information used to generate the matrices and other informatio...">AutoParamDataSource</a>) compared to HLMS where the user needs to write its own implementation in C++ (or modify an exisiting one). </p>
+<div class="textblock"><p>This is an HLMS implementation that acts as proxy to use the <a class="el" href="class_ogre_1_1_material.html" title="Class encapsulates rendering properties of an object.">Material</a> system from <a class="el" href="namespace_ogre.html">Ogre</a> 1.9 The older material system is data-driven (thanks to <a class="el" href="class_ogre_1_1_auto_param_data_source.html" title="This utility class is used to hold the information used to generate the matrices and other informatio...">AutoParamDataSource</a>) compared to HLMS where the user needs to write its own implementation in C++ (or modify an exisiting one). </p>
 <p>Old material system is still useful for: Quick prototyping of shaders Postprocessing effects. Take in mind that the old system is <b>slow</b> compared to <a class="el" href="class_ogre_1_1_hlms.html" title="HLMS stands for &quot;High Level Material System&quot;.">Hlms</a>. So don't use this proxy for hundreds or more entities. </p><dl class="section remark"><dt>Remarks</dt><dd>Only Materials with programmable shaders are supported. Fixed Function pipeline is not allowed (use the other HLMS types if you need easy to use materials) </dd></dl>
 </div><h2 class="groupheader">Member Typedef Documentation</h2>
 <a id="ab38ae89227591ab06dac2f033300e7c0"></a>
@@ -2735,7 +2735,7 @@ template&lt;class Alloc &gt; </div>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">enableDebugOutput</td><td>Whether to enable or disable dumping the shaders into a folder </td></tr>
-    <tr><td class="paramname">outputProperties</td><td>Whether to dump properties and pieces at the beginning of the shader file. This is very useful for determining what caused <a class="el" href="namespace_ogre.html" title="Undefine in &lt;sys/endian.h&gt; defined bswap macros for FreeBSD.">Ogre</a> to compile a new variation. Note that this setting may not always produce valid shader code in the dumped files (but it we'll still produce valid shader code while at runtime) If you want to compile the dumped file and it is invalid, just strip this info. </td></tr>
+    <tr><td class="paramname">outputProperties</td><td>Whether to dump properties and pieces at the beginning of the shader file. This is very useful for determining what caused <a class="el" href="namespace_ogre.html">Ogre</a> to compile a new variation. Note that this setting may not always produce valid shader code in the dumped files (but it we'll still produce valid shader code while at runtime) If you want to compile the dumped file and it is invalid, just strip this info. </td></tr>
     <tr><td class="paramname">path</td><td>Path location on where to dump it. Should end with slash for proper concatenation (i.e. C:/path/ instead of C:/path; or /home/user/ instead of /home/user) </td></tr>
   </table>
   </dd>
@@ -2834,7 +2834,7 @@ template&lt;class Alloc &gt; </div>
 
 <p>Non-caster directional lights are hardcoded into shaders. </p>
 <p>This means that if you have 6 directional lights and then you add a 7th one, a whole new set of shaders will be created.</p>
-<p>This setting allows you to tremendously reduce the amount of shader permutations by forcing <a class="el" href="namespace_ogre.html" title="Undefine in &lt;sys/endian.h&gt; defined bswap macros for FreeBSD.">Ogre</a> to switching to static branching with an upper limit to the max number of non-shadow-casting directional lights.</p>
+<p>This setting allows you to tremendously reduce the amount of shader permutations by forcing <a class="el" href="namespace_ogre.html">Ogre</a> to switching to static branching with an upper limit to the max number of non-shadow-casting directional lights.</p>
 <p>There is no such switch for shadow-casting directional/point/spot lights because of technical limitations at the GPU level (cannot index shadow map textures in DX11, nor samplers in any known GPU).</p>
 <dl class="section see"><dt>See also</dt><dd><a class="el" href="class_ogre_1_1_hlms.html#aebca7da0789967e8fde70d95fa74ac0c" title="Area lights use regular Forward.">setAreaLightForwardSettings</a> </dd></dl>
 <dl class="params"><dt>Parameters</dt><dd>
@@ -2902,7 +2902,7 @@ template&lt;class Alloc &gt; </div>
 <div id="nav-path" class="navpath"><!-- id is needed for treeview function! -->
   <ul>
     <li class="navelem"><a class="el" href="namespace_ogre.html">Ogre</a></li><li class="navelem"><a class="el" href="class_ogre_1_1_hlms_low_level.html">HlmsLowLevel</a></li>
-    <li class="footer">Generated on Sat Apr 11 2020 21:39:58 for OGRE by
+    <li class="footer">Generated by
     <a href="http://www.doxygen.org/index.html">
     <img class="footer" src="doxygen.png" alt="doxygen"/></a> 1.8.17 </li>
   </ul>

@@ -1,5 +1,6 @@
 var NAVTREEINDEX254 =
 {
+"struct_ogre_1_1_pbs_mobile_property.html#adcb9b6ad6056869f47880cb1a093e8f4":[5,0,0,18,59],
 "struct_ogre_1_1_pbs_mobile_property.html#ae2065f5ea1292c3c6c223ce01a2ee9e8":[5,0,0,18,54],
 "struct_ogre_1_1_pbs_mobile_property.html#ae2ba7073c060b3ec0e687137def86ded":[5,0,0,18,56],
 "struct_ogre_1_1_pbs_mobile_property.html#ae8b81dc5cfebaec48bfb79373378a591":[5,0,0,18,45],
@@ -248,6 +249,5 @@ var NAVTREEINDEX254 =
 "struct_ogre_1_1_r_t_shader_1_1_texture_atlas_sampler_factory_1_1_texture_atlas_attib.html#a1a24c6e85812f150ae289ce0dffaaf63":[5,2,9,59,0,0],
 "struct_ogre_1_1_r_t_shader_1_1_texture_atlas_sampler_factory_1_1_texture_atlas_attib.html#a5bd237571dc9a61833ed41bbddeb2865":[5,2,9,59,0,2],
 "struct_ogre_1_1_r_t_shader_1_1_texture_atlas_sampler_factory_1_1_texture_atlas_attib.html#a7290937b989b0710224b74ec94394649":[5,2,9,59,0,3],
-"struct_ogre_1_1_r_t_shader_1_1_texture_atlas_sampler_factory_1_1_texture_atlas_attib.html#ae7620d37e1ba6369a6b9237e2cbaf88f":[5,2,9,59,0,1],
-"struct_ogre_1_1_ray_scene_query_result_entry.html":[5,0,1,37]
+"struct_ogre_1_1_r_t_shader_1_1_texture_atlas_sampler_factory_1_1_texture_atlas_attib.html#ae7620d37e1ba6369a6b9237e2cbaf88f":[5,2,9,59,0,1]
 };

@@ -174,7 +174,7 @@ Public Member Functions</h2></td></tr>
 <tr class="memdesc:ac053dc17e686c736008552b1a9ec942d"><td class="mdescLeft">&#160;</td><td class="mdescRight"><a class="el" href="class_ogre_1_1_g_l3_plus_support.html#a8954a5a970c650fa6fd97e73f3428ef6" title="Initialises GL extensions, must be done AFTER the GL context has been established.">GL3PlusSupport::initialiseExtensions</a>  <a href="class_ogre_1_1_g_l_x_g_l_support.html#ac053dc17e686c736008552b1a9ec942d">More...</a><br /></td></tr>
 <tr class="separator:ac053dc17e686c736008552b1a9ec942d"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a0446c5a266d0e9d05449a9151477f589"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_ogre_1_1_g_l_x_g_l_support.html#a0446c5a266d0e9d05449a9151477f589">loadIcon</a> (const <a class="el" href="namespace_ogre.html#af73bbdc8bed8a3e6fcd56bb8fa188c45">String</a> &amp;name, Pixmap *pix, Pixmap *mask)</td></tr>
-<tr class="memdesc:a0446c5a266d0e9d05449a9151477f589"><td class="mdescLeft">&#160;</td><td class="mdescRight">Loads an icon from an <a class="el" href="namespace_ogre.html" title="Undefine in &lt;sys/endian.h&gt; defined bswap macros for FreeBSD.">Ogre</a> resource into the X Server.  <a href="class_ogre_1_1_g_l_x_g_l_support.html#a0446c5a266d0e9d05449a9151477f589">More...</a><br /></td></tr>
+<tr class="memdesc:a0446c5a266d0e9d05449a9151477f589"><td class="mdescLeft">&#160;</td><td class="mdescRight">Loads an icon from an <a class="el" href="namespace_ogre.html">Ogre</a> resource into the X Server.  <a href="class_ogre_1_1_g_l_x_g_l_support.html#a0446c5a266d0e9d05449a9151477f589">More...</a><br /></td></tr>
 <tr class="separator:a0446c5a266d0e9d05449a9151477f589"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ae93a8e1862f526707e4e192f688a2095"><td class="memItemLeft" align="right" valign="top"><a class="el" href="class_ogre_1_1_window.html">Window</a> *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_ogre_1_1_g_l_x_g_l_support.html#ae93a8e1862f526707e4e192f688a2095">newWindow</a> (const <a class="el" href="namespace_ogre.html#af73bbdc8bed8a3e6fcd56bb8fa188c45">String</a> &amp;name, <a class="el" href="namespace_ogre.html#adf2a0cf2e77143b5ee1d38a75e289545">uint32</a> width, <a class="el" href="namespace_ogre.html#adf2a0cf2e77143b5ee1d38a75e289545">uint32</a> height, bool fullScreen, const <a class="el" href="group___general.html#gadccb207c184efc0a6fb2a00ab6320d19">NameValuePairList</a> *miscParams=0)</td></tr>
 <tr class="separator:ae93a8e1862f526707e4e192f688a2095"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -503,8 +503,8 @@ Public Attributes</h2></td></tr>
 </div><div class="memdoc">
 
 <p>Get the name of the display and screen used for rendering. </p>
-<p><a class="el" href="namespace_ogre.html" title="Undefine in &lt;sys/endian.h&gt; defined bswap macros for FreeBSD.">Ogre</a> normally opens its own connection to the X server and renders onto the screen where the user logged in</p>
-<p>However, if <a class="el" href="namespace_ogre.html" title="Undefine in &lt;sys/endian.h&gt; defined bswap macros for FreeBSD.">Ogre</a> is passed a current GL context when the first <a class="el" href="class_ogre_1_1_render_target.html" title="A &#39;canvas&#39; which can receive the results of a rendering operation.">RenderTarget</a> is created, then it will connect to the X server using the same connection as that GL context and direct all subsequent rendering to the screen targeted by that GL context.</p>
+<p><a class="el" href="namespace_ogre.html">Ogre</a> normally opens its own connection to the X server and renders onto the screen where the user logged in</p>
+<p>However, if <a class="el" href="namespace_ogre.html">Ogre</a> is passed a current GL context when the first <a class="el" href="class_ogre_1_1_render_target.html" title="A &#39;canvas&#39; which can receive the results of a rendering operation.">RenderTarget</a> is created, then it will connect to the X server using the same connection as that GL context and direct all subsequent rendering to the screen targeted by that GL context.</p>
 <dl class="section return"><dt>Returns</dt><dd><a class="el" href="class_display.html">Display</a> name. </dd></dl>
 
 </div>
@@ -952,8 +952,8 @@ Public Attributes</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
-<p>Loads an icon from an <a class="el" href="namespace_ogre.html" title="Undefine in &lt;sys/endian.h&gt; defined bswap macros for FreeBSD.">Ogre</a> resource into the X Server. </p>
-<p>This currently only works for 24 and 32 bit displays. The image must be findable by the <a class="el" href="namespace_ogre.html" title="Undefine in &lt;sys/endian.h&gt; defined bswap macros for FreeBSD.">Ogre</a> resource system, and of format PF_A8R8G8B8.</p>
+<p>Loads an icon from an <a class="el" href="namespace_ogre.html">Ogre</a> resource into the X Server. </p>
+<p>This currently only works for 24 and 32 bit displays. The image must be findable by the <a class="el" href="namespace_ogre.html">Ogre</a> resource system, and of format PF_A8R8G8B8.</p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">display</td><td>X display </td></tr>
@@ -1367,7 +1367,7 @@ Public Attributes</h2></td></tr>
 <div id="nav-path" class="navpath"><!-- id is needed for treeview function! -->
   <ul>
     <li class="navelem"><a class="el" href="namespace_ogre.html">Ogre</a></li><li class="navelem"><a class="el" href="class_ogre_1_1_g_l_x_g_l_support.html">GLXGLSupport</a></li>
-    <li class="footer">Generated on Sat Apr 11 2020 21:39:57 for OGRE by
+    <li class="footer">Generated by
     <a href="http://www.doxygen.org/index.html">
     <img class="footer" src="doxygen.png" alt="doxygen"/></a> 1.8.17 </li>
   </ul>

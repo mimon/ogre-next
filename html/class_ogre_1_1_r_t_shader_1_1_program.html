@@ -148,7 +148,7 @@ Public Member Functions</h2></td></tr>
 <tr class="memdesc:a8681d83df819eb590cf0cf110c78307f"><td class="mdescLeft">&#160;</td><td class="mdescRight">Get the type of this program.  <a href="class_ogre_1_1_r_t_shader_1_1_program.html#a8681d83df819eb590cf0cf110c78307f">More...</a><br /></td></tr>
 <tr class="separator:a8681d83df819eb590cf0cf110c78307f"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:af543d4c8b9ec5dae89542310277f7435"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_ogre_1_1_r_t_shader_1_1_program.html#af543d4c8b9ec5dae89542310277f7435">getUseColumnMajorMatrices</a> () const</td></tr>
-<tr class="memdesc:af543d4c8b9ec5dae89542310277f7435"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns whether <a class="el" href="namespace_ogre.html" title="Undefine in &lt;sys/endian.h&gt; defined bswap macros for FreeBSD.">Ogre</a> will pass auto-bound matrices as column-major.  <a href="class_ogre_1_1_r_t_shader_1_1_program.html#af543d4c8b9ec5dae89542310277f7435">More...</a><br /></td></tr>
+<tr class="memdesc:af543d4c8b9ec5dae89542310277f7435"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns whether <a class="el" href="namespace_ogre.html">Ogre</a> will pass auto-bound matrices as column-major.  <a href="class_ogre_1_1_r_t_shader_1_1_program.html#af543d4c8b9ec5dae89542310277f7435">More...</a><br /></td></tr>
 <tr class="separator:af543d4c8b9ec5dae89542310277f7435"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a8357fe4fb4849772b94baa4bf47c7ded"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_ogre_1_1_allocated_object.html#a8357fe4fb4849772b94baa4bf47c7ded">operator delete</a> (void *ptr)</td></tr>
 <tr class="separator:a8357fe4fb4849772b94baa4bf47c7ded"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -195,7 +195,7 @@ Public Member Functions</h2></td></tr>
 <tr class="memdesc:a24f1c39c59041fb580260cd1a778c9eb"><td class="mdescLeft">&#160;</td><td class="mdescRight">Sets whether a vertex program includes the required instructions to perform skeletal animation.  <a href="class_ogre_1_1_r_t_shader_1_1_program.html#a24f1c39c59041fb580260cd1a778c9eb">More...</a><br /></td></tr>
 <tr class="separator:a24f1c39c59041fb580260cd1a778c9eb"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:acd2c0fc868dc2daebeeea68845fb13df"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_ogre_1_1_r_t_shader_1_1_program.html#acd2c0fc868dc2daebeeea68845fb13df">setUseColumnMajorMatrices</a> (bool value)</td></tr>
-<tr class="memdesc:acd2c0fc868dc2daebeeea68845fb13df"><td class="mdescLeft">&#160;</td><td class="mdescRight">Tells <a class="el" href="namespace_ogre.html" title="Undefine in &lt;sys/endian.h&gt; defined bswap macros for FreeBSD.">Ogre</a> whether auto-bound matrices should be sent in column or row-major order.  <a href="class_ogre_1_1_r_t_shader_1_1_program.html#acd2c0fc868dc2daebeeea68845fb13df">More...</a><br /></td></tr>
+<tr class="memdesc:acd2c0fc868dc2daebeeea68845fb13df"><td class="mdescLeft">&#160;</td><td class="mdescRight">Tells <a class="el" href="namespace_ogre.html">Ogre</a> whether auto-bound matrices should be sent in column or row-major order.  <a href="class_ogre_1_1_r_t_shader_1_1_program.html#acd2c0fc868dc2daebeeea68845fb13df">More...</a><br /></td></tr>
 <tr class="separator:acd2c0fc868dc2daebeeea68845fb13df"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="friends"></a>
@@ -586,7 +586,7 @@ Friends</h2></td></tr>
 </table>
 </div><div class="memdoc">
 
-<p>Returns whether <a class="el" href="namespace_ogre.html" title="Undefine in &lt;sys/endian.h&gt; defined bswap macros for FreeBSD.">Ogre</a> will pass auto-bound matrices as column-major. </p>
+<p>Returns whether <a class="el" href="namespace_ogre.html">Ogre</a> will pass auto-bound matrices as column-major. </p>
 <dl class="section return"><dt>Returns</dt><dd>true, when the matrices will be passed in column-major order, false, when they will be passed as row-major. </dd></dl>
 
 </div>
@@ -1328,13 +1328,13 @@ template&lt;class Alloc &gt; </div>
 </table>
 </div><div class="memdoc">
 
-<p>Tells <a class="el" href="namespace_ogre.html" title="Undefine in &lt;sys/endian.h&gt; defined bswap macros for FreeBSD.">Ogre</a> whether auto-bound matrices should be sent in column or row-major order. </p>
+<p>Tells <a class="el" href="namespace_ogre.html">Ogre</a> whether auto-bound matrices should be sent in column or row-major order. </p>
 <dl class="section remark"><dt>Remarks</dt><dd>This method has the same effect as column_major_matrices option used when declaring manually written hlsl program. You want to use this method only when you use float3x4 type in a shader, e.g. for bone matrices. In mentioned case you should call this method with false as parameter. </dd></dl>
 <dl class="section user"><dt></dt><dd>For more detail see OGRE Manual, section <b>3.1.6 DirectX9 HLSL</b>. </dd></dl>
 <dl class="section note"><dt>Note</dt><dd>This setting has any effect only when the target language is HLSL. </dd></dl>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">value</td><td>Should <a class="el" href="namespace_ogre.html" title="Undefine in &lt;sys/endian.h&gt; defined bswap macros for FreeBSD.">Ogre</a> pass auto-bound matrices as column-major? The default is true. </td></tr>
+    <tr><td class="paramname">value</td><td>Should <a class="el" href="namespace_ogre.html">Ogre</a> pass auto-bound matrices as column-major? The default is true. </td></tr>
   </table>
   </dd>
 </dl>
@@ -1373,7 +1373,7 @@ template&lt;class Alloc &gt; </div>
 <div id="nav-path" class="navpath"><!-- id is needed for treeview function! -->
   <ul>
     <li class="navelem"><a class="el" href="namespace_ogre.html">Ogre</a></li><li class="navelem"><a class="el" href="namespace_ogre_1_1_r_t_shader.html">RTShader</a></li><li class="navelem"><a class="el" href="class_ogre_1_1_r_t_shader_1_1_program.html">Program</a></li>
-    <li class="footer">Generated on Sat Apr 11 2020 21:40:12 for OGRE by
+    <li class="footer">Generated by
     <a href="http://www.doxygen.org/index.html">
     <img class="footer" src="doxygen.png" alt="doxygen"/></a> 1.8.17 </li>
   </ul>

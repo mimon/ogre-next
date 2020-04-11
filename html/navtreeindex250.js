@@ -1,5 +1,6 @@
 var NAVTREEINDEX250 =
 {
+"struct_ogre_1_1_frame_buffer_desc_key.html#a0d7b01b664598e932ce6f8ae815c209b":[5,2,11,41,5],
 "struct_ogre_1_1_frame_buffer_desc_key.html#a21e634298bfc5da7a8ff414cb87fd4f9":[5,2,11,41,0],
 "struct_ogre_1_1_frame_buffer_desc_key.html#a4514559679744c1cb0aaba2184437347":[5,2,11,41,3],
 "struct_ogre_1_1_frame_buffer_desc_key.html#a54e5df4e7b1115228d4c742f6e546184":[5,2,11,41,2],
@@ -248,6 +249,5 @@ var NAVTREEINDEX250 =
 "struct_ogre_1_1_gpu_tracked_resource.html":[5,2,11,51],
 "struct_ogre_1_1_hidden_area_vr_settings.html":[5,2,11,53],
 "struct_ogre_1_1_hidden_area_vr_settings.html#a1b5d29787fec37261fc1ad1a98b49324":[5,2,11,53,4],
-"struct_ogre_1_1_hidden_area_vr_settings.html#a61eb37968fd8752cef5be018173a7ab6":[5,2,11,53,0],
-"struct_ogre_1_1_hidden_area_vr_settings.html#a804e9f115a1c7d5be10fc8e0dfca8226":[5,2,11,53,8]
+"struct_ogre_1_1_hidden_area_vr_settings.html#a61eb37968fd8752cef5be018173a7ab6":[5,2,11,53,0]
 };

@@ -553,7 +553,7 @@ var searchData=
   ['axisalignedboxscenequery_1343',['AxisAlignedBoxSceneQuery',['../class_ogre_1_1_axis_aligned_box_scene_query.html',1,'Ogre::AxisAlignedBoxSceneQuery'],['../class_ogre_1_1_axis_aligned_box_scene_query.html#ae61b5e8ce50437c582e078bc327b7473',1,'Ogre::AxisAlignedBoxSceneQuery::AxisAlignedBoxSceneQuery()']]],
   ['azdo_20changes_20_28aproaching_20zero_20driver_20overhead_29_1344',['AZDO changes (Aproaching Zero Driver Overhead)',['../azdo.html',1,'manual']]],
   ['azdo_2emd_1345',['azdo.md',['../azdo_8md.html',1,'']]],
-  ['api_20reference_20_26_20manual_1346',['API Reference &amp; manual',['../index.html',1,'']]],
+  ['api_20reference_20start_20page_1346',['API Reference Start Page',['../index.html',1,'']]],
   ['ogreconfigdialogimp_2eh_1347',['OgreConfigDialogImp.h',['../_android_2_ogre_config_dialog_imp_8h.html',1,'']]],
   ['ogreerrordialogimp_2eh_1348',['OgreErrorDialogImp.h',['../_android_2_ogre_error_dialog_imp_8h.html',1,'']]],
   ['ogretagpoint_2eh_1349',['OgreTagPoint.h',['../_animation_2_ogre_tag_point_8h.html',1,'']]],

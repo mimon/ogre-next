@@ -321,7 +321,7 @@ Static Public Member Functions</h2></td></tr>
 <tr class="memdesc:a5a35308e7576982c9960367008ee361c"><td class="mdescLeft">&#160;</td><td class="mdescRight">Calculate the number of loading stages required for a given level.  <a href="class_ogre_1_1_bsp_level.html#a5a35308e7576982c9960367008ee361c">More...</a><br /></td></tr>
 <tr class="separator:a5a35308e7576982c9960367008ee361c"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a1bea65fa2b3c2ac5a9f3be59b46a80e8"><td class="memItemLeft" align="right" valign="top">static void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_ogre_1_1_string_interface.html#a1bea65fa2b3c2ac5a9f3be59b46a80e8">cleanupDictionary</a> ()</td></tr>
-<tr class="memdesc:a1bea65fa2b3c2ac5a9f3be59b46a80e8"><td class="mdescLeft">&#160;</td><td class="mdescRight">Cleans up the static 'msDictionary' required to reset <a class="el" href="namespace_ogre.html" title="Undefine in &lt;sys/endian.h&gt; defined bswap macros for FreeBSD.">Ogre</a>, otherwise the containers are left with invalid pointers, which will lead to a crash as soon as one of the <a class="el" href="class_ogre_1_1_resource_manager.html" title="Defines a generic resource handler.">ResourceManager</a> implementers (e.g.  <a href="class_ogre_1_1_string_interface.html#a1bea65fa2b3c2ac5a9f3be59b46a80e8">More...</a><br /></td></tr>
+<tr class="memdesc:a1bea65fa2b3c2ac5a9f3be59b46a80e8"><td class="mdescLeft">&#160;</td><td class="mdescRight">Cleans up the static 'msDictionary' required to reset <a class="el" href="namespace_ogre.html">Ogre</a>, otherwise the containers are left with invalid pointers, which will lead to a crash as soon as one of the <a class="el" href="class_ogre_1_1_resource_manager.html" title="Defines a generic resource handler.">ResourceManager</a> implementers (e.g.  <a href="class_ogre_1_1_string_interface.html#a1bea65fa2b3c2ac5a9f3be59b46a80e8">More...</a><br /></td></tr>
 <tr class="separator:a1bea65fa2b3c2ac5a9f3be59b46a80e8"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="pub-attribs"></a>
@@ -336,7 +336,7 @@ Friends</h2></td></tr>
 </table>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
 <div class="textblock"><p>Holds all the data associated with a Binary Space Parition (BSP) based indoor level. </p>
-<p>The data used here is populated by loading level files via the BspLevelManager::load method, although application users are more likely to call <a class="el" href="class_ogre_1_1_scene_manager.html#accb0fdfbd1f61aa4d3d6e1f4625e1f9c" title="Sets the source of the &#39;world&#39; geometry, i.e.">SceneManager::setWorldGeometry</a> which will automatically arrange the loading of the level. Note that this assumes that you have asked for an indoor-specialised <a class="el" href="class_ogre_1_1_scene_manager.html" title="Manages the organisation and rendering of a &#39;scene&#39; i.e.">SceneManager</a> (specify ST_INDOOR when calling <a class="el" href="class_ogre_1_1_root.html#a935897d5b82cc2eedcf0f71109bc810f" title="Get an existing SceneManager instance that has already been created, identified by the instance name.">Root::getSceneManager</a>). <a class="el" href="namespace_ogre.html" title="Undefine in &lt;sys/endian.h&gt; defined bswap macros for FreeBSD.">Ogre</a> currently only supports loading from Quake3 Arena level files, although any source that can be converted into this classes structure could also be used. The Quake3 level load process is in a different class called <a class="el" href="class_ogre_1_1_quake3_level.html" title="Support for loading and extracting data from a Quake3 level file.">Quake3Level</a> to keep the specifics separate. </p>
+<p>The data used here is populated by loading level files via the BspLevelManager::load method, although application users are more likely to call <a class="el" href="class_ogre_1_1_scene_manager.html#accb0fdfbd1f61aa4d3d6e1f4625e1f9c" title="Sets the source of the &#39;world&#39; geometry, i.e.">SceneManager::setWorldGeometry</a> which will automatically arrange the loading of the level. Note that this assumes that you have asked for an indoor-specialised <a class="el" href="class_ogre_1_1_scene_manager.html" title="Manages the organisation and rendering of a &#39;scene&#39; i.e.">SceneManager</a> (specify ST_INDOOR when calling <a class="el" href="class_ogre_1_1_root.html#a935897d5b82cc2eedcf0f71109bc810f" title="Get an existing SceneManager instance that has already been created, identified by the instance name.">Root::getSceneManager</a>). <a class="el" href="namespace_ogre.html">Ogre</a> currently only supports loading from Quake3 Arena level files, although any source that can be converted into this classes structure could also be used. The Quake3 level load process is in a different class called <a class="el" href="class_ogre_1_1_quake3_level.html" title="Support for loading and extracting data from a Quake3 level file.">Quake3Level</a> to keep the specifics separate. </p>
 </div><h2 class="groupheader">Member Enumeration Documentation</h2>
 <a id="a1aa750a4b994f2b1066220936cdfdb94"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#a1aa750a4b994f2b1066220936cdfdb94">&#9670;&nbsp;</a></span>LoadingFlags</h2>
@@ -539,7 +539,7 @@ Friends</h2></td></tr>
 </div><div class="memdoc">
 
 <p>Firing of loading complete event. </p>
-<dl class="section remark"><dt>Remarks</dt><dd>You should call this from the thread that runs the main frame loop to avoid having to make the receivers of this event thread-safe. If you use <a class="el" href="namespace_ogre.html" title="Undefine in &lt;sys/endian.h&gt; defined bswap macros for FreeBSD.">Ogre</a>'s built in frame loop you don't need to call this yourself. </dd></dl>
+<dl class="section remark"><dt>Remarks</dt><dd>You should call this from the thread that runs the main frame loop to avoid having to make the receivers of this event thread-safe. If you use <a class="el" href="namespace_ogre.html">Ogre</a>'s built in frame loop you don't need to call this yourself. </dd></dl>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">wasBackgroundLoaded</td><td>Whether this was a background loaded event </td></tr>
@@ -574,7 +574,7 @@ Friends</h2></td></tr>
 </div><div class="memdoc">
 
 <p>Firing of preparing complete event. </p>
-<dl class="section remark"><dt>Remarks</dt><dd>You should call this from the thread that runs the main frame loop to avoid having to make the receivers of this event thread-safe. If you use <a class="el" href="namespace_ogre.html" title="Undefine in &lt;sys/endian.h&gt; defined bswap macros for FreeBSD.">Ogre</a>'s built in frame loop you don't need to call this yourself. </dd></dl>
+<dl class="section remark"><dt>Remarks</dt><dd>You should call this from the thread that runs the main frame loop to avoid having to make the receivers of this event thread-safe. If you use <a class="el" href="namespace_ogre.html">Ogre</a>'s built in frame loop you don't need to call this yourself. </dd></dl>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">wasBackgroundLoaded</td><td>Whether this was a background loaded event </td></tr>
@@ -609,7 +609,7 @@ Friends</h2></td></tr>
 </div><div class="memdoc">
 
 <p>Firing of unloading complete event. </p>
-<dl class="section remark"><dt>Remarks</dt><dd>You should call this from the thread that runs the main frame loop to avoid having to make the receivers of this event thread-safe. If you use <a class="el" href="namespace_ogre.html" title="Undefine in &lt;sys/endian.h&gt; defined bswap macros for FreeBSD.">Ogre</a>'s built in frame loop you don't need to call this yourself. </dd></dl>
+<dl class="section remark"><dt>Remarks</dt><dd>You should call this from the thread that runs the main frame loop to avoid having to make the receivers of this event thread-safe. If you use <a class="el" href="namespace_ogre.html">Ogre</a>'s built in frame loop you don't need to call this yourself. </dd></dl>
 
 </div>
 </div>
@@ -836,7 +836,7 @@ Friends</h2></td></tr>
 </table>
 </div><div class="memdoc">
 
-<p>Cleans up the static 'msDictionary' required to reset <a class="el" href="namespace_ogre.html" title="Undefine in &lt;sys/endian.h&gt; defined bswap macros for FreeBSD.">Ogre</a>, otherwise the containers are left with invalid pointers, which will lead to a crash as soon as one of the <a class="el" href="class_ogre_1_1_resource_manager.html" title="Defines a generic resource handler.">ResourceManager</a> implementers (e.g. </p>
+<p>Cleans up the static 'msDictionary' required to reset <a class="el" href="namespace_ogre.html">Ogre</a>, otherwise the containers are left with invalid pointers, which will lead to a crash as soon as one of the <a class="el" href="class_ogre_1_1_resource_manager.html" title="Defines a generic resource handler.">ResourceManager</a> implementers (e.g. </p>
 <p><a class="el" href="class_ogre_1_1_material_manager.html" title="Class for managing Material settings for Ogre.">MaterialManager</a>) initializes. </p>
 
 </div>
@@ -1429,7 +1429,7 @@ Friends</h2></td></tr>
 </div><div class="memdoc">
 
 <p>Returns whether this <a class="el" href="class_ogre_1_1_resource.html" title="Abstract class representing a loadable resource (e.g.">Resource</a> has been earmarked for background loading. </p>
-<dl class="section remark"><dt>Remarks</dt><dd>This option only makes sense when you have built <a class="el" href="namespace_ogre.html" title="Undefine in &lt;sys/endian.h&gt; defined bswap macros for FreeBSD.">Ogre</a> with thread support (OGRE_THREAD_SUPPORT). If a resource has been marked for background loading, then it won't load on demand like normal when <a class="el" href="class_ogre_1_1_bsp_level.html#a248e690ac0db1c4cd05cec3a4ed6c835" title="Load direct from stream.">load()</a> is called. Instead, it will ignore request to <a class="el" href="class_ogre_1_1_bsp_level.html#a248e690ac0db1c4cd05cec3a4ed6c835" title="Load direct from stream.">load()</a> except if the caller indicates it is the background loader. <a class="el" href="class_ogre_1_1_any.html" title="Variant type that can hold Any other type.">Any</a> other users of this resource should check <a class="el" href="class_ogre_1_1_resource.html#a74138c0203835513613af73cdb08890d" title="Returns true if the Resource has been loaded, false otherwise.">isLoaded()</a>, and if that returns false, don't use the resource and come back later. </dd></dl>
+<dl class="section remark"><dt>Remarks</dt><dd>This option only makes sense when you have built <a class="el" href="namespace_ogre.html">Ogre</a> with thread support (OGRE_THREAD_SUPPORT). If a resource has been marked for background loading, then it won't load on demand like normal when <a class="el" href="class_ogre_1_1_bsp_level.html#a248e690ac0db1c4cd05cec3a4ed6c835" title="Load direct from stream.">load()</a> is called. Instead, it will ignore request to <a class="el" href="class_ogre_1_1_bsp_level.html#a248e690ac0db1c4cd05cec3a4ed6c835" title="Load direct from stream.">load()</a> except if the caller indicates it is the background loader. <a class="el" href="class_ogre_1_1_any.html" title="Variant type that can hold Any other type.">Any</a> other users of this resource should check <a class="el" href="class_ogre_1_1_resource.html#a74138c0203835513613af73cdb08890d" title="Returns true if the Resource has been loaded, false otherwise.">isLoaded()</a>, and if that returns false, don't use the resource and come back later. </dd></dl>
 
 <p>Reimplemented in <a class="el" href="class_ogre_1_1_unified_high_level_gpu_program.html#a43c95218aea772dc8ff85b2dd65b8b26">Ogre::UnifiedHighLevelGpuProgram</a>.</p>
 
@@ -2474,7 +2474,7 @@ template&lt;class Alloc &gt; </div>
 <div id="nav-path" class="navpath"><!-- id is needed for treeview function! -->
   <ul>
     <li class="navelem"><a class="el" href="namespace_ogre.html">Ogre</a></li><li class="navelem"><a class="el" href="class_ogre_1_1_bsp_level.html">BspLevel</a></li>
-    <li class="footer">Generated on Sat Apr 11 2020 21:39:50 for OGRE by
+    <li class="footer">Generated by
     <a href="http://www.doxygen.org/index.html">
     <img class="footer" src="doxygen.png" alt="doxygen"/></a> 1.8.17 </li>
   </ul>

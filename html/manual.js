@@ -200,35 +200,35 @@ var manual =
       [ "Post-processing the command buffer", "commandbuffer.html#CommandBufferPostProcessing", null ]
     ] ],
     [ "What's new in Ogre 2.2", "_ogre22_changes.html", [
-      [ "Load Store semantics", "_ogre22_changes.html#autotoc_md8", [
-        [ "Now that we’ve explained how TBDRs work, we can explain load and store actions", "_ogre22_changes.html#autotoc_md9", null ]
+      [ "Load Store semantics", "_ogre22_changes.html#autotoc_md9", [
+        [ "Now that we’ve explained how TBDRs work, we can explain load and store actions", "_ogre22_changes.html#autotoc_md10", null ]
       ] ],
-      [ "More control over MSAA", "_ogre22_changes.html#autotoc_md10", null ],
-      [ "Porting to Ogre 2.2 from 2.1", "_ogre22_changes.html#autotoc_md11", [
-        [ "PixelFormats", "_ogre22_changes.html#autotoc_md12", [
-          [ "Common pixel format equivalencies", "_ogre22_changes.html#autotoc_md13", null ]
+      [ "More control over MSAA", "_ogre22_changes.html#autotoc_md11", null ],
+      [ "Porting to Ogre 2.2 from 2.1", "_ogre22_changes.html#autotoc_md12", [
+        [ "PixelFormats", "_ogre22_changes.html#autotoc_md13", [
+          [ "Common pixel format equivalencies", "_ogre22_changes.html#autotoc_md14", null ]
         ] ],
-        [ "Useful code snippets", "_ogre22_changes.html#autotoc_md14", [
-          [ "Create a TextureGpu based on a file", "_ogre22_changes.html#autotoc_md15", null ],
-          [ "Create a TextureGpu based that you manually fill", "_ogre22_changes.html#autotoc_md16", null ],
-          [ "Uploading data to a TextureGpu", "_ogre22_changes.html#autotoc_md17", null ],
-          [ "Upload streaming", "_ogre22_changes.html#autotoc_md18", null ],
-          [ "Downloading data from TextureGpu into CPU", "_ogre22_changes.html#autotoc_md19", null ],
-          [ "Downloading streaming", "_ogre22_changes.html#autotoc_md20", null ]
+        [ "Useful code snippets", "_ogre22_changes.html#autotoc_md15", [
+          [ "Create a TextureGpu based on a file", "_ogre22_changes.html#autotoc_md16", null ],
+          [ "Create a TextureGpu based that you manually fill", "_ogre22_changes.html#autotoc_md17", null ],
+          [ "Uploading data to a TextureGpu", "_ogre22_changes.html#autotoc_md18", null ],
+          [ "Upload streaming", "_ogre22_changes.html#autotoc_md19", null ],
+          [ "Downloading data from TextureGpu into CPU", "_ogre22_changes.html#autotoc_md20", null ],
+          [ "Downloading streaming", "_ogre22_changes.html#autotoc_md21", null ]
         ] ]
       ] ],
-      [ "Difference between depth, numSlices and depthOrSlices", "_ogre22_changes.html#autotoc_md21", null ],
-      [ "Memory layout of textures and images", "_ogre22_changes.html#autotoc_md22", null ],
-      [ "Troubleshooting errors", "_ogre22_changes.html#autotoc_md23", null ],
-      [ "RenderPassDescriptors", "_ogre22_changes.html#autotoc_md24", null ],
-      [ "DescriptorSetTexture & co.", "_ogre22_changes.html#autotoc_md25", null ],
-      [ "Does 2.2 interoperate well with the HLMS texture arrays?", "_ogre22_changes.html#autotoc_md26", null ],
-      [ "Hlms porting", "_ogre22_changes.html#autotoc_md27", null ],
-      [ "Things to watch out when porting", "_ogre22_changes.html#autotoc_md28", null ]
+      [ "Difference between depth, numSlices and depthOrSlices", "_ogre22_changes.html#autotoc_md22", null ],
+      [ "Memory layout of textures and images", "_ogre22_changes.html#autotoc_md23", null ],
+      [ "Troubleshooting errors", "_ogre22_changes.html#autotoc_md24", null ],
+      [ "RenderPassDescriptors", "_ogre22_changes.html#autotoc_md25", null ],
+      [ "DescriptorSetTexture & co.", "_ogre22_changes.html#autotoc_md26", null ],
+      [ "Does 2.2 interoperate well with the HLMS texture arrays?", "_ogre22_changes.html#autotoc_md27", null ],
+      [ "Hlms porting", "_ogre22_changes.html#autotoc_md28", null ],
+      [ "Things to watch out when porting", "_ogre22_changes.html#autotoc_md29", null ]
     ] ],
     [ "Behavor of StagingTexture in D3D11", "_behavor_staging_texture_d3_d11.html", [
-      [ "Attempting to be contiguous", "_behavor_staging_texture_d3_d11.html#autotoc_md5", null ],
-      [ "Slicing in 3", "_behavor_staging_texture_d3_d11.html#autotoc_md6", null ],
-      [ "Slicing in the middle", "_behavor_staging_texture_d3_d11.html#autotoc_md7", null ]
+      [ "Attempting to be contiguous", "_behavor_staging_texture_d3_d11.html#autotoc_md6", null ],
+      [ "Slicing in 3", "_behavor_staging_texture_d3_d11.html#autotoc_md7", null ],
+      [ "Slicing in the middle", "_behavor_staging_texture_d3_d11.html#autotoc_md8", null ]
     ] ]
 ];
