@@ -1,4 +1,4 @@
 var searchData=
 [
-  ['general_35115',['General',['../group___general.html',1,'']]]
+  ['effects_35177',['Effects',['../group___effects.html',1,'']]]
 ];
