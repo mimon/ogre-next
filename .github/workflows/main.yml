@@ -31,7 +31,6 @@ jobs:
         uses: mattnotmitt/doxygen-action@v1
         with:
           doxyfile-path: './Doxyfile'
-          working-dir: '/home/runner/work/ogre-next/ogre-next'
 
       - name: Publish
         # if: github.ref == 'master'
