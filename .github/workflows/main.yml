@@ -8,6 +8,9 @@ on:
   pull_request:
     branches: '*'
 
+env:
+  INPUT: "Components Docs/src/SettingUpOgre/SettingUpOgre.md Docs/src/SettingUpOgre/SettingUpOgreLinux.md Docs/src/SettingUpOgre/SettingUpOgreWindows.md Docs/src/SettingUpOgre/SettingUpOgre_iOS.md Docs/src/SettingUpOgre/SettingUpOgre_macOS.md Docs/src/UsingOgre/UsingOgreInYourApp.md Docs/src/apimainpage.md Docs/src/manual/BehaviorOfStagingTexturesD3D11.md Docs/src/manual/Ogre2.2.Changes.md Docs/src/manual/azdo.md Docs/src/manual/changes.md Docs/src/manual/commandbuffer.md Docs/src/manual/compositor.md Docs/src/manual/hlms.md Docs/src/manual/instancing.md Docs/src/manual/manual.md Docs/src/manual/performance.md Docs/src/manual/tech.md Docs/src/manual/threading.md OgreMain PlugIns RenderSystems"
+
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
   # This workflow contains a single job called "build"
@@ -18,82 +21,6 @@ jobs:
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
       - uses: actions/checkout@v1
-
-      # Generate the Doxyfile with CMake
-      # Turn off all features as we don't need them for docs
-      - name: Build Doxyfile
-        run: cmake -D OGRE_BUILD_COMPONENT_HLMS_PBS:BOOL=OFF \
-              -D OGRE_BUILD_COMPONENT_HLMS_PBS_MOBILE:BOOL=OFF \
-              -D OGRE_BUILD_COMPONENT_HLMS_UNLIT:BOOL=OFF \
-              -D OGRE_BUILD_COMPONENT_HLMS_UNLIT_MOBILE:BOOL=OFF \
-              -D OGRE_BUILD_COMPONENT_MESHLODGENERATOR:BOOL=OFF \
-              -D OGRE_BUILD_COMPONENT_OVERLAY:BOOL=OFF \
-              -D OGRE_BUILD_COMPONENT_PAGING:BOOL=OFF \
-              -D OGRE_BUILD_COMPONENT_PLANAR_REFLECTIONS:BOOL=OFF \
-              -D OGRE_BUILD_COMPONENT_PROPERTY:BOOL=OFF \
-              -D OGRE_BUILD_COMPONENT_RTSHADERSYSTEM:BOOL=OFF \
-              -D OGRE_BUILD_COMPONENT_SCENE_FORMAT:BOOL=OFF \
-              -D OGRE_BUILD_COMPONENT_TERRAIN:BOOL=OFF \
-              -D OGRE_BUILD_COMPONENT_VOLUME:BOOL=OFF \
-              -D OGRE_BUILD_LIBS_AS_FRAMEWORKS:BOOL=OFF \
-              -D OGRE_BUILD_PLATFORM_APPLE_IOS:BOOL=OFF \
-              -D OGRE_BUILD_PLATFORM_NACL:BOOL=OFF \
-              -D OGRE_BUILD_PLUGIN_CG:BOOL=OFF \
-              -D OGRE_BUILD_PLUGIN_PFX:BOOL=OFF \
-              -D OGRE_BUILD_RENDERSYSTEM_GL3PLUS:BOOL=OFF \
-              -D OGRE_BUILD_RENDERSYSTEM_GLES2:BOOL=OFF \
-              -D OGRE_BUILD_RENDERSYSTEM_METAL:BOOL=OFF \
-              -D OGRE_BUILD_SAMPLES2:BOOL=OFF \
-              -D OGRE_BUILD_SAMPLES_AS_BUNDLES:BOOL=OFF \
-              -D OGRE_BUILD_TESTS:BOOL=OFF \
-              -D OGRE_BUILD_TOOLS:BOOL=OFF \
-              -D OGRE_CONFIG_ALLOCATOR:STRING=1 \
-              -D OGRE_CONFIG_CONTAINERS_USE_CUSTOM_ALLOCATOR:BOOL=OFF \
-              -D OGRE_CONFIG_DOUBLE:BOOL=OFF \
-              -D OGRE_CONFIG_ENABLE_ASTC:BOOL=OFF \
-              -D OGRE_CONFIG_ENABLE_DDS:BOOL=OFF \
-              -D OGRE_CONFIG_ENABLE_ETC:BOOL=OFF \
-              -D OGRE_CONFIG_ENABLE_FINE_LIGHT_MASK_GRANULARITY:BOOL=OFF \
-              -D OGRE_CONFIG_ENABLE_FREEIMAGE:BOOL=OFF \
-              -D OGRE_CONFIG_ENABLE_GL_STATE_CACHE_SUPPORT:BOOL=OFF \
-              -D OGRE_CONFIG_ENABLE_JSON:BOOL=OFF \
-              -D OGRE_CONFIG_ENABLE_LIGHT_OBB_RESTRAINT:BOOL=OFF \
-              -D OGRE_CONFIG_ENABLE_MESHLOD:BOOL=OFF \
-              -D OGRE_CONFIG_ENABLE_PVRTC:BOOL=OFF \
-              -D OGRE_CONFIG_ENABLE_QUAD_BUFFER_STEREO:BOOL=OFF \
-              -D OGRE_CONFIG_ENABLE_STBI:BOOL=OFF \
-              -D OGRE_CONFIG_ENABLE_TBB_SCHEDULER:BOOL=OFF \
-              -D OGRE_CONFIG_ENABLE_VIEWPORT_ORIENTATIONMODE:BOOL=OFF \
-              -D OGRE_CONFIG_ENABLE_ZIP:BOOL=OFF \
-              -D OGRE_CONFIG_MEMTRACK_DEBUG:BOOL=OFF \
-              -D OGRE_CONFIG_MEMTRACK_RELEASE:BOOL=OFF \
-              -D OGRE_CONFIG_NODE_INHERIT_TRANSFORM:BOOL=OFF \
-              -D OGRE_CONFIG_STRING_USE_CUSTOM_ALLOCATOR:BOOL=OFF \
-              -D OGRE_CONFIG_THREADS:STRING=0 \
-              -D OGRE_CONFIG_THREAD_PROVIDER:STRING=none \
-              -D OGRE_COPY_DEPENDENCIES:BOOL=OFF \
-              -D OGRE_DEBUG_LEVEL_DEBUG:STRING=3 \
-              -D OGRE_DEBUG_LEVEL_RELEASE:STRING=0 \
-              -D OGRE_DEPENDENCIES_DIR:PATH= \
-              -D OGRE_FULL_RPATH:BOOL=OFF \
-              -D OGRE_IDSTRING_ALWAYS_READABLE:BOOL=OFF \
-              -D OGRE_INSTALL_DEPENDENCIES:BOOL=OFF \
-              -D OGRE_INSTALL_DOCS:BOOL=OFF \
-              -D OGRE_INSTALL_SAMPLES:BOOL=OFF \
-              -D OGRE_INSTALL_SAMPLES_SOURCE:BOOL=OFF \
-              -D OGRE_INSTALL_TOOLS:BOOL=OFF \
-              -D OGRE_LEGACY_ANIMATIONS:BOOL=OFF \
-              -D OGRE_LIB_DIRECTORY:STRING=lib \
-              -D OGRE_PLUGIN_LIB_PREFIX:STRING= \
-              -D OGRE_PROFILING_EXHAUSTIVE:BOOL=OFF \
-              -D OGRE_PROFILING_PROVIDER:STRING=none \
-              -D OGRE_RESTRICT_ALIASING:BOOL=OFF \
-              -D OGRE_SIMD_NEON:BOOL=OFF \
-              -D OGRE_SIMD_SSE2:BOOL=OFF \
-              -D OGRE_STATIC:BOOL=OFF \
-              -D OGRE_UNITY_BUILD:BOOL=OFF \
-              -D OGRE_UNITY_FILES_PER_UNIT:STRING=50 \
-              -D OGRE_USE_BOOST:BOOL=OFF .
 
       - name: Generate docs with doxygen
         uses: mattnotmitt/doxygen-action@v1

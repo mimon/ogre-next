@@ -52,7 +52,7 @@ PROJECT_LOGO           = "${OGRE_SOURCE_DIR}/Docs/ogre-logo-wetfloor.gif"
 # If a relative path is entered, it will be relative to the location
 # where doxygen was started. If left blank the current directory will be used.
 
-OUTPUT_DIRECTORY       = "${CMAKE_DOXYGEN_OUTPUT_DIRECTORY}"
+OUTPUT_DIRECTORY       = "${OGRE_BINARY_DIR}/api/"
 
 # If the CREATE_SUBDIRS tag is set to YES, then doxygen will create
 # 4096 sub-directories (in 2 levels) under the output directory of each output
@@ -939,7 +939,7 @@ HTML_STYLESHEET        =
 # robust against future updates. Doxygen will copy the style sheet file to
 # the output directory.
 
-HTML_EXTRA_STYLESHEET  = "${CMAKE_DOXYGEN_DOCS_DIR}/ogre_style.css"
+HTML_EXTRA_STYLESHEET  = "${OGRE_SOURCE_DIR}/Docs/ogre_style.css"
 
 # The HTML_EXTRA_FILES tag can be used to specify one or more extra images or
 # other source files which should be copied to the HTML output directory. Note
@@ -979,7 +979,7 @@ HTML_COLORSTYLE_GAMMA  = 80
 # page will contain the date and time when the page was generated. Setting
 # this to NO can help when comparing the output of multiple runs.
 
-HTML_TIMESTAMP         = NO
+HTML_TIMESTAMP         = YES
 
 # If the HTML_DYNAMIC_SECTIONS tag is set to YES then the generated HTML
 # documentation will contain sections that can be hidden and shown after the
