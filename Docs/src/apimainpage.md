@@ -1,34 +1,23 @@
-# API Reference Start Page {#mainpage}
+# API Reference & manual {#mainpage}
+OGRE is a scene-oriented, flexible 3D engine written in C++ designed to make it easier and more intuitive for developers to produce games and demos utilising 3D hardware. The class library abstracts all the details of using the underlying system libraries like Direct3D and OpenGL and provides an interface based on world objects and other intuitive classes.
 
-# Introduction
+## Versions
+OGRE is not one, but two “sister” projects. They are related, but they are not the same – as in being not compatible to one another. You may be confused which version to pick. See [a comparison on how they differ](https://www.ogre3d.org/about/what-version-to-choose).
 
-## What is this?
-This is the complete API reference for <a href="www.ogre3d.org"><b>OGRE</b></a> (<b>O</b>bject-Oriented <b>G</b>raphics <b>R</b>endering <b>E</b>ngine) version **2.1**. Contained within are the 
-specifications for each namespace/module/class and the methods from those which you can refer to when writing code which uses OGRE. 
+* Ogre 1.x: original project, still active with focus on...
+* Ogre 2.x (a.k.a "Ogre Next")
+  * Ogre 2.0: Intermediate version to port 1.x projects to 2.x, includes new material system (HLMS)
+  * Ogre 2.1: More stuff
+  * Ogre 2.2: Latest, more stuff
 
-The API references for some of the previous OGRE versions can be found under the following link: <a href="http://www.ogre3d.org/docs/api/X.Y">www.ogre3d.org/docs/api/X.Y</a> (replace X.Y with the version number, for example 1.7, 1.8, etc.).
+## Useful Add-Ons
+Beneath the OGRECave umbrella you can also find some useful OGRE Add-Ons like
 
-## It's so BIG!
-
-Yes it is (and thank you for noticing). OGRE is a large and complex 
-system so the API documentation, whilst fully inclusive and the most 
-complete reference to OGRE that you'll find, is not the recommended way to 
-start learning. You will certainly want
-to refer to this documentation once you have found your feet, and pretty soon
-referring to it will become second nature. Until then, you should begin with 
-more "discussive" documentation such as:
-
-* [The Manual](@ref manual): The OGRE manual is a
-general introduction to the OGRE principles and core components, and a 
-reference to various important parts of the OGRE system, especially the
-script syntax for materials, particle systems, and overlays. You should 
-find a local copy of this in your distribution.
-* <a href="http://www.ogre3d.org/tikiwiki/tiki-index.php?page=Ogre+2.1+FAQ"><b>The OGRE 2.1 FAQ</b></a>: This page contains a list of frequently asked questions (FAQ) around Ogre 2.1, pertaining to its general state, the supported rendering components as well as more specific building / compiling / coding questions. This list will be extended as new central questions arise.
-
-We make an effort to document our classes fully so we hope you can find what
-you need here. However, if you can't find it, or you're not sure where to 
-start looking, visit the <a href="http://www.ogre3d.org">main OGRE website</a> and dip into the <a href="http://www.ogre3d.org/support">community areas</a>
-like the <a href="http://www.ogre3d.org/wiki">wiki</a> and the <a href="http://www.ogre3d.org/forums/">forums</a> to get some assistance. 
+* [Ogitor SceneBuilder](https://github.com/OGRECave/ogitor)
+* [Assimp importer tool](https://github.com/OGRECave/ogre-assimp)
+* [Blender Exporter](https://github.com/OGRECave/blender2ogre)
+* [Syntax highlighting for Ogre Scripts for Atom](https://github.com/OGRECave/language-ogre-script)
+* [Particle Universe](https://github.com/OGRECave/particleuniverse)
 
 ## License
   
