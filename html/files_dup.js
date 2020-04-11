@@ -622,12 +622,6 @@ var files_dup =
     [ "OgreDeflectorPlaneAffectorFactory.h", "_ogre_deflector_plane_affector_factory_8h.html", [
       [ "DeflectorPlaneAffectorFactory", "class_ogre_1_1_deflector_plane_affector_factory.html", "class_ogre_1_1_deflector_plane_affector_factory" ]
     ] ],
-    [ "iOS Application.xctemplate/OgreDemoApp.h", "i_o_s_01_application_8xctemplate_2_ogre_demo_app_8h.html", [
-      [ "DemoApp", "class_demo_app.html", "class_demo_app" ]
-    ] ],
-    [ "Mac OS X Application.xctemplate/OgreDemoApp.h", "_mac_01_o_s_01_x_01_application_8xctemplate_2_ogre_demo_app_8h.html", [
-      [ "DemoApp", "class_demo_app.html", "class_demo_app" ]
-    ] ],
     [ "Deprecated/OgreDepthBuffer.h", "_deprecated_2_ogre_depth_buffer_8h.html", null ],
     [ "OgreDepthBuffer.h", "_ogre_depth_buffer_8h.html", null ],
     [ "OgreDescriptorSetSampler.h", "_ogre_descriptor_set_sampler_8h.html", null ],
@@ -693,10 +687,6 @@ var files_dup =
     [ "OgreErrorDialogImpWinRT.h", "_ogre_error_dialog_imp_win_r_t_8h.html", null ],
     [ "OgreETCCodec.h", "_ogre_e_t_c_codec_8h.html", null ],
     [ "OgreException.h", "_ogre_exception_8h.html", "_ogre_exception_8h" ],
-    [ "OgreExport.h", "_ogre_export_8h.html", "_ogre_export_8h" ],
-    [ "ogreExporter.h", "ogre_exporter_8h.html", [
-      [ "OgreExporter", "class_ogre_maya_exporter_1_1_ogre_exporter.html", "class_ogre_maya_exporter_1_1_ogre_exporter" ]
-    ] ],
     [ "OgreEXRCodec.h", "_ogre_e_x_r_codec_8h.html", [
       [ "EXRCodec", "class_ogre_1_1_e_x_r_codec.html", "class_ogre_1_1_e_x_r_codec" ]
     ] ],
@@ -717,12 +707,6 @@ var files_dup =
     [ "OgreForwardPlusBase.h", "_ogre_forward_plus_base_8h.html", "_ogre_forward_plus_base_8h" ],
     [ "OgreFrameListener.h", "_ogre_frame_listener_8h.html", null ],
     [ "OgreFrameStats.h", "_ogre_frame_stats_8h.html", "_ogre_frame_stats_8h" ],
-    [ "iOS Application.xctemplate/OgreFramework.h", "i_o_s_01_application_8xctemplate_2_ogre_framework_8h.html", [
-      [ "OgreFramework", "class_ogre_framework.html", "class_ogre_framework" ]
-    ] ],
-    [ "Mac OS X Application.xctemplate/OgreFramework.h", "_mac_01_o_s_01_x_01_application_8xctemplate_2_ogre_framework_8h.html", [
-      [ "OgreFramework", "class_ogre_framework.html", "class_ogre_framework" ]
-    ] ],
     [ "OgreFreeImageCodec.h", "_ogre_free_image_codec_8h.html", null ],
     [ "OgreFreeImageCodec2.h", "_ogre_free_image_codec2_8h.html", null ],
     [ "OgreFrustum.h", "_ogre_frustum_8h.html", "_ogre_frustum_8h" ],
@@ -1147,7 +1131,6 @@ var files_dup =
     ] ],
     [ "OgreHlmsJsonCompute.h", "_ogre_hlms_json_compute_8h.html", null ],
     [ "OgreHlmsJsonPbs.h", "_ogre_hlms_json_pbs_8h.html", null ],
-    [ "OgreHlmsJsonTerra.h", "_ogre_hlms_json_terra_8h.html", null ],
     [ "OgreHlmsJsonUnlit.h", "_ogre_hlms_json_unlit_8h.html", null ],
     [ "OgreHlmsListener.h", "_ogre_hlms_listener_8h.html", null ],
     [ "OgreHlmsLowLevel.h", "_ogre_hlms_low_level_8h.html", null ],
@@ -1159,15 +1142,8 @@ var files_dup =
     [ "OgreHlmsPbsMobileDatablock.h", "_ogre_hlms_pbs_mobile_datablock_8h.html", null ],
     [ "OgreHlmsPbsMobilePrerequisites.h", "_ogre_hlms_pbs_mobile_prerequisites_8h.html", "_ogre_hlms_pbs_mobile_prerequisites_8h" ],
     [ "OgreHlmsPbsPrerequisites.h", "_ogre_hlms_pbs_prerequisites_8h.html", "_ogre_hlms_pbs_prerequisites_8h" ],
-    [ "OgreHlmsPbsTerraShadows.h", "_ogre_hlms_pbs_terra_shadows_8h.html", [
-      [ "HlmsPbsTerraShadows", "class_ogre_1_1_hlms_pbs_terra_shadows.html", "class_ogre_1_1_hlms_pbs_terra_shadows" ],
-      [ "PbsTerraProperty", "struct_ogre_1_1_pbs_terra_property.html", "struct_ogre_1_1_pbs_terra_property" ]
-    ] ],
     [ "OgreHlmsPso.h", "_ogre_hlms_pso_8h.html", "_ogre_hlms_pso_8h" ],
     [ "OgreHlmsSamplerblock.h", "_ogre_hlms_samplerblock_8h.html", "_ogre_hlms_samplerblock_8h" ],
-    [ "OgreHlmsTerra.h", "_ogre_hlms_terra_8h.html", null ],
-    [ "OgreHlmsTerraDatablock.h", "_ogre_hlms_terra_datablock_8h.html", "_ogre_hlms_terra_datablock_8h" ],
-    [ "OgreHlmsTerraPrerequisites.h", "_ogre_hlms_terra_prerequisites_8h.html", "_ogre_hlms_terra_prerequisites_8h" ],
     [ "OgreHlmsTextureBaseClass.h", "_ogre_hlms_texture_base_class_8h.html", null ],
     [ "OgreHlmsTextureManager.h", "_ogre_hlms_texture_manager_8h.html", [
       [ "DefaultTextureParameters", "struct_ogre_1_1_hlms_texture_manager_1_1_default_texture_parameters.html", "struct_ogre_1_1_hlms_texture_manager_1_1_default_texture_parameters" ],
@@ -1367,17 +1343,6 @@ var files_dup =
     [ "OgreMathlibSSE2.h", "_ogre_mathlib_s_s_e2_8h.html", null ],
     [ "OgreMatrix3.h", "_ogre_matrix3_8h.html", null ],
     [ "OgreMatrix4.h", "_ogre_matrix4_8h.html", "_ogre_matrix4_8h" ],
-    [ "OgreMaxConfig.h", "_ogre_max_config_8h.html", "_ogre_max_config_8h" ],
-    [ "OgreMaxExport.h", "_ogre_max_export_8h.html", [
-      [ "OgreMaxExporter", "class_ogre_max_1_1_ogre_max_exporter.html", "class_ogre_max_1_1_ogre_max_exporter" ]
-    ] ],
-    [ "OgreMaxMaterialExport.h", "_ogre_max_material_export_8h.html", "_ogre_max_material_export_8h" ],
-    [ "OgreMaxMeshExport.h", "_ogre_max_mesh_export_8h.html", "_ogre_max_mesh_export_8h" ],
-    [ "OgreMaxMeshXMLExport.h", "_ogre_max_mesh_x_m_l_export_8h.html", [
-      [ "MeshXMLExporter", "class_ogre_max_1_1_mesh_x_m_l_exporter.html", "class_ogre_max_1_1_mesh_x_m_l_exporter" ]
-    ] ],
-    [ "OgreMaxSkeletonXMLExport.h", "_ogre_max_skeleton_x_m_l_export_8h.html", null ],
-    [ "OgreMaxVertex.h", "_ogre_max_vertex_8h.html", "_ogre_max_vertex_8h" ],
     [ "OgreMemoryAllocatedObject.h", "_ogre_memory_allocated_object_8h.html", null ],
     [ "OgreMemoryAllocatorConfig.h", "_ogre_memory_allocator_config_8h.html", "_ogre_memory_allocator_config_8h" ],
     [ "OgreMemoryNedAlloc.h", "_ogre_memory_ned_alloc_8h.html", null ],
@@ -2057,9 +2022,6 @@ var files_dup =
       [ "Region", "class_ogre_1_1v1_1_1_static_geometry_1_1_region.html", "class_ogre_1_1v1_1_1_static_geometry_1_1_region" ],
       [ "SubMeshLodGeometryLink", "struct_ogre_1_1v1_1_1_static_geometry_1_1_sub_mesh_lod_geometry_link.html", "struct_ogre_1_1v1_1_1_static_geometry_1_1_sub_mesh_lod_geometry_link" ]
     ] ],
-    [ "OgreStaticPluginLoader.h", "_ogre_static_plugin_loader_8h.html", [
-      [ "StaticPluginLoader", "class_ogre_1_1_static_plugin_loader.html", "class_ogre_1_1_static_plugin_loader" ]
-    ] ],
     [ "OgreSTBICodec.h", "_ogre_s_t_b_i_codec_8h.html", null ],
     [ "OgreStdHeaders.h", "_ogre_std_headers_8h.html", null ],
     [ "OgreStreamSerialiser.h", "_ogre_stream_serialiser_8h.html", [
@@ -2300,24 +2262,6 @@ var files_dup =
     [ "OgreX11EGLSupport.h", "_ogre_x11_e_g_l_support_8h.html", "_ogre_x11_e_g_l_support_8h" ],
     [ "OgreX11EGLWindow.h", "_ogre_x11_e_g_l_window_8h.html", [
       [ "X11EGLWindow", "class_ogre_1_1_x11_e_g_l_window.html", "class_ogre_1_1_x11_e_g_l_window" ]
-    ] ],
-    [ "OgreXMLMeshSerializer.h", "_ogre_x_m_l_mesh_serializer_8h.html", [
-      [ "XMLMeshSerializer", "class_ogre_1_1v1_1_1_x_m_l_mesh_serializer.html", "class_ogre_1_1v1_1_1_x_m_l_mesh_serializer" ]
-    ] ],
-    [ "OgreXMLPrerequisites.h", "_ogre_x_m_l_prerequisites_8h.html", null ],
-    [ "OgreXMLSkeletonSerializer.h", "_ogre_x_m_l_skeleton_serializer_8h.html", [
-      [ "XMLSkeletonSerializer", "class_ogre_1_1v1_1_1_x_m_l_skeleton_serializer.html", "class_ogre_1_1v1_1_1_x_m_l_skeleton_serializer" ]
-    ] ],
-    [ "OgreXSIHelper.h", "_ogre_x_s_i_helper_8h.html", "_ogre_x_s_i_helper_8h" ],
-    [ "OgreXSIMaterialExporter.h", "_ogre_x_s_i_material_exporter_8h.html", [
-      [ "XsiMaterialExporter", "class_ogre_1_1_xsi_material_exporter.html", "class_ogre_1_1_xsi_material_exporter" ]
-    ] ],
-    [ "OgreXSIMeshExporter.h", "_ogre_x_s_i_mesh_exporter_8h.html", [
-      [ "XsiMeshExporter", "class_ogre_1_1_xsi_mesh_exporter.html", "class_ogre_1_1_xsi_mesh_exporter" ],
-      [ "LodData", "struct_ogre_1_1_xsi_mesh_exporter_1_1_lod_data.html", "struct_ogre_1_1_xsi_mesh_exporter_1_1_lod_data" ]
-    ] ],
-    [ "OgreXSISkeletonExporter.h", "_ogre_x_s_i_skeleton_exporter_8h.html", [
-      [ "XsiSkeletonExporter", "class_ogre_1_1_xsi_skeleton_exporter.html", "class_ogre_1_1_xsi_skeleton_exporter" ]
     ] ],
     [ "OgreZip.h", "_ogre_zip_8h.html", "_ogre_zip_8h" ]
 ];

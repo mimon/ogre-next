@@ -170,7 +170,5 @@ var namespace_ogre_1_1v1 =
     [ "VertexMorphKeyFrame", "class_ogre_1_1v1_1_1_vertex_morph_key_frame.html", "class_ogre_1_1v1_1_1_vertex_morph_key_frame" ],
     [ "VertexPoseKeyFrame", "class_ogre_1_1v1_1_1_vertex_pose_key_frame.html", "class_ogre_1_1v1_1_1_vertex_pose_key_frame" ],
     [ "VertexShadowMapHelper", "class_ogre_1_1v1_1_1_vertex_shadow_map_helper.html", "class_ogre_1_1v1_1_1_vertex_shadow_map_helper" ],
-    [ "WireBoundingBox", "class_ogre_1_1v1_1_1_wire_bounding_box.html", "class_ogre_1_1v1_1_1_wire_bounding_box" ],
-    [ "XMLMeshSerializer", "class_ogre_1_1v1_1_1_x_m_l_mesh_serializer.html", "class_ogre_1_1v1_1_1_x_m_l_mesh_serializer" ],
-    [ "XMLSkeletonSerializer", "class_ogre_1_1v1_1_1_x_m_l_skeleton_serializer.html", "class_ogre_1_1v1_1_1_x_m_l_skeleton_serializer" ]
+    [ "WireBoundingBox", "class_ogre_1_1v1_1_1_wire_bounding_box.html", "class_ogre_1_1v1_1_1_wire_bounding_box" ]
 ];

@@ -50,7 +50,6 @@ var menudata={children:[
 {text:"u",url:"namespacemembers_u.html#index_u"},
 {text:"v",url:"namespacemembers_v.html#index_v"},
 {text:"w",url:"namespacemembers_w.html#index_w"},
-{text:"x",url:"namespacemembers_x.html#index_x"},
 {text:"z",url:"namespacemembers_z.html#index_z"}]},
 {text:"Functions",url:"namespacemembers_func.html",children:[
 {text:"a",url:"namespacemembers_func.html#index_a"},
@@ -74,7 +73,6 @@ var menudata={children:[
 {text:"d",url:"namespacemembers_vars.html#index_d"},
 {text:"l",url:"namespacemembers_vars.html#index_l"},
 {text:"m",url:"namespacemembers_vars.html#index_m"},
-{text:"n",url:"namespacemembers_vars.html#index_n"},
 {text:"r",url:"namespacemembers_vars.html#index_r"},
 {text:"s",url:"namespacemembers_vars.html#index_s"},
 {text:"w",url:"namespacemembers_vars.html#index_w"}]},
@@ -121,8 +119,7 @@ var menudata={children:[
 {text:"t",url:"namespacemembers_enum.html#index_t"},
 {text:"u",url:"namespacemembers_enum.html#index_u"},
 {text:"v",url:"namespacemembers_enum.html#index_v"},
-{text:"w",url:"namespacemembers_enum.html#index_w"},
-{text:"x",url:"namespacemembers_enum.html#index_x"}]},
+{text:"w",url:"namespacemembers_enum.html#index_w"}]},
 {text:"Enumerator",url:"namespacemembers_eval.html",children:[
 {text:"a",url:"namespacemembers_eval.html#index_a"},
 {text:"b",url:"namespacemembers_eval_b.html#index_b"},
@@ -143,8 +140,7 @@ var menudata={children:[
 {text:"t",url:"namespacemembers_eval_t.html#index_t"},
 {text:"u",url:"namespacemembers_eval_u.html#index_u"},
 {text:"v",url:"namespacemembers_eval_v.html#index_v"},
-{text:"w",url:"namespacemembers_eval_w.html#index_w"},
-{text:"x",url:"namespacemembers_eval_x.html#index_x"}]}]}]},
+{text:"w",url:"namespacemembers_eval_w.html#index_w"}]}]}]},
 {text:"Classes",url:"annotated.html",children:[
 {text:"Class List",url:"annotated.html"},
 {text:"Class Index",url:"classes.html"},
@@ -322,7 +318,6 @@ var menudata={children:[
 {text:"r",url:"functions_rela_r.html#index_r"},
 {text:"s",url:"functions_rela_s.html#index_s"},
 {text:"t",url:"functions_rela_t.html#index_t"},
-{text:"v",url:"functions_rela_v.html#index_v"},
 {text:"w",url:"functions_rela_w.html#index_w"}]}]}]},
 {text:"Files",url:"files.html",children:[
 {text:"File List",url:"files.html"},
@@ -353,13 +348,6 @@ var menudata={children:[
 {text:"Functions",url:"globals_func.html",children:[
 {text:"_",url:"globals_func.html#index__5F"},
 {text:"d",url:"globals_func.html#index_d"},
-{text:"e",url:"globals_func.html#index_e"},
-{text:"g",url:"globals_func.html#index_g"},
-{text:"l",url:"globals_func.html#index_l"},
-{text:"m",url:"globals_func.html#index_m"},
-{text:"o",url:"globals_func.html#index_o"},
-{text:"s",url:"globals_func.html#index_s"},
-{text:"v",url:"globals_func.html#index_v"},
 {text:"x",url:"globals_func.html#index_x"}]},
 {text:"Typedefs",url:"globals_type.html"},
 {text:"Enumerations",url:"globals_enum.html"},

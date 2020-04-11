@@ -379,8 +379,6 @@ Public Attributes</h2></td></tr>
 <dl class="section remark"><dt>Remarks</dt><dd>Why do we do this? Well, it's because the <a class="el" href="class_ogre_1_1_singleton.html" title="Template class for creating single-instance global classes.">Singleton</a> implementation is in a .h file, which means it gets compiled into anybody who includes it. This is needed for the <a class="el" href="class_ogre_1_1_singleton.html" title="Template class for creating single-instance global classes.">Singleton</a> template to work, but we actually only want it compiled into the implementation of the class based on the <a class="el" href="class_ogre_1_1_singleton.html" title="Template class for creating single-instance global classes.">Singleton</a>, not all of them. If we don't change this, we get link errors when trying to use the Singleton-based class from an outside dll. </dd></dl>
 <dl class="section user"><dt></dt><dd>This method just delegates to the template version anyway, but the implementation stays in this single compilation unit, preventing link errors. </dd></dl>
 
-<p class="reference">Referenced by <a class="el" href="_ogre_x_s_i_helper_8h.html#ae4d8c86eeacf72bf0647fc20cbf573c3">LogOgreAndXSI()</a>.</p>
-
 </div>
 </div>
 <a id="a26fc82537a3ea960342838f878ef0f1f"></a>
@@ -446,8 +444,6 @@ Public Attributes</h2></td></tr>
 </div><div class="memdoc">
 
 <p><a class="el" href="class_ogre_1_1_log.html">Log</a> a message to the default log. </p>
-
-<p class="reference">Referenced by <a class="el" href="_ogre_x_s_i_helper_8h.html#ae4d8c86eeacf72bf0647fc20cbf573c3">LogOgreAndXSI()</a>.</p>
 
 </div>
 </div>
@@ -984,7 +980,7 @@ template&lt;class Alloc &gt; </div>
 <div id="nav-path" class="navpath"><!-- id is needed for treeview function! -->
   <ul>
     <li class="navelem"><a class="el" href="namespace_ogre.html">Ogre</a></li><li class="navelem"><a class="el" href="class_ogre_1_1_log_manager.html">LogManager</a></li>
-    <li class="footer">Generated on Sat Apr 11 2020 21:35:59 for OGRE by
+    <li class="footer">Generated on Sat Apr 11 2020 21:39:59 for OGRE by
     <a href="http://www.doxygen.org/index.html">
     <img class="footer" src="doxygen.png" alt="doxygen"/></a> 1.8.17 </li>
   </ul>

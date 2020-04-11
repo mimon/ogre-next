@@ -1,4 +1,5 @@
 var searchData=
 [
-  ['using_20ogre_20in_20your_20app_35212',['Using Ogre in your App',['../_using_ogre_in_your_app.html',1,'']]]
+  ['what_27s_20new_20in_20ogre_202_2e2_34572',['What&apos;s new in Ogre 2.2',['../_ogre22_changes.html',1,'manual']]],
+  ['windows_34573',['Windows',['../_setting_up_ogre_windows.html',1,'SettingUpOgre']]]
 ];
