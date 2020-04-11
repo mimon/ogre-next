@@ -11,9 +11,9 @@
 <!-- Node0 -->
 <g id="node1" class="node">
 <title>Node0</title>
-<g id="a_node1"><a xlink:href="struct_ogre_1_1list.html" target="_top" xlink:title=" ">
+<g id="a_node1"><a xlink:href="class_ogre_1_1_layer_blend_mode_ex.html" target="_top" xlink:title="Class which manages blending of both colour and alpha components.">
 <polygon fill="none" stroke="black" points="0,-0.5 0,-19.5 125,-19.5 125,-0.5 0,-0.5"/>
-<text text-anchor="middle" x="62.5" y="-7.5" font-family="Helvetica,sans-Serif" font-size="10.00">Ogre::list&lt; IndexRemap &gt;</text>
+<text text-anchor="middle" x="62.5" y="-7.5" font-family="Helvetica,sans-Serif" font-size="10.00">Ogre::LayerBlendModeEx</text>
 </a>
 </g>
 </g>

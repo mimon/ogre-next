@@ -28,7 +28,6 @@
   <td id="projectlogo"><img alt="Logo" src="ogre-logo-wetfloor.gif"/></td>
   <td id="projectalign" style="padding-left: 0.5em;">
    <div id="projectname">OGRE
-   &#160;<span id="projectnumber">2.2.0unstable</span>
    </div>
    <div id="projectbrief">Object-Oriented Graphics Rendering Engine</div>
   </td>
@@ -263,7 +262,8 @@ $(document).ready(function(){initNavTree('functions_func_h.html',''); initResiza
 : <a class="el" href="class_ogre_1_1_technique.html#aeaf1f068b46e9249c6ba4621ef695256">Ogre::Technique</a>
 </li>
 <li>hasCompileError()
-: <a class="el" href="class_ogre_1_1_gpu_program.html#a41ca5ed671aeded51032646285f0a756">Ogre::GpuProgram</a>
+: <a class="el" href="class_ogre_1_1_cg_program.html#a8fe80144b24cde184f0a07f6f3f290d1">Ogre::CgProgram</a>
+, <a class="el" href="class_ogre_1_1_gpu_program.html#a41ca5ed671aeded51032646285f0a756">Ogre::GpuProgram</a>
 , <a class="el" href="class_ogre_1_1_unified_high_level_gpu_program.html#a119aa715fe52579658b8532a68de2e52">Ogre::UnifiedHighLevelGpuProgram</a>
 </li>
 <li>hasComputeProgram()
@@ -284,7 +284,8 @@ $(document).ready(function(){initNavTree('functions_func_h.html',''); initResiza
 , <a class="el" href="class_ogre_1_1_hlms_pbs_datablock.html#ac631bf0f342401d00132cc9b93cd7c0d">Ogre::HlmsPbsDatablock</a>
 </li>
 <li>hasDefaultParameters()
-: <a class="el" href="class_ogre_1_1_gpu_program.html#a466348cfefa74a767ed8b813e2caec6f">Ogre::GpuProgram</a>
+: <a class="el" href="class_ogre_1_1_cg_program.html#a94fbe95dc398989b4de6d981a17fbc6d">Ogre::CgProgram</a>
+, <a class="el" href="class_ogre_1_1_gpu_program.html#a466348cfefa74a767ed8b813e2caec6f">Ogre::GpuProgram</a>
 , <a class="el" href="class_ogre_1_1_unified_high_level_gpu_program.html#a8ca8fbe7bbdff97138b538148301d76a">Ogre::UnifiedHighLevelGpuProgram</a>
 </li>
 <li>hasDiffuseTex()
@@ -342,6 +343,9 @@ $(document).ready(function(){initNavTree('functions_func_h.html',''); initResiza
 </li>
 <li>hasKeyIndex()
 : <a class="el" href="class_ogre_1_1v1_1_1_time_index.html#a40a93f92bc6c8f1cea56b33a44077fce">Ogre::v1::TimeIndex</a>
+</li>
+<li>hasLight()
+: <a class="el" href="class_ogre_1_1_p_c_z_scene_manager.html#a124d44a99f4cf9cd501c77b8107fce99">Ogre::PCZSceneManager</a>
 </li>
 <li>hasLightList()
 : <a class="el" href="class_ogre_1_1_auto_param_data_source.html#a31c547d8c3a9d05977dfc931c96ee057">Ogre::AutoParamDataSource</a>
@@ -481,6 +485,9 @@ $(document).ready(function(){initNavTree('functions_func_h.html',''); initResiza
 <li>hasSkeletonAnimation()
 : <a class="el" href="class_ogre_1_1_renderable.html#af0d2463cff17fd4fbfb10c21ee0b8a0f">Ogre::Renderable</a>
 </li>
+<li>hasSky()
+: <a class="el" href="class_ogre_1_1_p_c_zone.html#a6d4dc7bac6baf6dfc3c41ded5a9d373a">Ogre::PCZone</a>
+</li>
 <li>hasSRGBEquivalent()
 : <a class="el" href="class_ogre_1_1_pixel_format_gpu_utils.html#aa9dda2a3e94fa06447957e0fc7c3ef70">Ogre::PixelFormatGpuUtils</a>
 </li>
@@ -583,6 +590,9 @@ $(document).ready(function(){initNavTree('functions_func_h.html',''); initResiza
 <li>HlmsJsonPbs()
 : <a class="el" href="class_ogre_1_1_hlms_json_pbs.html#ac46e06ecfaaa275b63afcec1101efc10">Ogre::HlmsJsonPbs</a>
 </li>
+<li>HlmsJsonTerra()
+: <a class="el" href="class_ogre_1_1_hlms_json_terra.html#a4e22dae9a7c772e5391c5923f7053444">Ogre::HlmsJsonTerra</a>
+</li>
 <li>HlmsJsonUnlit()
 : <a class="el" href="class_ogre_1_1_hlms_json_unlit.html#a665d3c6533cd3a6c6da96b2f74cc0477">Ogre::HlmsJsonUnlit</a>
 </li>
@@ -610,11 +620,20 @@ $(document).ready(function(){initNavTree('functions_func_h.html',''); initResiza
 <li>HlmsPbsMobileDatablock()
 : <a class="el" href="class_ogre_1_1_hlms_pbs_mobile_datablock.html#ac85d312836367ce0c490e1f33e7876ed">Ogre::HlmsPbsMobileDatablock</a>
 </li>
+<li>HlmsPbsTerraShadows()
+: <a class="el" href="class_ogre_1_1_hlms_pbs_terra_shadows.html#ae07809c0f71bc60864e2535eb3bc4f88">Ogre::HlmsPbsTerraShadows</a>
+</li>
 <li>HlmsProperty()
 : <a class="el" href="struct_ogre_1_1_hlms_property.html#a9c044438147b438dabe3ace1ef64e8b8">Ogre::HlmsProperty</a>
 </li>
 <li>HlmsSamplerblock()
 : <a class="el" href="struct_ogre_1_1_hlms_samplerblock.html#aa5997a8cd5825b0daceb4d72b0afc858">Ogre::HlmsSamplerblock</a>
+</li>
+<li>HlmsTerra()
+: <a class="el" href="class_ogre_1_1_hlms_terra.html#a79f204f7b675f31572bc05c19350bf5b">Ogre::HlmsTerra</a>
+</li>
+<li>HlmsTerraDatablock()
+: <a class="el" href="class_ogre_1_1_hlms_terra_datablock.html#a1c0e093d01afc2ab069d5c93a0966eba">Ogre::HlmsTerraDatablock</a>
 </li>
 <li>HlmsTextureManager()
 : <a class="el" href="class_ogre_1_1_hlms_texture_manager.html#abb8a5db6988879bb1c66012ad688d44f">Ogre::HlmsTextureManager</a>
@@ -624,9 +643,10 @@ $(document).ready(function(){initNavTree('functions_func_h.html',''); initResiza
 </li>
 <li>hlmsTypeChanged()
 : <a class="el" href="class_ogre_1_1_hlms_listener.html#a86074b296d513e45e4fd868deba52204">Ogre::HlmsListener</a>
+, <a class="el" href="class_ogre_1_1_hlms_pbs_terra_shadows.html#acce65d4159f0712b1a86f59b97aa0ae0">Ogre::HlmsPbsTerraShadows</a>
 </li>
 <li>HlmsUnlit()
-: <a class="el" href="class_ogre_1_1_hlms_unlit.html#af8fc939f72f98090ee7f5cbc84828047">Ogre::HlmsUnlit</a>
+: <a class="el" href="class_ogre_1_1_hlms_unlit.html#abdfe6cc9dfdd44b55d840e8fb5fd48c8">Ogre::HlmsUnlit</a>
 </li>
 <li>HlmsUnlitDatablock()
 : <a class="el" href="class_ogre_1_1_hlms_unlit_datablock.html#a1c4394a00dee9603056787337edb0d22">Ogre::HlmsUnlitDatablock</a>
@@ -646,13 +666,16 @@ $(document).ready(function(){initNavTree('functions_func_h.html',''); initResiza
 <li>holdPage()
 : <a class="el" href="class_ogre_1_1_paged_world_section.html#aa05961d63f7a427e11b96ec9e03578d0">Ogre::PagedWorldSection</a>
 </li>
+<li>HollowEllipsoidEmitter()
+: <a class="el" href="class_ogre_1_1_hollow_ellipsoid_emitter.html#ab8a04670adcf78d5341c1ad9029ee269">Ogre::HollowEllipsoidEmitter</a>
+</li>
 </ul>
 </div><!-- contents -->
 </div><!-- doc-content -->
 <!-- start footer part -->
 <div id="nav-path" class="navpath"><!-- id is needed for treeview function! -->
   <ul>
-    <li class="footer">Generated by
+    <li class="footer">Generated on Sat Apr 11 2020 20:40:24 for OGRE by
     <a href="http://www.doxygen.org/index.html">
     <img class="footer" src="doxygen.png" alt="doxygen"/></a> 1.8.17 </li>
   </ul>

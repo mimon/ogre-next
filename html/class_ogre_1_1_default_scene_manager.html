@@ -28,7 +28,6 @@
   <td id="projectlogo"><img alt="Logo" src="ogre-logo-wetfloor.gif"/></td>
   <td id="projectalign" style="padding-left: 0.5em;">
    <div id="projectname">OGRE
-   &#160;<span id="projectnumber">2.2.0unstable</span>
    </div>
    <div id="projectbrief">Object-Oriented Graphics Rendering Engine</div>
   </td>
@@ -1820,7 +1819,7 @@ SceneNode::createChildImpl Don't call this function directly </dd></dl>
 </div><div class="memdoc">
 
 <p>Retrieves the main entity memory manager. </p>
-<dl class="section remark"><dt>Remarks</dt><dd>Some Scene Managers may have more than one memory manager (e.g. one per octant in an Octree implementation). At end of scene graph update the scene manager may move the object created with the main memory manager into another another one. </dd></dl>
+<dl class="section remark"><dt>Remarks</dt><dd>Some Scene Managers may have more than one memory manager (e.g. one per octant in an <a class="el" href="class_ogre_1_1_octree.html" title="Octree datastructure for managing scene nodes.">Octree</a> implementation). At end of scene graph update the scene manager may move the object created with the main memory manager into another another one. </dd></dl>
 
 </div>
 </div>
@@ -2963,6 +2962,8 @@ SceneNode::createChildImpl Don't call this function directly </dd></dl>
   </dd>
 </dl>
 
+<p>Reimplemented in <a class="el" href="class_ogre_1_1_p_c_z_scene_manager.html#aa7cfee73f14e2bab78a46075742c2641">Ogre::PCZSceneManager</a>, and <a class="el" href="class_ogre_1_1_octree_scene_manager.html#a471a1bb64aa653369e747433bd866511">Ogre::OctreeSceneManager</a>.</p>
+
 </div>
 </div>
 <a id="ab1c534bbbff4ffa2c11bbc94a49a34a4"></a>
@@ -3368,6 +3369,8 @@ SceneNode::createChildImpl Don't call this function directly </dd></dl>
   </dd>
 </dl>
 
+<p>Reimplemented in <a class="el" href="class_ogre_1_1_p_c_z_scene_manager.html#a25638c55cdc1455bc927f62390f93daa">Ogre::PCZSceneManager</a>, <a class="el" href="class_ogre_1_1_bsp_scene_manager.html#ac9059095d68e9abc46114ec460fcc565">Ogre::BspSceneManager</a>, and <a class="el" href="class_ogre_1_1_octree_scene_manager.html#a5403cb0576366a25b5bcd255e563c01a">Ogre::OctreeSceneManager</a>.</p>
+
 </div>
 </div>
 <a id="af2a0ad552583d76f602fa08b06ec88ae"></a>
@@ -3704,6 +3707,8 @@ SceneNode::createChildImpl Don't call this function directly </dd></dl>
   </dd>
 </dl>
 
+<p>Reimplemented in <a class="el" href="class_ogre_1_1_p_c_z_scene_manager.html#af6a785f859b20e03a6c9f4f1ce8c2e4a">Ogre::PCZSceneManager</a>, and <a class="el" href="class_ogre_1_1_octree_scene_manager.html#ae1d19cc8928f73227f02544860af20bb">Ogre::OctreeSceneManager</a>.</p>
+
 </div>
 </div>
 <a id="a3166eafec7c9234170371b4dcf66552d"></a>
@@ -3750,6 +3755,8 @@ SceneNode::createChildImpl Don't call this function directly </dd></dl>
   </table>
   </dd>
 </dl>
+
+<p>Reimplemented in <a class="el" href="class_ogre_1_1_p_c_z_scene_manager.html#a6557610dfbf664ecc0c779d017657f46">Ogre::PCZSceneManager</a>, <a class="el" href="class_ogre_1_1_bsp_scene_manager.html#ae1a1a8b7b1a932325bc58f67fac74604">Ogre::BspSceneManager</a>, and <a class="el" href="class_ogre_1_1_octree_scene_manager.html#a4aab06122787528f7b7b99d8edc8413e">Ogre::OctreeSceneManager</a>.</p>
 
 </div>
 </div>
@@ -3920,6 +3927,8 @@ SceneNode::createChildImpl Don't call this function directly </dd></dl>
   </table>
   </dd>
 </dl>
+
+<p>Reimplemented in <a class="el" href="class_ogre_1_1_p_c_z_scene_manager.html#a01dc73cc30b51241e8e4a89a93182d34">Ogre::PCZSceneManager</a>, and <a class="el" href="class_ogre_1_1_octree_scene_manager.html#a494e5284784962a01fb1bd4c9fb688ae">Ogre::OctreeSceneManager</a>.</p>
 
 </div>
 </div>
@@ -4345,6 +4354,8 @@ SceneNode::createChildImpl Don't call this function directly </dd></dl>
 </div><div class="memdoc">
 
 <p>Removes and destroys all lights in the scene. </p>
+
+<p>Reimplemented in <a class="el" href="class_ogre_1_1_p_c_z_scene_manager.html#a6529811d0646cf2c938daf2cf8373fe0">Ogre::PCZSceneManager</a>.</p>
 
 </div>
 </div>
@@ -5074,6 +5085,8 @@ SceneNode::createChildImpl Don't call this function directly </dd></dl>
 <p>Destroys a <a class="el" href="class_ogre_1_1_scene_node.html" title="Class representing a node in the scene graph.">SceneNode</a>. </p>
 <dl class="section remark"><dt>Remarks</dt><dd>This allows you to physically delete an individual <a class="el" href="class_ogre_1_1_scene_node.html" title="Class representing a node in the scene graph.">SceneNode</a> if you want to. Note that this is not normally recommended, it's better to allow <a class="el" href="class_ogre_1_1_scene_manager.html" title="Manages the organisation and rendering of a &#39;scene&#39; i.e.">SceneManager</a> to delete the nodes when the scene is cleared. </dd></dl>
 
+<p>Reimplemented in <a class="el" href="class_ogre_1_1_p_c_z_scene_manager.html#a825cdc9ea0e5ab83c9e2211d91937999">Ogre::PCZSceneManager</a>.</p>
+
 </div>
 </div>
 <a id="a911db15a672db3ebb4837840ed2c5bf0"></a>
@@ -5216,6 +5229,8 @@ SceneNode::createChildImpl Don't call this function directly </dd></dl>
 <dl class="section remark"><dt>Remarks</dt><dd>This method should be overridden by SceneManagers that provide custom world geometry that can take some time to load. They should return from this method a count of the number of stages of progress they can report on whilst loading. During real loading (setWorldGeometry), they should call ResourceGroupManager::_notifyWorldGeometryProgress exactly that number of times when loading the geometry for real. </dd></dl>
 <dl class="section note"><dt>Note</dt><dd>The default is to return 0, ie to not report progress. </dd></dl>
 
+<p>Reimplemented in <a class="el" href="class_ogre_1_1_bsp_scene_manager.html#a12cfc049e1d6c343f9ecd6a4546265b4">Ogre::BspSceneManager</a>.</p>
+
 </div>
 </div>
 <a id="abdf303a6b80c95fabfae679f0a9898f7"></a>
@@ -5261,6 +5276,8 @@ SceneNode::createChildImpl Don't call this function directly </dd></dl>
   </table>
   </dd>
 </dl>
+
+<p>Reimplemented in <a class="el" href="class_ogre_1_1_bsp_scene_manager.html#a9746fa406d8edbf8a80f1afcf009584b">Ogre::BspSceneManager</a>.</p>
 
 </div>
 </div>
@@ -6805,6 +6822,8 @@ SceneNode::createChildImpl Don't call this function directly </dd></dl>
 <dl class="section return"><dt>Returns</dt><dd>On success, true is returned and pDestValue points to the value of the given option. </dd></dl>
 <dl class="section user"><dt></dt><dd>On failure, false is returned and pDestValue is set to NULL. </dd></dl>
 
+<p>Reimplemented in <a class="el" href="class_ogre_1_1_p_c_z_scene_manager.html#ae3230958f5f0c1126dd3942723e97531">Ogre::PCZSceneManager</a>, and <a class="el" href="class_ogre_1_1_octree_scene_manager.html#af77b8bce26be55450fc64425f3c9af22">Ogre::OctreeSceneManager</a>.</p>
+
 </div>
 </div>
 <a id="a7c8ff6b5c19eb9eeef9d5a6c9fca9fe8"></a>
@@ -6839,6 +6858,8 @@ SceneNode::createChildImpl Don't call this function directly </dd></dl>
   </dd>
 </dl>
 <dl class="section return"><dt>Returns</dt><dd>On success, true is returned. On failure, false is returned. </dd></dl>
+
+<p>Reimplemented in <a class="el" href="class_ogre_1_1_p_c_z_scene_manager.html#a717f6191cb79b3e15f75919e8627cdb5">Ogre::PCZSceneManager</a>, and <a class="el" href="class_ogre_1_1_octree_scene_manager.html#a4e7a5084dcfc82ae05e4eaf9da6c7067">Ogre::OctreeSceneManager</a>.</p>
 
 </div>
 </div>
@@ -6886,6 +6907,8 @@ SceneNode::createChildImpl Don't call this function directly </dd></dl>
 </dl>
 <dl class="section return"><dt>Returns</dt><dd>On success (the option exists), true is returned. </dd></dl>
 <dl class="section user"><dt></dt><dd>On failure, false is returned. </dd></dl>
+
+<p>Reimplemented in <a class="el" href="class_ogre_1_1_p_c_z_scene_manager.html#aacae43241e0d47c030432ea037c7d2d9">Ogre::PCZSceneManager</a>, and <a class="el" href="class_ogre_1_1_octree_scene_manager.html#a96dce0892e7bd91247a71a698db2723a">Ogre::OctreeSceneManager</a>.</p>
 
 </div>
 </div>
@@ -7366,6 +7389,8 @@ It is a linear search O(N), retrieves the first node found with that name (it's 
 </dl>
 <dl class="section return"><dt>Returns</dt><dd>On success, true is returned. </dd></dl>
 <dl class="section user"><dt></dt><dd>On failure, false is returned. </dd></dl>
+
+<p>Reimplemented in <a class="el" href="class_ogre_1_1_bsp_scene_manager.html#afbed035d6e010f7df4727b2ff76e0750">Ogre::BspSceneManager</a>.</p>
 
 </div>
 </div>
@@ -8320,7 +8345,7 @@ template&lt;class Alloc &gt; </div>
 </div><div class="memdoc">
 
 <p>Sets the source of the 'world' geometry, i.e. </p>
-<p>the large, mainly static geometry making up the world e.g. rooms, landscape etc. This function can be called before setWorldGeometry in a background thread, do to some slow tasks (e.g. IO) that do not involve the backend render system. </p><dl class="section remark"><dt>Remarks</dt><dd>Depending on the type of <a class="el" href="class_ogre_1_1_scene_manager.html" title="Manages the organisation and rendering of a &#39;scene&#39; i.e.">SceneManager</a> (subclasses will be specialised for particular world geometry types) you have requested via the <a class="el" href="class_ogre_1_1_root.html" title="The root class of the Ogre system.">Root</a> or <a class="el" href="class_ogre_1_1_scene_manager_enumerator.html" title="Enumerates the SceneManager classes available to applications.">SceneManagerEnumerator</a> classes, you can pass a filename to this method and it will attempt to load the world-level geometry for use. If you try to load an inappropriate type of world data an exception will be thrown. The default <a class="el" href="class_ogre_1_1_scene_manager.html" title="Manages the organisation and rendering of a &#39;scene&#39; i.e.">SceneManager</a> cannot handle any sort of world geometry and so will always throw an exception. However subclasses like BspSceneManager can load particular types of world geometry e.g. "q3dm1.bsp". </dd></dl>
+<p>the large, mainly static geometry making up the world e.g. rooms, landscape etc. This function can be called before setWorldGeometry in a background thread, do to some slow tasks (e.g. IO) that do not involve the backend render system. </p><dl class="section remark"><dt>Remarks</dt><dd>Depending on the type of <a class="el" href="class_ogre_1_1_scene_manager.html" title="Manages the organisation and rendering of a &#39;scene&#39; i.e.">SceneManager</a> (subclasses will be specialised for particular world geometry types) you have requested via the <a class="el" href="class_ogre_1_1_root.html" title="The root class of the Ogre system.">Root</a> or <a class="el" href="class_ogre_1_1_scene_manager_enumerator.html" title="Enumerates the SceneManager classes available to applications.">SceneManagerEnumerator</a> classes, you can pass a filename to this method and it will attempt to load the world-level geometry for use. If you try to load an inappropriate type of world data an exception will be thrown. The default <a class="el" href="class_ogre_1_1_scene_manager.html" title="Manages the organisation and rendering of a &#39;scene&#39; i.e.">SceneManager</a> cannot handle any sort of world geometry and so will always throw an exception. However subclasses like <a class="el" href="class_ogre_1_1_bsp_scene_manager.html" title="Specialisation of the SceneManager class to deal with indoor scenes based on a BSP tree.">BspSceneManager</a> can load particular types of world geometry e.g. "q3dm1.bsp". </dd></dl>
 
 </div>
 </div>
@@ -9131,6 +9156,8 @@ template&lt;class Alloc &gt; </div>
 <dl class="section return"><dt>Returns</dt><dd>On success, true is returned. </dd></dl>
 <dl class="section user"><dt></dt><dd>On failure, false is returned. </dd></dl>
 
+<p>Reimplemented in <a class="el" href="class_ogre_1_1_p_c_z_scene_manager.html#ac780cbd313b0069999bedfa01ce1aae8">Ogre::PCZSceneManager</a>, and <a class="el" href="class_ogre_1_1_octree_scene_manager.html#aeac1cdc1f3b8bf8a3ee6e268a935356a">Ogre::OctreeSceneManager</a>.</p>
+
 </div>
 </div>
 <a id="ab703066810e23f4284e1662fe58ae8f3"></a>
@@ -9603,7 +9630,9 @@ Only a single pass is allowed in your material, although multiple techniques may
 </div><div class="memdoc">
 
 <p>Sets the source of the 'world' geometry, i.e. </p>
-<p>the large, mainly static geometry making up the world e.g. rooms, landscape etc. </p><dl class="section remark"><dt>Remarks</dt><dd>Depending on the type of <a class="el" href="class_ogre_1_1_scene_manager.html" title="Manages the organisation and rendering of a &#39;scene&#39; i.e.">SceneManager</a> (subclasses will be specialised for particular world geometry types) you have requested via the <a class="el" href="class_ogre_1_1_root.html" title="The root class of the Ogre system.">Root</a> or <a class="el" href="class_ogre_1_1_scene_manager_enumerator.html" title="Enumerates the SceneManager classes available to applications.">SceneManagerEnumerator</a> classes, you can pass a filename to this method and it will attempt to load the world-level geometry for use. If you try to load an inappropriate type of world data an exception will be thrown. The default <a class="el" href="class_ogre_1_1_scene_manager.html" title="Manages the organisation and rendering of a &#39;scene&#39; i.e.">SceneManager</a> cannot handle any sort of world geometry and so will always throw an exception. However subclasses like BspSceneManager can load particular types of world geometry e.g. "q3dm1.bsp". </dd></dl>
+<p>the large, mainly static geometry making up the world e.g. rooms, landscape etc. </p><dl class="section remark"><dt>Remarks</dt><dd>Depending on the type of <a class="el" href="class_ogre_1_1_scene_manager.html" title="Manages the organisation and rendering of a &#39;scene&#39; i.e.">SceneManager</a> (subclasses will be specialised for particular world geometry types) you have requested via the <a class="el" href="class_ogre_1_1_root.html" title="The root class of the Ogre system.">Root</a> or <a class="el" href="class_ogre_1_1_scene_manager_enumerator.html" title="Enumerates the SceneManager classes available to applications.">SceneManagerEnumerator</a> classes, you can pass a filename to this method and it will attempt to load the world-level geometry for use. If you try to load an inappropriate type of world data an exception will be thrown. The default <a class="el" href="class_ogre_1_1_scene_manager.html" title="Manages the organisation and rendering of a &#39;scene&#39; i.e.">SceneManager</a> cannot handle any sort of world geometry and so will always throw an exception. However subclasses like <a class="el" href="class_ogre_1_1_bsp_scene_manager.html" title="Specialisation of the SceneManager class to deal with indoor scenes based on a BSP tree.">BspSceneManager</a> can load particular types of world geometry e.g. "q3dm1.bsp". </dd></dl>
+
+<p>Reimplemented in <a class="el" href="class_ogre_1_1_bsp_scene_manager.html#a4444e8e94c01206790db4bfad8c487ea">Ogre::BspSceneManager</a>.</p>
 
 </div>
 </div>
@@ -9650,6 +9679,8 @@ Only a single pass is allowed in your material, although multiple techniques may
   </table>
   </dd>
 </dl>
+
+<p>Reimplemented in <a class="el" href="class_ogre_1_1_bsp_scene_manager.html#a91c52dc16409d813d917981aeaf5359b">Ogre::BspSceneManager</a>.</p>
 
 </div>
 </div>
@@ -10094,7 +10125,7 @@ Only a single pass is allowed in your material, although multiple techniques may
 <div id="nav-path" class="navpath"><!-- id is needed for treeview function! -->
   <ul>
     <li class="navelem"><a class="el" href="namespace_ogre.html">Ogre</a></li><li class="navelem"><a class="el" href="class_ogre_1_1_default_scene_manager.html">DefaultSceneManager</a></li>
-    <li class="footer">Generated by
+    <li class="footer">Generated on Sat Apr 11 2020 20:39:54 for OGRE by
     <a href="http://www.doxygen.org/index.html">
     <img class="footer" src="doxygen.png" alt="doxygen"/></a> 1.8.17 </li>
   </ul>

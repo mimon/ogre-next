@@ -28,7 +28,6 @@
   <td id="projectlogo"><img alt="Logo" src="ogre-logo-wetfloor.gif"/></td>
   <td id="projectalign" style="padding-left: 0.5em;">
    <div id="projectname">OGRE
-   &#160;<span id="projectnumber">2.2.0unstable</span>
    </div>
    <div id="projectbrief">Object-Oriented Graphics Rendering Engine</div>
   </td>
@@ -107,7 +106,7 @@ $(document).ready(function(){initNavTree('class_ogre_1_1_high_level_gpu_program.
 <div id="dynsection-0-summary" class="dynsummary" style="display:block;">
 </div>
 <div id="dynsection-0-content" class="dyncontent" style="display:none;">
-<div class="center"><iframe scrolling="no" frameborder="0" src="class_ogre_1_1_high_level_gpu_program__inherit__graph.svg" width="951" height="256"><p><b>This browser is not able to show SVG: try Firefox, Chrome, Safari, or Opera instead.</b></p></iframe>
+<div class="center"><iframe scrolling="no" frameborder="0" src="class_ogre_1_1_high_level_gpu_program__inherit__graph.svg" width="951" height="307"><p><b>This browser is not able to show SVG: try Firefox, Chrome, Safari, or Opera instead.</b></p></iframe>
 </div>
 <center><span class="legend">[<a target="top" href="graph_legend.html">legend</a>]</span></center></div>
 <table class="memberdecls">
@@ -737,7 +736,7 @@ Static Public Attributes</h2></td></tr>
 
 <p>Reimplemented from <a class="el" href="class_ogre_1_1_gpu_program.html#af8938cb9c61b7304f97f857a33b56cfc">Ogre::GpuProgram</a>.</p>
 
-<p>Reimplemented in <a class="el" href="class_ogre_1_1_g_l_s_l_shader.html#acbc410161f71117c022b4179ec6f1c88">Ogre::GLSLShader</a>, and <a class="el" href="class_ogre_1_1_unified_high_level_gpu_program.html#a1dbca018725061b7baa6c2e52b491beb">Ogre::UnifiedHighLevelGpuProgram</a>.</p>
+<p>Reimplemented in <a class="el" href="class_ogre_1_1_g_l_s_l_shader.html#acbc410161f71117c022b4179ec6f1c88">Ogre::GLSLShader</a>, <a class="el" href="class_ogre_1_1_unified_high_level_gpu_program.html#a1dbca018725061b7baa6c2e52b491beb">Ogre::UnifiedHighLevelGpuProgram</a>, and <a class="el" href="class_ogre_1_1_cg_program.html#aaaf0cd27fd6604cc644e66f101844f08">Ogre::CgProgram</a>.</p>
 
 <p class="reference">References <a class="el" href="class_ogre_1_1_shared_ptr.html#a564789e0743e9be6ccb5505057ed63b6">Ogre::SharedPtr&lt; T &gt;::getPointer()</a>.</p>
 
@@ -964,7 +963,7 @@ Static Public Attributes</h2></td></tr>
 
 <p>Reimplemented from <a class="el" href="class_ogre_1_1_gpu_program.html#af402f4d88efcc9dffc948739d0bb9c57">Ogre::GpuProgram</a>.</p>
 
-<p>Reimplemented in <a class="el" href="class_ogre_1_1_d3_d11_h_l_s_l_program.html#ad8388ee6585a2e9d546de0fb5a0644e3">Ogre::D3D11HLSLProgram</a>, <a class="el" href="class_ogre_1_1_d3_d9_h_l_s_l_program.html#afb3b402c2bd87241680ed955eb924d1b">Ogre::D3D9HLSLProgram</a>, <a class="el" href="class_ogre_1_1_g_l_s_l_shader.html#a0ab0dea713289c347b831a7d4ca37cc4">Ogre::GLSLShader</a>, <a class="el" href="class_ogre_1_1_unified_high_level_gpu_program.html#ae63009fc787e1444ea412aa933e36011">Ogre::UnifiedHighLevelGpuProgram</a>, and <a class="el" href="class_ogre_1_1_metal_program.html#ac19055f6d94e185a0a13e8719ff4fa8b">Ogre::MetalProgram</a>.</p>
+<p>Reimplemented in <a class="el" href="class_ogre_1_1_d3_d11_h_l_s_l_program.html#ad8388ee6585a2e9d546de0fb5a0644e3">Ogre::D3D11HLSLProgram</a>, <a class="el" href="class_ogre_1_1_d3_d9_h_l_s_l_program.html#afb3b402c2bd87241680ed955eb924d1b">Ogre::D3D9HLSLProgram</a>, <a class="el" href="class_ogre_1_1_g_l_s_l_shader.html#a0ab0dea713289c347b831a7d4ca37cc4">Ogre::GLSLShader</a>, <a class="el" href="class_ogre_1_1_unified_high_level_gpu_program.html#ae63009fc787e1444ea412aa933e36011">Ogre::UnifiedHighLevelGpuProgram</a>, <a class="el" href="class_ogre_1_1_metal_program.html#ac19055f6d94e185a0a13e8719ff4fa8b">Ogre::MetalProgram</a>, and <a class="el" href="class_ogre_1_1_cg_program.html#a9461e01449c3773e502cb5071bbca2ae">Ogre::CgProgram</a>.</p>
 
 </div>
 </div>
@@ -1137,7 +1136,7 @@ Static Public Attributes</h2></td></tr>
 <p>Get a reference to the default parameters which are to be used for all uses of this program. </p>
 <dl class="section remark"><dt>Remarks</dt><dd>A program can be set up with a list of default parameters, which can save time when using a program many times in a material with roughly the same settings. By retrieving the default parameters and populating it with the most used options, any new parameter objects created from this program afterwards will automatically include the default parameters; thus users of the program need only change the parameters which are unique to their own usage of the program. </dd></dl>
 
-<p>Reimplemented in <a class="el" href="class_ogre_1_1_unified_high_level_gpu_program.html#a0bf65fa41c95db4f218764a99ee0e99d">Ogre::UnifiedHighLevelGpuProgram</a>.</p>
+<p>Reimplemented in <a class="el" href="class_ogre_1_1_cg_program.html#a1f21af4659df48a155db980bdadbf5f1">Ogre::CgProgram</a>, and <a class="el" href="class_ogre_1_1_unified_high_level_gpu_program.html#a0bf65fa41c95db4f218764a99ee0e99d">Ogre::UnifiedHighLevelGpuProgram</a>.</p>
 
 </div>
 </div>
@@ -1244,7 +1243,7 @@ Static Public Attributes</h2></td></tr>
 <p>Returns a string that specifies the language of the gpu programs as specified in a material script. </p>
 <p>ie: asm, cg, hlsl, glsl </p>
 
-<p>Reimplemented in <a class="el" href="class_ogre_1_1_d3_d11_h_l_s_l_program.html#aa207714ae38ecb62bf8899a884e11c37">Ogre::D3D11HLSLProgram</a>, <a class="el" href="class_ogre_1_1_d3_d9_h_l_s_l_program.html#a3ca490e299d5434ca688726f5c49fcf3">Ogre::D3D9HLSLProgram</a>, <a class="el" href="class_ogre_1_1_g_l_s_l_shader.html#ac6871270e87f12cdb509fc1c2c30a4b1">Ogre::GLSLShader</a>, <a class="el" href="class_ogre_1_1_unified_high_level_gpu_program.html#ae3d0517f8a4986497ada86655271fe51">Ogre::UnifiedHighLevelGpuProgram</a>, and <a class="el" href="class_ogre_1_1_metal_program.html#a09df4076966ef4f7457d46b6d08ddae9">Ogre::MetalProgram</a>.</p>
+<p>Reimplemented in <a class="el" href="class_ogre_1_1_d3_d11_h_l_s_l_program.html#aa207714ae38ecb62bf8899a884e11c37">Ogre::D3D11HLSLProgram</a>, <a class="el" href="class_ogre_1_1_d3_d9_h_l_s_l_program.html#a3ca490e299d5434ca688726f5c49fcf3">Ogre::D3D9HLSLProgram</a>, <a class="el" href="class_ogre_1_1_g_l_s_l_shader.html#ac6871270e87f12cdb509fc1c2c30a4b1">Ogre::GLSLShader</a>, <a class="el" href="class_ogre_1_1_cg_program.html#a5b9074b10dd674d98666fee888cd6bb3">Ogre::CgProgram</a>, <a class="el" href="class_ogre_1_1_unified_high_level_gpu_program.html#ae3d0517f8a4986497ada86655271fe51">Ogre::UnifiedHighLevelGpuProgram</a>, and <a class="el" href="class_ogre_1_1_metal_program.html#a09df4076966ef4f7457d46b6d08ddae9">Ogre::MetalProgram</a>.</p>
 
 </div>
 </div>
@@ -1547,7 +1546,7 @@ Static Public Attributes</h2></td></tr>
 <p>Returns whether a fragment program wants fog state to be passed through fixed pipeline low level API rendering calls (default true, subclasses can override) </p>
 <dl class="section remark"><dt>Remarks</dt><dd>On DirectX, shader model 2 and earlier continues to have fixed-function fog applied to it, so fog state is still passed (you should disable fog on the pass if you want to perform fog in the shader). In OpenGL it is also common to be able to access the fixed-function fog state inside the shader. </dd></dl>
 
-<p>Reimplemented in <a class="el" href="class_ogre_1_1_g_l_s_l_shader.html#aba21d5f9c6b7e7227afca0dcc0d61fc1">Ogre::GLSLShader</a>, <a class="el" href="class_ogre_1_1_unified_high_level_gpu_program.html#ac1b33ddac98296fe2690f588c649597e">Ogre::UnifiedHighLevelGpuProgram</a>, and <a class="el" href="class_ogre_1_1_metal_program.html#a0eb4a752760c801cf2ec8130788f3839">Ogre::MetalProgram</a>.</p>
+<p>Reimplemented in <a class="el" href="class_ogre_1_1_cg_program.html#a2822db9a2976b9a5470adde82073cbf5">Ogre::CgProgram</a>, <a class="el" href="class_ogre_1_1_g_l_s_l_shader.html#aba21d5f9c6b7e7227afca0dcc0d61fc1">Ogre::GLSLShader</a>, <a class="el" href="class_ogre_1_1_unified_high_level_gpu_program.html#ac1b33ddac98296fe2690f588c649597e">Ogre::UnifiedHighLevelGpuProgram</a>, and <a class="el" href="class_ogre_1_1_metal_program.html#a0eb4a752760c801cf2ec8130788f3839">Ogre::MetalProgram</a>.</p>
 
 </div>
 </div>
@@ -1578,7 +1577,7 @@ Static Public Attributes</h2></td></tr>
 <p>Returns whether a vertex program wants light and material states to be passed through fixed pipeline low level API rendering calls (default false, subclasses can override) </p>
 <dl class="section remark"><dt>Remarks</dt><dd>Most vertex programs do not need this material information, however GLSL shaders can refer to this material and lighting state so enable this option </dd></dl>
 
-<p>Reimplemented in <a class="el" href="class_ogre_1_1_g_l_s_l_shader.html#a8a9e21bd9a30cc04c5de2ca2216abb00">Ogre::GLSLShader</a>, <a class="el" href="class_ogre_1_1_unified_high_level_gpu_program.html#af6e2f43fed321ec3cceba1002605f93a">Ogre::UnifiedHighLevelGpuProgram</a>, and <a class="el" href="class_ogre_1_1_metal_program.html#a5d64db9ee2b530b00f68e892232a310c">Ogre::MetalProgram</a>.</p>
+<p>Reimplemented in <a class="el" href="class_ogre_1_1_cg_program.html#a9584e7691cce3a52b8d26e4540359892">Ogre::CgProgram</a>, <a class="el" href="class_ogre_1_1_g_l_s_l_shader.html#a8a9e21bd9a30cc04c5de2ca2216abb00">Ogre::GLSLShader</a>, <a class="el" href="class_ogre_1_1_unified_high_level_gpu_program.html#af6e2f43fed321ec3cceba1002605f93a">Ogre::UnifiedHighLevelGpuProgram</a>, and <a class="el" href="class_ogre_1_1_metal_program.html#a5d64db9ee2b530b00f68e892232a310c">Ogre::MetalProgram</a>.</p>
 
 </div>
 </div>
@@ -1609,7 +1608,7 @@ Static Public Attributes</h2></td></tr>
 <p>Returns whether a vertex program wants transform state to be passed through fixed pipeline low level API rendering calls. </p>
 <dl class="section remark"><dt>Remarks</dt><dd>Most vertex programs do not need fixed-function transform information, however GLSL shaders can refer to this state so enable this option </dd></dl>
 
-<p>Reimplemented in <a class="el" href="class_ogre_1_1_g_l_s_l_shader.html#a3ace71416990e9c08d0119fde7257113">Ogre::GLSLShader</a>, <a class="el" href="class_ogre_1_1_unified_high_level_gpu_program.html#a8e315fecab8e5ea96cd41fe1161d8bf5">Ogre::UnifiedHighLevelGpuProgram</a>, and <a class="el" href="class_ogre_1_1_metal_program.html#a9d86c5615fb4bf98c424b06028b79ac6">Ogre::MetalProgram</a>.</p>
+<p>Reimplemented in <a class="el" href="class_ogre_1_1_cg_program.html#ae376230400171f70c3270f67f476b1bf">Ogre::CgProgram</a>, <a class="el" href="class_ogre_1_1_g_l_s_l_shader.html#a3ace71416990e9c08d0119fde7257113">Ogre::GLSLShader</a>, <a class="el" href="class_ogre_1_1_unified_high_level_gpu_program.html#a8e315fecab8e5ea96cd41fe1161d8bf5">Ogre::UnifiedHighLevelGpuProgram</a>, and <a class="el" href="class_ogre_1_1_metal_program.html#a9d86c5615fb4bf98c424b06028b79ac6">Ogre::MetalProgram</a>.</p>
 
 </div>
 </div>
@@ -1639,7 +1638,7 @@ Static Public Attributes</h2></td></tr>
 
 <p>Retrieves info about the size of the resource. </p>
 
-<p>Reimplemented in <a class="el" href="class_ogre_1_1_unified_high_level_gpu_program.html#ad501229700788396f71417c19f4990ee">Ogre::UnifiedHighLevelGpuProgram</a>.</p>
+<p>Reimplemented in <a class="el" href="class_ogre_1_1_cg_program.html#a65a86c6f911a8ac4b0c6d7366fb44f26">Ogre::CgProgram</a>, and <a class="el" href="class_ogre_1_1_unified_high_level_gpu_program.html#ad501229700788396f71417c19f4990ee">Ogre::UnifiedHighLevelGpuProgram</a>.</p>
 
 </div>
 </div>
@@ -1810,7 +1809,7 @@ Static Public Attributes</h2></td></tr>
 
 <p>Did this program encounter a compile error when loading? </p>
 
-<p>Reimplemented in <a class="el" href="class_ogre_1_1_unified_high_level_gpu_program.html#a119aa715fe52579658b8532a68de2e52">Ogre::UnifiedHighLevelGpuProgram</a>.</p>
+<p>Reimplemented in <a class="el" href="class_ogre_1_1_cg_program.html#a8fe80144b24cde184f0a07f6f3f290d1">Ogre::CgProgram</a>, and <a class="el" href="class_ogre_1_1_unified_high_level_gpu_program.html#a119aa715fe52579658b8532a68de2e52">Ogre::UnifiedHighLevelGpuProgram</a>.</p>
 
 </div>
 </div>
@@ -1840,7 +1839,7 @@ Static Public Attributes</h2></td></tr>
 
 <p>Returns true if default parameters have been set up. </p>
 
-<p>Reimplemented in <a class="el" href="class_ogre_1_1_unified_high_level_gpu_program.html#a8ca8fbe7bbdff97138b538148301d76a">Ogre::UnifiedHighLevelGpuProgram</a>.</p>
+<p>Reimplemented in <a class="el" href="class_ogre_1_1_cg_program.html#a94fbe95dc398989b4de6d981a17fbc6d">Ogre::CgProgram</a>, and <a class="el" href="class_ogre_1_1_unified_high_level_gpu_program.html#a8ca8fbe7bbdff97138b538148301d76a">Ogre::UnifiedHighLevelGpuProgram</a>.</p>
 
 <p class="reference">References <a class="el" href="class_ogre_1_1_shared_ptr.html#a9ea46224e54b579a56ea769136e12e01">Ogre::SharedPtr&lt; T &gt;::isNull()</a>.</p>
 
@@ -2023,7 +2022,7 @@ Static Public Attributes</h2></td></tr>
 <p>Returns whether a vertex program includes the required instructions to perform morph animation. </p>
 <dl class="section remark"><dt>Remarks</dt><dd>If this returns true, OGRE will not blend the geometry according to morph animation, it will expect the vertex program to do it. </dd></dl>
 
-<p>Reimplemented in <a class="el" href="class_ogre_1_1_unified_high_level_gpu_program.html#ab4d35e74e84da4c93bca45b1f1ea71d6">Ogre::UnifiedHighLevelGpuProgram</a>.</p>
+<p>Reimplemented in <a class="el" href="class_ogre_1_1_cg_program.html#a38cba04e83702fbf98c4fb3cc5e1538d">Ogre::CgProgram</a>, and <a class="el" href="class_ogre_1_1_unified_high_level_gpu_program.html#ab4d35e74e84da4c93bca45b1f1ea71d6">Ogre::UnifiedHighLevelGpuProgram</a>.</p>
 
 </div>
 </div>
@@ -2054,7 +2053,7 @@ Static Public Attributes</h2></td></tr>
 <p>Returns whether a vertex program includes the required instructions to perform pose animation. </p>
 <dl class="section remark"><dt>Remarks</dt><dd>If this returns true, OGRE will not blend the geometry according to pose animation, it will expect the vertex program to do it. </dd></dl>
 
-<p>Reimplemented in <a class="el" href="class_ogre_1_1_unified_high_level_gpu_program.html#a5b5d9728195c25ad14e5fd94f7f2b7bb">Ogre::UnifiedHighLevelGpuProgram</a>.</p>
+<p>Reimplemented in <a class="el" href="class_ogre_1_1_cg_program.html#aeaa52d1e75245cee8186841eb983a0da">Ogre::CgProgram</a>, and <a class="el" href="class_ogre_1_1_unified_high_level_gpu_program.html#a5b5d9728195c25ad14e5fd94f7f2b7bb">Ogre::UnifiedHighLevelGpuProgram</a>.</p>
 
 </div>
 </div>
@@ -2145,7 +2144,7 @@ Static Public Attributes</h2></td></tr>
 <p>Returns whether a vertex program includes the required instructions to perform skeletal animation. </p>
 <dl class="section remark"><dt>Remarks</dt><dd>If this returns true, OGRE will not blend the geometry according to skeletal animation, it will expect the vertex program to do it. </dd></dl>
 
-<p>Reimplemented in <a class="el" href="class_ogre_1_1_unified_high_level_gpu_program.html#ad76bd184b381c31dce64b4ec97ae7473">Ogre::UnifiedHighLevelGpuProgram</a>.</p>
+<p>Reimplemented in <a class="el" href="class_ogre_1_1_cg_program.html#a86dfdb6d47afc2196ceaae0751942883">Ogre::CgProgram</a>, and <a class="el" href="class_ogre_1_1_unified_high_level_gpu_program.html#ad76bd184b381c31dce64b4ec97ae7473">Ogre::UnifiedHighLevelGpuProgram</a>.</p>
 
 </div>
 </div>
@@ -2175,7 +2174,7 @@ Static Public Attributes</h2></td></tr>
 
 <p>Returns whether this program can be supported on the current renderer and hardware. </p>
 
-<p>Reimplemented in <a class="el" href="class_ogre_1_1_d3_d11_h_l_s_l_program.html#a69c8062ff32d89ab961a091c949d81ed">Ogre::D3D11HLSLProgram</a>, <a class="el" href="class_ogre_1_1_d3_d9_h_l_s_l_program.html#aee09540da1c2d37d04b9eb6bac331479">Ogre::D3D9HLSLProgram</a>, and <a class="el" href="class_ogre_1_1_unified_high_level_gpu_program.html#ae432a649c8c65641e35c8ded63c6566b">Ogre::UnifiedHighLevelGpuProgram</a>.</p>
+<p>Reimplemented in <a class="el" href="class_ogre_1_1_d3_d11_h_l_s_l_program.html#a69c8062ff32d89ab961a091c949d81ed">Ogre::D3D11HLSLProgram</a>, <a class="el" href="class_ogre_1_1_d3_d9_h_l_s_l_program.html#aee09540da1c2d37d04b9eb6bac331479">Ogre::D3D9HLSLProgram</a>, <a class="el" href="class_ogre_1_1_cg_program.html#ae4968f949a99e5e10f82bfc904479bd5">Ogre::CgProgram</a>, and <a class="el" href="class_ogre_1_1_unified_high_level_gpu_program.html#ae432a649c8c65641e35c8ded63c6566b">Ogre::UnifiedHighLevelGpuProgram</a>.</p>
 
 </div>
 </div>
@@ -2205,7 +2204,7 @@ Static Public Attributes</h2></td></tr>
 
 <p>Returns whether this vertex program requires support for vertex texture fetch from the hardware. </p>
 
-<p>Reimplemented in <a class="el" href="class_ogre_1_1_unified_high_level_gpu_program.html#aad90c221fc99b618c726b5c80e076c7d">Ogre::UnifiedHighLevelGpuProgram</a>.</p>
+<p>Reimplemented in <a class="el" href="class_ogre_1_1_cg_program.html#a9bb5c2cd8a2d4e76794c7596d0c9d57e">Ogre::CgProgram</a>, and <a class="el" href="class_ogre_1_1_unified_high_level_gpu_program.html#aad90c221fc99b618c726b5c80e076c7d">Ogre::UnifiedHighLevelGpuProgram</a>.</p>
 
 </div>
 </div>
@@ -2762,7 +2761,7 @@ template&lt;class Alloc &gt; </div>
 
 <p>Reset a compile error if it occurred, allowing the load to be retried. </p>
 
-<p>Reimplemented in <a class="el" href="class_ogre_1_1_unified_high_level_gpu_program.html#aee95802d7aa580c27d10850221c12959">Ogre::UnifiedHighLevelGpuProgram</a>.</p>
+<p>Reimplemented in <a class="el" href="class_ogre_1_1_cg_program.html#a7ce0be99072f2ffd6055cd3bbd20b625">Ogre::CgProgram</a>, and <a class="el" href="class_ogre_1_1_unified_high_level_gpu_program.html#aee95802d7aa580c27d10850221c12959">Ogre::UnifiedHighLevelGpuProgram</a>.</p>
 
 </div>
 </div>
@@ -3463,7 +3462,7 @@ template&lt;class Alloc &gt; </div>
 
 <p>'Touches' the resource to indicate it has been used. </p>
 
-<p>Reimplemented in <a class="el" href="class_ogre_1_1_material.html#a340e9c6140a5b0f3467596712aa122a9">Ogre::Material</a>, and <a class="el" href="class_ogre_1_1_unified_high_level_gpu_program.html#a682949c30fe1718d4514b25df77774c2">Ogre::UnifiedHighLevelGpuProgram</a>.</p>
+<p>Reimplemented in <a class="el" href="class_ogre_1_1_material.html#a340e9c6140a5b0f3467596712aa122a9">Ogre::Material</a>, <a class="el" href="class_ogre_1_1_cg_program.html#aa448e3603f9f6cad8cfe40818888227a">Ogre::CgProgram</a>, and <a class="el" href="class_ogre_1_1_unified_high_level_gpu_program.html#a682949c30fe1718d4514b25df77774c2">Ogre::UnifiedHighLevelGpuProgram</a>.</p>
 
 <p class="reference">Referenced by <a class="el" href="class_ogre_1_1_material.html#a340e9c6140a5b0f3467596712aa122a9">Ogre::Material::touch()</a>.</p>
 
@@ -3553,7 +3552,7 @@ template&lt;class Alloc &gt; </div>
 <div id="nav-path" class="navpath"><!-- id is needed for treeview function! -->
   <ul>
     <li class="navelem"><a class="el" href="namespace_ogre.html">Ogre</a></li><li class="navelem"><a class="el" href="class_ogre_1_1_high_level_gpu_program.html">HighLevelGpuProgram</a></li>
-    <li class="footer">Generated by
+    <li class="footer">Generated on Sat Apr 11 2020 20:39:58 for OGRE by
     <a href="http://www.doxygen.org/index.html">
     <img class="footer" src="doxygen.png" alt="doxygen"/></a> 1.8.17 </li>
   </ul>

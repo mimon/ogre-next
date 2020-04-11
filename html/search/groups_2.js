@@ -1,5 +1,4 @@
 var searchData=
 [
-  ['downloadingogrecommon_32746',['DownloadingOgreCommon',['../group___downloading_ogre_common.html',1,'']]],
-  ['downloadingogrescriptscommon_32747',['DownloadingOgreScriptsCommon',['../group___downloading_ogre_scripts_common.html',1,'']]]
+  ['effects_35114',['Effects',['../group___effects.html',1,'']]]
 ];
