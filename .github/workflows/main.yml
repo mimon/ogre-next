@@ -23,7 +23,7 @@ jobs:
       - uses: actions/checkout@v1
 
       - name: Generate Doxyfile
-        run: cat CMake/Templates/Doxyfile.in | sed 's/\${\(.*\)}/$(\1)/' | doxygen -
+        run: cat CMake/Templates/Doxyfile.in | sed 's/\${\(.*\)}/$(\1)/' > Doxyfile
 
       - name: Generate docs with doxygen
         uses: mattnotmitt/doxygen-action@v1
