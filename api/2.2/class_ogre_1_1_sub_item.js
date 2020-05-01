@@ -5,7 +5,7 @@ var class_ogre_1_1_sub_item =
     [ "~SubItem", "class_ogre_1_1_sub_item.html#a9ea8c7833f3cdb031e9dae7cccf1413f", null ],
     [ "_setHlmsHashes", "class_ogre_1_1_sub_item.html#a7209f6be28cb30aa397dd7791e78c773", null ],
     [ "_setNullDatablock", "class_ogre_1_1_sub_item.html#a040f6de2d0aa0b483acac3e69608c47c", null ],
-    [ "_updateCustomGpuParameter", "class_ogre_1_1_sub_item.html#a742052f8185975e8b92103c924b005d3", null ],
+    [ "_updateCustomGpuParameter", "class_ogre_1_1_sub_item.html#a2f92a5741b1c1123f7f76ce2a551c9c8", null ],
     [ "addPoseWeight", "class_ogre_1_1_sub_item.html#a55bcfecbaab92f5836dc89da5d007586", null ],
     [ "addPoseWeight", "class_ogre_1_1_sub_item.html#ab4c66fed80a7372f7898fccd1f821eb1", null ],
     [ "addPoseWeight", "class_ogre_1_1_sub_item.html#ab4c66fed80a7372f7898fccd1f821eb1", null ],

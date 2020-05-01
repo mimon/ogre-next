@@ -14,6 +14,7 @@ var class_ogre_1_1_runtime_assertion_exception =
       [ "ERR_INVALID_CALL", "class_ogre_1_1_runtime_assertion_exception.html#a9bdf9b8a0a83b95818d676848beaa29ba69f87eaf2ef88aabef0d5d11666b6705", null ]
     ] ],
     [ "RuntimeAssertionException", "class_ogre_1_1_runtime_assertion_exception.html#a871fffb1a89b647d78c7581e539363e5", null ],
+    [ "~RuntimeAssertionException", "class_ogre_1_1_runtime_assertion_exception.html#af3a22f862d5868390187d4fdd15a7d9e", null ],
     [ "getDescription", "class_ogre_1_1_runtime_assertion_exception.html#a08d436f2af44566f7f40f4467f1d82ff", null ],
     [ "getFile", "class_ogre_1_1_runtime_assertion_exception.html#a70505a2dab963bc420f04048a3690ef2", null ],
     [ "getFullDescription", "class_ogre_1_1_runtime_assertion_exception.html#af6e85a048732d785797152da81a2706c", null ],

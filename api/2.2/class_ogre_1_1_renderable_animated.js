@@ -5,7 +5,7 @@ var class_ogre_1_1_renderable_animated =
     [ "RenderableAnimated", "class_ogre_1_1_renderable_animated.html#a8663d8708a12239da2d62593c167045e", null ],
     [ "_setHlmsHashes", "class_ogre_1_1_renderable_animated.html#aa48f836bea94634f8e6f60755b2d1bb1", null ],
     [ "_setNullDatablock", "class_ogre_1_1_renderable_animated.html#a040f6de2d0aa0b483acac3e69608c47c", null ],
-    [ "_updateCustomGpuParameter", "class_ogre_1_1_renderable_animated.html#a742052f8185975e8b92103c924b005d3", null ],
+    [ "_updateCustomGpuParameter", "class_ogre_1_1_renderable_animated.html#a2f92a5741b1c1123f7f76ce2a551c9c8", null ],
     [ "addPoseWeight", "class_ogre_1_1_renderable_animated.html#ab4c66fed80a7372f7898fccd1f821eb1", null ],
     [ "getBlendIndexToBoneIndexMap", "class_ogre_1_1_renderable_animated.html#ab505341a5f6a132dc04f9bff1ce26ba9", null ],
     [ "getCastsShadows", "class_ogre_1_1_renderable_animated.html#a3d5e8933145d36977b8c2b64e307bc59", null ],

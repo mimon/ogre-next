@@ -88,7 +88,8 @@ $(document).ready(function(){initNavTree('functions_vars_m.html',''); initResiza
 
 <h3><a id="index_m"></a>- m -</h3><ul>
 <li>m
-: <a class="el" href="struct_ogre_1_1float4x4.html#ab6429d68fd814d25b379f21b822e3551">Ogre::float4x4</a>
+: <a class="el" href="struct_ogre_1_1float4x3.html#a539f47415df46f9a6de3fa7e813d6cc7">Ogre::float4x3</a>
+, <a class="el" href="struct_ogre_1_1float4x4.html#ab6429d68fd814d25b379f21b822e3551">Ogre::float4x4</a>
 , <a class="el" href="class_ogre_1_1_matrix4.html#a949708616d61b1c520d04bd9b0577324">Ogre::Matrix4</a>
 </li>
 <li>m_LocalID
@@ -354,10 +355,16 @@ $(document).ready(function(){initNavTree('functions_vars_m.html',''); initResiza
 : <a class="el" href="class_ogre_1_1_compositor_pass_quad_def.html#aa115367c85e90c5f16d7d8941ef1ce78">Ogre::CompositorPassQuadDef</a>
 , <a class="el" href="class_ogre_1_1_compositor_pass_scene_def.html#a49a051c360d9072103ad6babae4ff340">Ogre::CompositorPassSceneDef</a>
 </li>
+<li>mCameraFar
+: <a class="el" href="struct_ogre_1_1_raster_params.html#abb3063ac46798d8104a2b148fef9f9c8">Ogre::RasterParams</a>
+</li>
 <li>mCameraName
 : <a class="el" href="class_ogre_1_1_compositor_pass_compute_def.html#a82634c07dc6544a240d3191a22df5067">Ogre::CompositorPassComputeDef</a>
 , <a class="el" href="class_ogre_1_1_compositor_pass_quad_def.html#aafcf80695604bc36020dc67d2e8fbcfb">Ogre::CompositorPassQuadDef</a>
 , <a class="el" href="class_ogre_1_1_compositor_pass_scene_def.html#ab324757ac2e20fa4d36940527506459a">Ogre::CompositorPassSceneDef</a>
+</li>
+<li>mCameraNear
+: <a class="el" href="struct_ogre_1_1_raster_params.html#aee5f67885ec946b99fff90e63f4ed9a9">Ogre::RasterParams</a>
 </li>
 <li>mCellSize
 : <a class="el" href="class_ogre_1_1_instant_radiosity.html#afb4dbc3eb134564b5c2aa7ef2ded6940">Ogre::InstantRadiosity</a>
@@ -467,6 +474,12 @@ $(document).ready(function(){initNavTree('functions_vars_m.html',''); initResiza
 </li>
 <li>mDepthFunc
 : <a class="el" href="struct_ogre_1_1_hlms_macroblock.html#abe268acf5606ed35b7af995a2b031843">Ogre::HlmsMacroblock</a>
+</li>
+<li>mDepthProbeResolution
+: <a class="el" href="struct_ogre_1_1_irradiance_field_settings.html#a702ce55bc9852c5529a1613e4a00dc21">Ogre::IrradianceFieldSettings</a>
+</li>
+<li>mDepthTextureNoMsaa
+: <a class="el" href="class_ogre_1_1_compositor_pass_scene_def.html#ae7982924a0ff96580912a35df0436a40">Ogre::CompositorPassSceneDef</a>
 </li>
 <li>mDepthWrite
 : <a class="el" href="struct_ogre_1_1_hlms_macroblock.html#a38d3242e6c29312f16a8293b9f70efae">Ogre::HlmsMacroblock</a>
@@ -624,6 +637,9 @@ $(document).ready(function(){initNavTree('functions_vars_m.html',''); initResiza
 <li>mFlushCommandBuffersAfterShadowNode
 : <a class="el" href="class_ogre_1_1_compositor_pass_scene_def.html#a125a142085fcc39304d15944c24282bf">Ogre::CompositorPassSceneDef</a>
 </li>
+<li>mForceMipmapFallback
+: <a class="el" href="class_ogre_1_1_compositor_pass_ibl_specular_def.html#aa4e21e3c81d93761312c1d6b94cf353f">Ogre::CompositorPassIblSpecularDef</a>
+</li>
 <li>mFrame
 : <a class="el" href="struct_ogre_1_1_key_frame_rig.html#a8298178fec9e910cf008dc9cdfc71bf9">Ogre::KeyFrameRig</a>
 </li>
@@ -653,6 +669,9 @@ $(document).ready(function(){initNavTree('functions_vars_m.html',''); initResiza
 </li>
 <li>mGen
 : <a class="el" href="struct_ogre_1_1_lod_data_1_1_vertex_hash.html#aae427738b413ac6e1b2e040cc49760d6">Ogre::LodData::VertexHash</a>
+</li>
+<li>mGenNormalsGBuf
+: <a class="el" href="class_ogre_1_1_compositor_pass_scene_def.html#a21c75caa6f66a3571ccb437ac3d4755e">Ogre::CompositorPassSceneDef</a>
 </li>
 <li>mGlobalIndex
 : <a class="el" href="class_ogre_1_1_bone.html#aae89e497fcf000feca411f0da11cfcdb">Ogre::Bone</a>
@@ -685,6 +704,9 @@ $(document).ready(function(){initNavTree('functions_vars_m.html',''); initResiza
 </li>
 <li>mHlmsManager
 : <a class="el" href="class_ogre_1_1_hlms_disk_cache.html#a948439477408cc9c683b29bcfd90b4d5">Ogre::HlmsDiskCache</a>
+</li>
+<li>mIblCorrectionVSH
+: <a class="el" href="class_ogre_1_1_compositor_pass_ibl_specular_def.html#ac74293cfb65732096efdf7f2f4934fda">Ogre::CompositorPassIblSpecularDef</a>
 </li>
 <li>mId
 : <a class="el" href="struct_ogre_1_1_basic_block.html#a46bd9a389676bce8a4c7f1ac1dc294bd">Ogre::BasicBlock</a>
@@ -778,6 +800,9 @@ $(document).ready(function(){initNavTree('functions_vars_m.html',''); initResiza
 <li>mipmaps
 : <a class="el" href="struct_ogre_1_1_hlms_texture_manager_1_1_default_texture_parameters.html#a569eda6e8d399fc94a0dc9c3147c3c60">Ogre::HlmsTextureManager::DefaultTextureParameters</a>
 </li>
+<li>mIrradianceResolution
+: <a class="el" href="struct_ogre_1_1_irradiance_field_settings.html#a91ad0d174575cbcff49a14d72bfc3019">Ogre::IrradianceFieldSettings</a>
+</li>
 <li>miscParams
 : <a class="el" href="struct_ogre_1_1_render_window_description.html#a9d041f83279956a42785c6894bea178a">Ogre::RenderWindowDescription</a>
 </li>
@@ -785,7 +810,7 @@ $(document).ready(function(){initNavTree('functions_vars_m.html',''); initResiza
 : <a class="el" href="class_ogre_1_1_compositor_pass_quad_def.html#a4173b782c03799cf44692660019775bc">Ogre::CompositorPassQuadDef</a>
 </li>
 <li>mIsTransparent
-: <a class="el" href="struct_ogre_1_1_hlms_blendblock.html#a02ddb4e1c40543003722e9c58b7fc5a9">Ogre::HlmsBlendblock</a>
+: <a class="el" href="struct_ogre_1_1_hlms_blendblock.html#a3df17a567525e19195f4d4daf1d11690">Ogre::HlmsBlendblock</a>
 </li>
 <li>mJobName
 : <a class="el" href="class_ogre_1_1_compositor_pass_compute_def.html#acaef9b21cfe9b1de926ca5f06059afa8">Ogre::CompositorPassComputeDef</a>
@@ -1025,11 +1050,17 @@ $(document).ready(function(){initNavTree('functions_vars_m.html',''); initResiza
 <li>mNumPlanes
 : <a class="el" href="class_ogre_1_1_quake3_level.html#aa70946a097c4c1ca30d4e4b703001e06">Ogre::Quake3Level</a>
 </li>
+<li>mNumProbes
+: <a class="el" href="struct_ogre_1_1_irradiance_field_settings.html#ab9bd18b1c51c273dbcfd37437a9894d7">Ogre::IrradianceFieldSettings</a>
+</li>
 <li>mNumRayBounces
 : <a class="el" href="class_ogre_1_1_instant_radiosity.html#aef6a4d56c9c2c3601b802ed0ec12539e">Ogre::InstantRadiosity</a>
 </li>
 <li>mNumRays
 : <a class="el" href="class_ogre_1_1_instant_radiosity.html#a4ec3032c8c0264c7cac483a4f42b7f34">Ogre::InstantRadiosity</a>
+</li>
+<li>mNumRaysPerPixel
+: <a class="el" href="struct_ogre_1_1_irradiance_field_settings.html#a3871b731f4ee54e880c3af30f19ba250">Ogre::IrradianceFieldSettings</a>
 </li>
 <li>mNumShaders
 : <a class="el" href="class_ogre_1_1_quake3_level.html#aba7de8486837255aa713299c72109893">Ogre::Quake3Level</a>
@@ -1118,6 +1149,9 @@ $(document).ready(function(){initNavTree('functions_vars_m.html',''); initResiza
 , <a class="el" href="class_ogre_1_1_movable_object.html#aad9369e62c971d55ca75b7b294c50944">Ogre::MovableObject</a>
 , <a class="el" href="class_ogre_1_1_node.html#af133224a62eb73055298c3e2a889f6f5">Ogre::Node</a>
 </li>
+<li>mParentNodeDef
+: <a class="el" href="class_ogre_1_1_compositor_pass_ibl_specular_def.html#a0b4a4fd4f44297517eff18d830d52b9f">Ogre::CompositorPassIblSpecularDef</a>
+</li>
 <li>mParentNodeTransform
 : <a class="el" href="struct_ogre_1_1_bone_transform.html#aaa9379809fce10d435d5660bde4386ae">Ogre::BoneTransform</a>
 </li>
@@ -1139,6 +1173,9 @@ $(document).ready(function(){initNavTree('functions_vars_m.html',''); initResiza
 </li>
 <li>mPCZSM
 : <a class="el" href="class_ogre_1_1_p_c_zone.html#a93e8f7a50cdea269e209fd15f87c557d">Ogre::PCZone</a>
+</li>
+<li>mPixelFormat
+: <a class="el" href="struct_ogre_1_1_raster_params.html#ae6ac20083847cbb4de3890e692e9509c">Ogre::RasterParams</a>
 </li>
 <li>mPlanes
 : <a class="el" href="class_ogre_1_1_quake3_level.html#a803cec1cc897f9f77dffc179907c3271">Ogre::Quake3Level</a>
@@ -1195,6 +1232,9 @@ $(document).ready(function(){initNavTree('functions_vars_m.html',''); initResiza
 : <a class="el" href="class_ogre_1_1_array_sphere.html#aefe1f6a28c0eae3c3f41e72c3ac2e0f6">Ogre::ArraySphere</a>
 , <a class="el" href="class_ogre_1_1_capsule.html#a0393c543b42873cf8eefd29cad40a43a">Ogre::Capsule</a>
 </li>
+<li>mRasterParams
+: <a class="el" href="struct_ogre_1_1_irradiance_field_settings.html#ac9d89490c778a2dc326136ac9dd74d44">Ogre::IrradianceFieldSettings</a>
+</li>
 <li>mReadOnlyDepth
 : <a class="el" href="class_ogre_1_1_compositor_pass_def.html#a368fcc3ba3874f5ae9f4eaf8eb46652e">Ogre::CompositorPassDef</a>
 </li>
@@ -1207,6 +1247,9 @@ $(document).ready(function(){initNavTree('functions_vars_m.html',''); initResiza
 , <a class="el" href="struct_ogre_1_1_descriptor_set_texture2.html#aace0bd55261403671680d1fe0bd07bf5">Ogre::DescriptorSetTexture2</a>
 , <a class="el" href="struct_ogre_1_1_descriptor_set_texture.html#ad94bcf69bc25441d9c3c19d9a72e8d2a">Ogre::DescriptorSetTexture</a>
 , <a class="el" href="struct_ogre_1_1_descriptor_set_uav.html#acb144542cb2f687c92cff81ea5b14b98">Ogre::DescriptorSetUav</a>
+</li>
+<li>mRefractionsTexture
+: <a class="el" href="class_ogre_1_1_compositor_pass_scene_def.html#a3150079cce806bf33715c78f7dcdb0df">Ogre::CompositorPassSceneDef</a>
 </li>
 <li>mReinterpretingGS
 : <a class="el" href="class_ogre_1_1_d3_d11_h_l_s_l_program.html#a9174dcd088c729234de410a0d640f090">Ogre::D3D11HLSLProgram</a>
@@ -1285,6 +1328,9 @@ $(document).ready(function(){initNavTree('functions_vars_m.html',''); initResiza
 </li>
 <li>mSamplers
 : <a class="el" href="struct_ogre_1_1_descriptor_set_sampler.html#abd228c72874af7a52bc042768d3e31f5">Ogre::DescriptorSetSampler</a>
+</li>
+<li>mSamplesPerIteration
+: <a class="el" href="class_ogre_1_1_compositor_pass_ibl_specular_def.html#a8ccadcb28307c716b7de43dfd90bd280">Ogre::CompositorPassIblSpecularDef</a>
 </li>
 <li>msBlueCmd
 : <a class="el" href="class_ogre_1_1_colour_fader_affector.html#adc4b2abf2d8a4dfef4f9e7d0e08bbe3c">Ogre::ColourFaderAffector</a>
@@ -1680,6 +1726,9 @@ $(document).ready(function(){initNavTree('functions_vars_m.html',''); initResiza
 </li>
 <li>mWireBoundingBox
 : <a class="el" href="class_ogre_1_1_octree.html#a2d5a7a952374d9b76bfb3bae0f6ccefb">Ogre::Octree</a>
+</li>
+<li>mWorkspaceName
+: <a class="el" href="struct_ogre_1_1_raster_params.html#ae83ecd7e7cb5b6b6d77d488bfb85b68f">Ogre::RasterParams</a>
 </li>
 <li>mWorldAabb
 : <a class="el" href="struct_ogre_1_1_object_data.html#a0a22f7505805d72aecc7b76286e01aad">Ogre::ObjectData</a>

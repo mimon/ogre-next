@@ -3,6 +3,7 @@ var _ogre_render_system_8h =
     [ "Listener", "class_ogre_1_1_render_system_1_1_listener.html", "class_ogre_1_1_render_system_1_1_listener" ],
     [ "RenderSystemContext", "struct_ogre_1_1_render_system_1_1_render_system_context.html", null ],
     [ "DepthBufferMap2", "_ogre_render_system_8h.html#ga9028f924eb43635fc009ad71cdceab02", null ],
+    [ "RenderWindowDescriptionList", "_ogre_render_system_8h.html#ga7a03bf97326d0d0385b91a74e2c51c5e", null ],
     [ "TexCoordCalcMethod", "_ogre_render_system_8h.html#gaa9c06899edc6b7aed7bf3b29abe9bb31", [
       [ "TEXCALC_NONE", "_ogre_render_system_8h.html#ggaa9c06899edc6b7aed7bf3b29abe9bb31a73546a8946a02a34d7958763e0c1034e", null ],
       [ "TEXCALC_ENVIRONMENT_MAP", "_ogre_render_system_8h.html#ggaa9c06899edc6b7aed7bf3b29abe9bb31a414edb1748a8b2bfd8c4699164c46352", null ],

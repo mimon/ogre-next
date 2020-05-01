@@ -34,7 +34,7 @@ var class_ogre_1_1v1_1_1_overlay_container =
     [ "_setTop", "class_ogre_1_1v1_1_1_overlay_container.html#aa18b1553de5547c24b1f8cdd6265f8ca", null ],
     [ "_setWidth", "class_ogre_1_1v1_1_1_overlay_container.html#ab5fa9bdec69abd665e15c52651b6dfae", null ],
     [ "_update", "class_ogre_1_1v1_1_1_overlay_container.html#a92983d678eb465dc01c9c5b1e6511fc1", null ],
-    [ "_updateCustomGpuParameter", "class_ogre_1_1v1_1_1_overlay_container.html#a742052f8185975e8b92103c924b005d3", null ],
+    [ "_updateCustomGpuParameter", "class_ogre_1_1v1_1_1_overlay_container.html#a2f92a5741b1c1123f7f76ce2a551c9c8", null ],
     [ "_updateFromParent", "class_ogre_1_1v1_1_1_overlay_container.html#a0accecda7417f638458f8ef5e5200d56", null ],
     [ "_updateRenderQueue", "class_ogre_1_1v1_1_1_overlay_container.html#afa5c582b9b19215c4a02d0f7d958f0d8", null ],
     [ "addChild", "class_ogre_1_1v1_1_1_overlay_container.html#a082216b8d094268dd35b6e5758c76c64", null ],

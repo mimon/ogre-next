@@ -60,6 +60,7 @@ var class_ogre_1_1_g_l3_plus_texture_gpu_manager =
     [ "getRenderSystem", "class_ogre_1_1_g_l3_plus_texture_gpu_manager.html#ac3acc55349bfe208b1ae576ff63ce669", null ],
     [ "getStagingTexture", "class_ogre_1_1_g_l3_plus_texture_gpu_manager.html#a321eb97d80765a36ebff0bf456a859cb", null ],
     [ "getTemporaryFbo", "class_ogre_1_1_g_l3_plus_texture_gpu_manager.html#a0532737ff33e0b1357ea2be6662fb1bb", null ],
+    [ "getVaoManager", "class_ogre_1_1_g_l3_plus_texture_gpu_manager.html#a6774fbb284ced102de63689603ae337c", null ],
     [ "hasPoolId", "class_ogre_1_1_g_l3_plus_texture_gpu_manager.html#a064b32e7db16917d223a729f3ce03a96", null ],
     [ "hasTextureResource", "class_ogre_1_1_g_l3_plus_texture_gpu_manager.html#ae7152f97e84cd44d73afc86d77951120", null ],
     [ "importTextureMetadataCache", "class_ogre_1_1_g_l3_plus_texture_gpu_manager.html#a423e53613f85ab74171ac4bb291c2555", null ],

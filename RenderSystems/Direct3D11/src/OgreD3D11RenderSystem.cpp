@@ -73,6 +73,8 @@ THE SOFTWARE.
 #include "OgreOSVersionHelpers.h"
 #include "OgreProfiler.h"
 
+#include <sstream>
+
 #ifdef _WIN32_WINNT_WIN10
     #include <d3d11_3.h>
 #endif
@@ -559,7 +561,7 @@ namespace Ogre
     {
         initRenderSystem();
 
-        LogManager::getSingleton().stream()
+        *LogManager::getSingleton().stream().raw()
             << "D3D11: RenderSystem Option: " << name << " = " << value;
 
         bool viewModeChanged = false;
@@ -1191,6 +1193,7 @@ namespace Ogre
         if (mFeatureLevel >= D3D_FEATURE_LEVEL_11_0)
         {
             rsc->setCapability(RSC_TEXTURE_COMPRESSION_BC6H_BC7);
+            rsc->setCapability(RSC_UAV);
         }
 
         rsc->setCapability(RSC_HWRENDER_TO_TEXTURE);
@@ -1614,7 +1617,7 @@ namespace Ogre
         D3D11Driver *d3dDriver = getDirect3DDrivers(true)->findByName( mDriverName );
         mActiveD3DDriver = *d3dDriver; // store copy of selected driver, so that it is not
                                        //lost when drivers would be re-enumerated
-        LogManager::getSingleton().stream() << "D3D11: Requested \"" << mDriverName <<
+        *LogManager::getSingleton().stream().raw() << "D3D11: Requested \"" << mDriverName <<
                                                "\", selected \"" <<
                                                d3dDriver->DriverDescription() << "\"";
 
@@ -2629,6 +2632,8 @@ namespace Ogre
         deviceContext->DSSetShader( 0, 0, 0 );
         deviceContext->PSSetShader( 0, 0, 0 );
         deviceContext->CSSetShader( 0, 0, 0 );
+
+        mBoundComputeProgram = 0;
 
         if( !pso )
             return;

@@ -674,7 +674,7 @@ Textures</h2>
 <ul>
 <li>mipmaps &lt;num Mipmaps&gt;</li>
 </ul>
-<p>Default: 0; Indicates how many mipmaps to use. 0 for none. Use -1 to fill all mipmaps until 1x1</p>
+<p>Default: 1; Indicates how many mipmaps to use. 1 for none. Use 0 to fill all mipmaps until 1x1</p>
 <ul>
 <li>automipmaps</li>
 </ul>
@@ -838,6 +838,13 @@ Setting up shadow nodes</h2>
 <li>num_splits &lt;num_splits&gt;</li>
 </ul>
 <p>Only used by PSSM techniques. Specifies the number of splits per light. Can vary per shadow map. The number of splits must be greater than 2. Default is 3.</p>
+<ul>
+<li>num_stable_splits &lt;num_stable_splits&gt;</li>
+</ul>
+<p>PSSM tends to be very unstable to camera rotation changes. Rotate the camera around and the shadow mapping artifacts keep changing.</p>
+<p>setNumStableSplits allows you to fix that problem; by switching to ConcentricShadowCamera for the first N splits you specify; while the rest of the splits will use FocusedShadowCameraSetup.</p>
+<p>We achieve rotation stability by sacrificing overall quality. Using ConcentricShadowCamera on higher splits means sacrificing exponentially a lot more quality (and even performance); thus the recommended values are num_stable_splits = 1 or num_stable_splits = 2</p>
+<p>The default is num_stable_splits = 0 which disables the feature</p>
 <ul>
 <li>pssm_lambda &lt;lambda&gt;</li>
 </ul>
@@ -1410,13 +1417,13 @@ Default values</h2>
 </div><!-- PageDoc -->
 </div><!-- doc-content -->
 <div class="ttc" id="agroup___image_html_gga7e0353e7d36d4c2e8468641b7303d39cab63dbcddd53d1f766d742fd557c26be4"><div class="ttname"><a href="group___image.html#gga7e0353e7d36d4c2e8468641b7303d39cab63dbcddd53d1f766d742fd557c26be4">Ogre::PF_FLOAT16_R</a></div><div class="ttdeci">@ PF_FLOAT16_R</div><div class="ttdoc">16-bit pixel format, 16 bits (float) for red</div><div class="ttdef"><b>Definition:</b> OgrePixelFormat.h:122</div></div>
-<div class="ttc" id="anamespace_ogre_html_afd8858313711c803931b69d331be3d7b"><div class="ttname"><a href="namespace_ogre.html#afd8858313711c803931b69d331be3d7b">Ogre::max</a></div><div class="ttdeci">const float &amp; max(const float &amp;a, const float &amp;b)</div><div class="ttdef"><b>Definition:</b> OgreCommon.h:1130</div></div>
+<div class="ttc" id="anamespace_ogre_html_afd8858313711c803931b69d331be3d7b"><div class="ttname"><a href="namespace_ogre.html#afd8858313711c803931b69d331be3d7b">Ogre::max</a></div><div class="ttdeci">const float &amp; max(const float &amp;a, const float &amp;b)</div><div class="ttdef"><b>Definition:</b> OgreCommon.h:1106</div></div>
 <div class="ttc" id="agroup___image_html_gga7e0353e7d36d4c2e8468641b7303d39ca74ea3b1c0c5f4ae06b1a7136c5523eca"><div class="ttname"><a href="group___image.html#gga7e0353e7d36d4c2e8468641b7303d39ca74ea3b1c0c5f4ae06b1a7136c5523eca">Ogre::PF_R8G8B8A8</a></div><div class="ttdeci">@ PF_R8G8B8A8</div><div class="ttdoc">32-bit pixel format, 8 bits for red, green, blue and alpha.</div><div class="ttdef"><b>Definition:</b> OgrePixelFormat.h:81</div></div>
 <div class="ttc" id="agroup___image_html_gga7e0353e7d36d4c2e8468641b7303d39ca3e263e021355990e214529a767de2598"><div class="ttname"><a href="group___image.html#gga7e0353e7d36d4c2e8468641b7303d39ca3e263e021355990e214529a767de2598">Ogre::PF_NULL</a></div><div class="ttdeci">@ PF_NULL</div><div class="ttdoc">Dummy, used for UAV-only rendering.</div><div class="ttdef"><b>Definition:</b> OgrePixelFormat.h:359</div></div>
 <div class="ttc" id="agroup___image_html_gga7e0353e7d36d4c2e8468641b7303d39ca2da3ec4fe727d552337e02069cd9efd9"><div class="ttname"><a href="group___image.html#gga7e0353e7d36d4c2e8468641b7303d39ca2da3ec4fe727d552337e02069cd9efd9">Ogre::PF_FLOAT32_R</a></div><div class="ttdeci">@ PF_FLOAT32_R</div><div class="ttdef"><b>Definition:</b> OgrePixelFormat.h:128</div></div>
 <div class="ttc" id="anamespace_ogre_1_1_scene_flags_html_af3190017d83d94455e645c506aa1681ba9116754b875c4e6c60a159495035eaff"><div class="ttname"><a href="namespace_ogre_1_1_scene_flags.html#af3190017d83d94455e645c506aa1681ba9116754b875c4e6c60a159495035eaff">Ogre::SceneFlags::Lights</a></div><div class="ttdeci">@ Lights</div><div class="ttdef"><b>Definition:</b> OgreSceneFormatBase.h:57</div></div>
 <div class="ttc" id="agroup___image_html_gga7e0353e7d36d4c2e8468641b7303d39caaf48b935733a5000583fb73012c382ae"><div class="ttname"><a href="group___image.html#gga7e0353e7d36d4c2e8468641b7303d39caaf48b935733a5000583fb73012c382ae">Ogre::PF_D32_FLOAT</a></div><div class="ttdeci">@ PF_D32_FLOAT</div><div class="ttdoc">Depth texture format. 32 bits for depth.</div><div class="ttdef"><b>Definition:</b> OgrePixelFormat.h:348</div></div>
-<div class="ttc" id="anamespace_ogre_html_aa3a7b6dfb905e6572d62f0dfa3d4274d"><div class="ttname"><a href="namespace_ogre.html#aa3a7b6dfb905e6572d62f0dfa3d4274d">Ogre::Real</a></div><div class="ttdeci">float Real</div><div class="ttdoc">Software floating point type.</div><div class="ttdef"><b>Definition:</b> OgrePrerequisites.h:72</div></div>
+<div class="ttc" id="anamespace_ogre_html_aa3a7b6dfb905e6572d62f0dfa3d4274d"><div class="ttname"><a href="namespace_ogre.html#aa3a7b6dfb905e6572d62f0dfa3d4274d">Ogre::Real</a></div><div class="ttdeci">float Real</div><div class="ttdoc">Software floating point type.</div><div class="ttdef"><b>Definition:</b> OgrePrerequisites.h:87</div></div>
 <div class="ttc" id="anamespace_ogre_html"><div class="ttname"><a href="namespace_ogre.html">Ogre</a></div><div class="ttdef"><b>Definition:</b> OgreHlmsBufferManager.h:56</div></div>
 <div class="ttc" id="agroup___image_html_gga7e0353e7d36d4c2e8468641b7303d39ca32d32d3a5a8b68c1495d5c494575a6d8"><div class="ttname"><a href="group___image.html#gga7e0353e7d36d4c2e8468641b7303d39ca32d32d3a5a8b68c1495d5c494575a6d8">Ogre::PF_R8G8B8</a></div><div class="ttdeci">@ PF_R8G8B8</div><div class="ttdoc">24-bit pixel format, 8 bits for red, green and blue.</div><div class="ttdef"><b>Definition:</b> OgrePixelFormat.h:71</div></div>
 <!-- start footer part -->

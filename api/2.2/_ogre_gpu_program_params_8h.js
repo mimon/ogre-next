@@ -1,7 +1,6 @@
 var _ogre_gpu_program_params_8h =
 [
     [ "AutoConstantDefinition", "struct_ogre_1_1_gpu_program_parameters_1_1_auto_constant_definition.html", "struct_ogre_1_1_gpu_program_parameters_1_1_auto_constant_definition" ],
-    [ "AutoConstantEntry", "class_ogre_1_1_gpu_program_parameters_1_1_auto_constant_entry.html", "class_ogre_1_1_gpu_program_parameters_1_1_auto_constant_entry" ],
     [ "DoubleConstantList", "_ogre_gpu_program_params_8h.html#ga2d78a9c98de30377b250afcc5d669221", null ],
     [ "FloatConstantList", "_ogre_gpu_program_params_8h.html#ga85c9b7d7f5d35f36d118af514f18ab5b", null ],
     [ "GpuConstantDefinitionIterator", "_ogre_gpu_program_params_8h.html#gaff7bf5891ea6cfed80f4e50edc5d3695", null ],

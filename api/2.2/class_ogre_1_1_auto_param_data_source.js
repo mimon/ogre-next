@@ -30,6 +30,7 @@ var class_ogre_1_1_auto_param_data_source =
     [ "getInverseTransposeWorldMatrix", "class_ogre_1_1_auto_param_data_source.html#a3506bb3315c07db93ab29716e78f314e", null ],
     [ "getInverseTransposeWorldViewMatrix", "class_ogre_1_1_auto_param_data_source.html#aec031ed7f46a8461411120089628601a", null ],
     [ "getInverseTransposeWorldViewProjMatrix", "class_ogre_1_1_auto_param_data_source.html#a40d734fec257ade58e76338212976588", null ],
+    [ "getInverseUavSize", "class_ogre_1_1_auto_param_data_source.html#a8ac68dba1115bcfc66603d3e38e112d8", null ],
     [ "getInverseViewMatrix", "class_ogre_1_1_auto_param_data_source.html#ab5215e4bb9849c3062d5509e695c86f6", null ],
     [ "getInverseViewportHeight", "class_ogre_1_1_auto_param_data_source.html#aca4cbec02abcd89910cd8d8aa85bcd81", null ],
     [ "getInverseViewportWidth", "class_ogre_1_1_auto_param_data_source.html#acfed73d5c9e03efbe4d591980ac4774c", null ],
@@ -52,6 +53,7 @@ var class_ogre_1_1_auto_param_data_source =
     [ "getLodCameraPositionObjectSpace", "class_ogre_1_1_auto_param_data_source.html#aabfa514dcd6974f2dc96c1ae46056a5e", null ],
     [ "getNearClipDistance", "class_ogre_1_1_auto_param_data_source.html#a653cc215a7cb163e13ee19a5072940f3", null ],
     [ "getPackedTextureSize", "class_ogre_1_1_auto_param_data_source.html#a6df49264c53a9d4a79f7595143b3ec51", null ],
+    [ "getPackedUavSize", "class_ogre_1_1_auto_param_data_source.html#ab3e18653febc81aa751f7109ea43d5bb", null ],
     [ "getPassNumber", "class_ogre_1_1_auto_param_data_source.html#afc777a9773bae73e390e3674ccf34ca7", null ],
     [ "getProjectionMatrix", "class_ogre_1_1_auto_param_data_source.html#af0bee29b05f97576c912c5384a3931a7", null ],
     [ "getPssmBlends", "class_ogre_1_1_auto_param_data_source.html#a95ed606f7ef0f1a0b2c08f46f4c986f7", null ],
@@ -94,6 +96,7 @@ var class_ogre_1_1_auto_param_data_source =
     [ "getTransposeWorldMatrix", "class_ogre_1_1_auto_param_data_source.html#a13aa8e5ee2fd8a583283ae8d13d430eb", null ],
     [ "getTransposeWorldViewMatrix", "class_ogre_1_1_auto_param_data_source.html#ad1dd231941ab67203eb860b74ea0ed31", null ],
     [ "getTransposeWorldViewProjMatrix", "class_ogre_1_1_auto_param_data_source.html#a5f9bc5e389b70dbb8832eb9e6084dcf1", null ],
+    [ "getUavSize", "class_ogre_1_1_auto_param_data_source.html#a64fff2e26bd8fa498afef7b04c60ce6b", null ],
     [ "getViewDirection", "class_ogre_1_1_auto_param_data_source.html#aac4a2228168a324f4d8557f8a1e98d9a", null ],
     [ "getViewMatrix", "class_ogre_1_1_auto_param_data_source.html#a00a28bd5ffbf01c395875e7c1ee5f207", null ],
     [ "getViewportHeight", "class_ogre_1_1_auto_param_data_source.html#ae7d883b808fdccae70db7f300da087fa", null ],
@@ -132,5 +135,5 @@ var class_ogre_1_1_auto_param_data_source =
     [ "setShadowDirLightExtrusionDistance", "class_ogre_1_1_auto_param_data_source.html#a6717ec5326ce4b1f23a3b12a918405ff", null ],
     [ "setTextureProjector", "class_ogre_1_1_auto_param_data_source.html#a0191611c98b4a46328b5610a53a77781", null ],
     [ "setWorldMatrices", "class_ogre_1_1_auto_param_data_source.html#af4d3c3a9f75313332e18cfc62ca4d8d7", null ],
-    [ "updateLightCustomGpuParameter", "class_ogre_1_1_auto_param_data_source.html#aab98cdc91cf17d2651f89c6b30f37786", null ]
+    [ "updateLightCustomGpuParameter", "class_ogre_1_1_auto_param_data_source.html#aa22820cd42a0c2fbea03cf3762a564a9", null ]
 ];

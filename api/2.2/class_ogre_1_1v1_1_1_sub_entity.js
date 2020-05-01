@@ -14,7 +14,7 @@ var class_ogre_1_1v1_1_1_sub_entity =
     [ "_restoreBuffersForUnusedAnimation", "class_ogre_1_1v1_1_1_sub_entity.html#a300f4471e3054d736a8e39bdf9930ad4", null ],
     [ "_setHlmsHashes", "class_ogre_1_1v1_1_1_sub_entity.html#aa48f836bea94634f8e6f60755b2d1bb1", null ],
     [ "_setNullDatablock", "class_ogre_1_1v1_1_1_sub_entity.html#abb6b69b9856759204540e80d2e081ff2", null ],
-    [ "_updateCustomGpuParameter", "class_ogre_1_1v1_1_1_sub_entity.html#a28393ebb5772d06e374958f07f0e4ca3", null ],
+    [ "_updateCustomGpuParameter", "class_ogre_1_1v1_1_1_sub_entity.html#a1e030701946a007568e229da9d2766ca", null ],
     [ "addPoseWeight", "class_ogre_1_1v1_1_1_sub_entity.html#ab4c66fed80a7372f7898fccd1f821eb1", null ],
     [ "getCastsShadows", "class_ogre_1_1v1_1_1_sub_entity.html#a018e6bf63356e02ef3ec5a0e30d289ca", null ],
     [ "getCurrentMaterialLod", "class_ogre_1_1v1_1_1_sub_entity.html#a3a8fafedc41616f8ae8306409443c3e4", null ],

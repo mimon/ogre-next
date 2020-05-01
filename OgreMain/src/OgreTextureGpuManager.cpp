@@ -53,6 +53,7 @@ THE SOFTWARE.
 #include "OgreRenderSystem.h"
 #include "OgreException.h"
 #include "OgreLogManager.h"
+#include "OgreString.h"
 
 #include "OgreProfiler.h"
 
@@ -1536,6 +1537,11 @@ namespace Ogre
     RenderSystem* TextureGpuManager::getRenderSystem(void) const
     {
         return mRenderSystem;
+    }
+    //-----------------------------------------------------------------------------------
+    VaoManager* TextureGpuManager::getVaoManager(void) const
+    {
+        return mVaoManager;
     }
     //-----------------------------------------------------------------------------------
     void TextureGpuManager::scheduleLoadRequest( TextureGpu *texture,

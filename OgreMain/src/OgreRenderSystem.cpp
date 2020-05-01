@@ -1220,5 +1220,7 @@ namespace Ogre {
     void RenderSystem::_clearStateAndFlushCommandBuffer(void)
     {
     }
+    //---------------------------------------------------------------------
+    RenderSystem::Listener::~Listener() {}
 }
 

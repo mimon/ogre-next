@@ -14,6 +14,7 @@ var class_ogre_1_1_i_o_exception =
       [ "ERR_INVALID_CALL", "class_ogre_1_1_i_o_exception.html#a9bdf9b8a0a83b95818d676848beaa29ba69f87eaf2ef88aabef0d5d11666b6705", null ]
     ] ],
     [ "IOException", "class_ogre_1_1_i_o_exception.html#a9cb13ae6d95e203689c43dfe194cf0c7", null ],
+    [ "~IOException", "class_ogre_1_1_i_o_exception.html#a01912ee8f53d224d8259a1046a4863c8", null ],
     [ "getDescription", "class_ogre_1_1_i_o_exception.html#a08d436f2af44566f7f40f4467f1d82ff", null ],
     [ "getFile", "class_ogre_1_1_i_o_exception.html#a70505a2dab963bc420f04048a3690ef2", null ],
     [ "getFullDescription", "class_ogre_1_1_i_o_exception.html#af6e85a048732d785797152da81a2706c", null ],

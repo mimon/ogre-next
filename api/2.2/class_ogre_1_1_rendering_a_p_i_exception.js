@@ -14,6 +14,7 @@ var class_ogre_1_1_rendering_a_p_i_exception =
       [ "ERR_INVALID_CALL", "class_ogre_1_1_rendering_a_p_i_exception.html#a9bdf9b8a0a83b95818d676848beaa29ba69f87eaf2ef88aabef0d5d11666b6705", null ]
     ] ],
     [ "RenderingAPIException", "class_ogre_1_1_rendering_a_p_i_exception.html#aa3f950b457a33a114a74f9b8993a885d", null ],
+    [ "~RenderingAPIException", "class_ogre_1_1_rendering_a_p_i_exception.html#a569c60c64b13e2bd73d579a1584367f0", null ],
     [ "getDescription", "class_ogre_1_1_rendering_a_p_i_exception.html#a08d436f2af44566f7f40f4467f1d82ff", null ],
     [ "getFile", "class_ogre_1_1_rendering_a_p_i_exception.html#a70505a2dab963bc420f04048a3690ef2", null ],
     [ "getFullDescription", "class_ogre_1_1_rendering_a_p_i_exception.html#af6e85a048732d785797152da81a2706c", null ],

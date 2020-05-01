@@ -702,7 +702,7 @@ $(document).ready(function(){initNavTree('functions_b.html',''); initResizable()
 , <a class="el" href="class_ogre_1_1v1_1_1_g_l_e_s2_depth_pixel_buffer.html#a9915a69a461e6f27cf505794e78d5797">Ogre::v1::GLES2DepthPixelBuffer</a>
 , <a class="el" href="class_ogre_1_1v1_1_1_g_l_e_s2_hardware_pixel_buffer.html#a428ea67e828f2d2015eaf5d643eb2884">Ogre::v1::GLES2HardwarePixelBuffer</a>
 , <a class="el" href="class_ogre_1_1v1_1_1_g_l_e_s2_null_pixel_buffer.html#a6cf320888f1e7e966da1b6672f72b9df">Ogre::v1::GLES2NullPixelBuffer</a>
-, <a class="el" href="class_ogre_1_1v1_1_1_hardware_pixel_buffer.html#a3e7adba95ce26023bc068e8103c5b20a">Ogre::v1::HardwarePixelBuffer</a>
+, <a class="el" href="class_ogre_1_1v1_1_1_hardware_pixel_buffer.html#a8740251e658492eb991d6d327257c7ac">Ogre::v1::HardwarePixelBuffer</a>
 , <a class="el" href="class_ogre_1_1v1_1_1_metal_depth_pixel_buffer.html#a566c6e76927d0be0796fc2fe53fcae44">Ogre::v1::MetalDepthPixelBuffer</a>
 , <a class="el" href="class_ogre_1_1v1_1_1_metal_hardware_pixel_buffer.html#a8a8b29e1f4bb3017237ef419f5d53cc7">Ogre::v1::MetalHardwarePixelBuffer</a>
 , <a class="el" href="class_ogre_1_1v1_1_1_metal_null_pixel_buffer.html#a9c65f258a98f5708331aeb39425d6746">Ogre::v1::MetalNullPixelBuffer</a>
@@ -1014,6 +1014,7 @@ $(document).ready(function(){initNavTree('functions_b.html',''); initResizable()
 <li>build
 : <a class="el" href="struct_ogre_1_1_driver_version.html#ac233befea948c74a75aaf937be7f78ec">Ogre::DriverVersion</a>
 , <a class="el" href="class_ogre_1_1_instant_radiosity.html#a640111ec340efb2b4a0e6f67002596c2">Ogre::InstantRadiosity</a>
+, <a class="el" href="class_ogre_1_1_light_profiles.html#a5696c2d3c28a78c1333a6c6c7fe9dd27">Ogre::LightProfiles</a>
 , <a class="el" href="class_ogre_1_1_skeleton_animation_def.html#af5e464e914a9074cc9744099f3349756">Ogre::SkeletonAnimationDef</a>
 , <a class="el" href="class_ogre_1_1v1_1_1_edge_list_builder.html#a2647733a3945f569ef3cbfc34af31733">Ogre::v1::EdgeListBuilder</a>
 , <a class="el" href="class_ogre_1_1v1_1_1_patch_surface.html#a4bf36a803ef66f7678af02eb700b7424">Ogre::v1::PatchSurface</a>
@@ -1037,11 +1038,14 @@ $(document).ready(function(){initNavTree('functions_b.html',''); initResizable()
 <li>buildEdgeList()
 : <a class="el" href="class_ogre_1_1v1_1_1_mesh.html#aa4754582156b2571658a1e8a7c2c5eb9">Ogre::v1::Mesh</a>
 </li>
+<li>buildEnd()
+: <a class="el" href="class_ogre_1_1_pcc_per_pixel_grid_placement.html#a475cfc98745d04539575861c511c571a">Ogre::PccPerPixelGridPlacement</a>
+</li>
 <li>buildLightList()
 : <a class="el" href="class_ogre_1_1_movable_object.html#ac4305df204604a027ca27ef77efff295">Ogre::MovableObject</a>
 </li>
 <li>BuildLightListRequest()
-: <a class="el" href="struct_ogre_1_1_build_light_list_request.html#a832c4b7ada0ed9b63e0555062633e59a">Ogre::BuildLightListRequest</a>
+: <a class="el" href="struct_ogre_1_1_build_light_list_request.html#ac87aa98038559a99ea8c68729b6fc6e7">Ogre::BuildLightListRequest</a>
 </li>
 <li>buildPresentParameters()
 : <a class="el" href="class_ogre_1_1_d3_d9_render_window.html#abfc7c27e8262d1d3ed813df0a33120b9">Ogre::D3D9RenderWindow</a>
@@ -1051,6 +1055,9 @@ $(document).ready(function(){initNavTree('functions_b.html',''); initResizable()
 </li>
 <li>buildRenderState()
 : <a class="el" href="class_ogre_1_1_r_t_shader_1_1_f_f_p_render_state_builder.html#a7d7ba7f2dd2a417dcc0603312c1154f9">Ogre::RTShader::FFPRenderStateBuilder</a>
+</li>
+<li>buildStart()
+: <a class="el" href="class_ogre_1_1_pcc_per_pixel_grid_placement.html#a1bb883732dccbbe6fdea7aa28a51537f">Ogre::PccPerPixelGridPlacement</a>
 </li>
 <li>buildTangentVectors()
 : <a class="el" href="class_ogre_1_1v1_1_1_mesh.html#a86c52328bf944c331de3ba3ca3a6eca6">Ogre::v1::Mesh</a>
@@ -1063,7 +1070,7 @@ $(document).ready(function(){initNavTree('functions_b.html',''); initResizable()
 </li>
 <li>bulkPixelConversion()
 : <a class="el" href="class_ogre_1_1_pixel_format_gpu_utils.html#af78f1f21c6fe6d68b8d1b4be15a0bf06">Ogre::PixelFormatGpuUtils</a>
-, <a class="el" href="class_ogre_1_1_pixel_util.html#a9f6e459a0f92c0c8e6bf4f20ee3a771a">Ogre::PixelUtil</a>
+, <a class="el" href="class_ogre_1_1_pixel_util.html#a0cae4443af5f8feb1c2f4f0905277c34">Ogre::PixelUtil</a>
 </li>
 <li>bulkPixelVerticalFlip()
 : <a class="el" href="class_ogre_1_1_pixel_util.html#a3d8f29c8c1181ba98e22e342169970fd">Ogre::PixelUtil</a>

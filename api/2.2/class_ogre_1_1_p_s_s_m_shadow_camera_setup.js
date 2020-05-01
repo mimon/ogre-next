@@ -6,6 +6,7 @@ var class_ogre_1_1_p_s_s_m_shadow_camera_setup =
     [ "calculateSplitPoints", "class_ogre_1_1_p_s_s_m_shadow_camera_setup.html#a9cf6fe9aa7709668f3404b5ed9575975", null ],
     [ "getMaxDistance", "class_ogre_1_1_p_s_s_m_shadow_camera_setup.html#a5fca5ac3db0ec963d468a050a597e81b", null ],
     [ "getMinDistance", "class_ogre_1_1_p_s_s_m_shadow_camera_setup.html#ada64716374ef5839054ebb8b9d5ecd19", null ],
+    [ "getNumStableSplits", "class_ogre_1_1_p_s_s_m_shadow_camera_setup.html#a57cc5a2ca0a9c495ca28434acfe24fc1", null ],
     [ "getShadowCamera", "class_ogre_1_1_p_s_s_m_shadow_camera_setup.html#affbbc8885fc753e53b9ce1f9fe6e891f", null ],
     [ "getSplitBlendPoints", "class_ogre_1_1_p_s_s_m_shadow_camera_setup.html#a44b8015b7c2d57e91ffacbe914951999", null ],
     [ "getSplitCount", "class_ogre_1_1_p_s_s_m_shadow_camera_setup.html#adb420010a1fb38c2effabc47ff37b3f5", null ],
@@ -22,6 +23,7 @@ var class_ogre_1_1_p_s_s_m_shadow_camera_setup =
     [ "operator new", "class_ogre_1_1_p_s_s_m_shadow_camera_setup.html#ab78a921e54419be677839cdf15d1f0b8", null ],
     [ "operator new[]", "class_ogre_1_1_p_s_s_m_shadow_camera_setup.html#afa2943846ba6a2b5824a12857139cf5e", null ],
     [ "operator new[]", "class_ogre_1_1_p_s_s_m_shadow_camera_setup.html#a4be37baef81876985aa1071ad5acc6dd", null ],
+    [ "setNumStableSplits", "class_ogre_1_1_p_s_s_m_shadow_camera_setup.html#ae856178ef392e5f8b082cea81b15c141", null ],
     [ "setOptimalAdjustFactor", "class_ogre_1_1_p_s_s_m_shadow_camera_setup.html#a4f16797f8c4fcee30141e5dd0690e647", null ],
     [ "setSplitPadding", "class_ogre_1_1_p_s_s_m_shadow_camera_setup.html#a5000b20f43bea556bcdd994550f1f0ab", null ],
     [ "setSplitPoints", "class_ogre_1_1_p_s_s_m_shadow_camera_setup.html#a82cacf643a003a08ee531cd71b505fb0", null ]

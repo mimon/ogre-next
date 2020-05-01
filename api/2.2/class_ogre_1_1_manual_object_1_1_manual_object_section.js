@@ -5,7 +5,7 @@ var class_ogre_1_1_manual_object_1_1_manual_object_section =
     [ "~ManualObjectSection", "class_ogre_1_1_manual_object_1_1_manual_object_section.html#a1c31f44d8b0339fd4b1bafbf6b059444", null ],
     [ "_setHlmsHashes", "class_ogre_1_1_manual_object_1_1_manual_object_section.html#aa48f836bea94634f8e6f60755b2d1bb1", null ],
     [ "_setNullDatablock", "class_ogre_1_1_manual_object_1_1_manual_object_section.html#a040f6de2d0aa0b483acac3e69608c47c", null ],
-    [ "_updateCustomGpuParameter", "class_ogre_1_1_manual_object_1_1_manual_object_section.html#a742052f8185975e8b92103c924b005d3", null ],
+    [ "_updateCustomGpuParameter", "class_ogre_1_1_manual_object_1_1_manual_object_section.html#a2f92a5741b1c1123f7f76ce2a551c9c8", null ],
     [ "addPoseWeight", "class_ogre_1_1_manual_object_1_1_manual_object_section.html#ab4c66fed80a7372f7898fccd1f821eb1", null ],
     [ "getCastsShadows", "class_ogre_1_1_manual_object_1_1_manual_object_section.html#a2668bbc58296485154d3698ab3d82033", null ],
     [ "getCurrentMaterialLod", "class_ogre_1_1_manual_object_1_1_manual_object_section.html#a3a8fafedc41616f8ae8306409443c3e4", null ],

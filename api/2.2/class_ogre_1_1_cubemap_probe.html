@@ -138,6 +138,8 @@ Public Member Functions</h2></td></tr>
 <tr class="separator:a2df810d6bf50b97a3652f719b84dfdc2"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:aec6eacebbdfaf7f24f72f7de0bdd5384"><td class="memItemLeft" align="right" valign="top"><a class="el" href="class_ogre_1_1_texture_gpu.html">TextureGpu</a> *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_ogre_1_1_cubemap_probe.html#aec6eacebbdfaf7f24f72f7de0bdd5384">getInternalTexture</a> (void) const</td></tr>
 <tr class="separator:aec6eacebbdfaf7f24f72f7de0bdd5384"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:aef239245f06a609702f7c4c6b55c7454"><td class="memItemLeft" align="right" valign="top">const <a class="el" href="class_ogre_1_1_matrix3.html">Matrix3</a> &amp;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_ogre_1_1_cubemap_probe.html#aef239245f06a609702f7c4c6b55c7454">getInvOrientation</a> (void) const</td></tr>
+<tr class="separator:aef239245f06a609702f7c4c6b55c7454"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a2ba23e6feb96518335761ec3a9d47902"><td class="memItemLeft" align="right" valign="top"><a class="el" href="namespace_ogre.html#aa3a7b6dfb905e6572d62f0dfa3d4274d">Real</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_ogre_1_1_cubemap_probe.html#a2ba23e6feb96518335761ec3a9d47902">getNDF</a> (const <a class="el" href="class_ogre_1_1_vector3.html">Vector3</a> &amp;posLS) const</td></tr>
 <tr class="memdesc:a2ba23e6feb96518335761ec3a9d47902"><td class="mdescLeft">&#160;</td><td class="mdescRight">Gets the Normalized Distance Function.  <a href="class_ogre_1_1_cubemap_probe.html#a2ba23e6feb96518335761ec3a9d47902">More...</a><br /></td></tr>
 <tr class="separator:a2ba23e6feb96518335761ec3a9d47902"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -153,9 +155,9 @@ Public Member Functions</h2></td></tr>
 <tr class="separator:a1ff89e003e318928bee60317319b5cf9"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:aa8fc084d16a193f59303f006ec002e21"><td class="memItemLeft" align="right" valign="top"><a class="el" href="class_ogre_1_1_compositor_workspace.html">CompositorWorkspace</a> *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_ogre_1_1_cubemap_probe.html#aa8fc084d16a193f59303f006ec002e21">getWorkspace</a> (void) const</td></tr>
 <tr class="separator:aa8fc084d16a193f59303f006ec002e21"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a9feec3f62e9510d69442452d14a3fcfe"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_ogre_1_1_cubemap_probe.html#a9feec3f62e9510d69442452d14a3fcfe">initWorkspace</a> (float cameraNear=0.5f, float cameraFar=500.0f, <a class="el" href="namespace_ogre.html#a119732ea9d1e88bbddc47b4ac0fa21cb">uint8</a> mipmapsExecutionMask=0x01, <a class="el" href="struct_ogre_1_1_id_string.html">IdString</a> workspaceDefOverride=<a class="el" href="struct_ogre_1_1_id_string.html">IdString</a>())</td></tr>
-<tr class="memdesc:a9feec3f62e9510d69442452d14a3fcfe"><td class="mdescLeft">&#160;</td><td class="mdescRight">Initializes the workspace so we can actually render to the cubemap.  <a href="class_ogre_1_1_cubemap_probe.html#a9feec3f62e9510d69442452d14a3fcfe">More...</a><br /></td></tr>
-<tr class="separator:a9feec3f62e9510d69442452d14a3fcfe"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:aa8ffb1d3c73359ccb630ce3699532a08"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_ogre_1_1_cubemap_probe.html#aa8ffb1d3c73359ccb630ce3699532a08">initWorkspace</a> (float cameraNear=0.5f, float cameraFar=500.0f, <a class="el" href="struct_ogre_1_1_id_string.html">IdString</a> workspaceDefOverride=<a class="el" href="struct_ogre_1_1_id_string.html">IdString</a>(), const <a class="el" href="group___effects.html#ga1b4b8ae78da8288aeb191b819c0d72d3">CompositorChannelVec</a> &amp;additionalChannels=<a class="el" href="group___effects.html#ga1b4b8ae78da8288aeb191b819c0d72d3">CompositorChannelVec</a>(), <a class="el" href="namespace_ogre.html#a119732ea9d1e88bbddc47b4ac0fa21cb">uint8</a> executionMask=0xFF)</td></tr>
+<tr class="memdesc:aa8ffb1d3c73359ccb630ce3699532a08"><td class="mdescLeft">&#160;</td><td class="mdescRight">Initializes the workspace so we can actually render to the cubemap.  <a href="class_ogre_1_1_cubemap_probe.html#aa8ffb1d3c73359ccb630ce3699532a08">More...</a><br /></td></tr>
+<tr class="separator:aa8ffb1d3c73359ccb630ce3699532a08"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a36aa0008df49306972fdd60936e6650e"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_ogre_1_1_cubemap_probe.html#a36aa0008df49306972fdd60936e6650e">isInitialized</a> (void) const</td></tr>
 <tr class="separator:a36aa0008df49306972fdd60936e6650e"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a8357fe4fb4849772b94baa4bf47c7ded"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_ogre_1_1_allocated_object.html#a8357fe4fb4849772b94baa4bf47c7ded">operator delete</a> (void *ptr)</td></tr>
@@ -564,6 +566,32 @@ Friends</h2></td></tr>
 
 </div>
 </div>
+<a id="aef239245f06a609702f7c4c6b55c7454"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#aef239245f06a609702f7c4c6b55c7454">&#9670;&nbsp;</a></span>getInvOrientation()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">const <a class="el" href="class_ogre_1_1_matrix3.html">Matrix3</a>&amp; Ogre::CubemapProbe::getInvOrientation </td>
+          <td>(</td>
+          <td class="paramtype">void&#160;</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+</div>
+</div>
 <a id="a2ba23e6feb96518335761ec3a9d47902"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#a2ba23e6feb96518335761ec3a9d47902">&#9670;&nbsp;</a></span>getNDF()</h2>
 
@@ -739,8 +767,8 @@ Friends</h2></td></tr>
 
 </div>
 </div>
-<a id="a9feec3f62e9510d69442452d14a3fcfe"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a9feec3f62e9510d69442452d14a3fcfe">&#9670;&nbsp;</a></span>initWorkspace()</h2>
+<a id="aa8ffb1d3c73359ccb630ce3699532a08"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#aa8ffb1d3c73359ccb630ce3699532a08">&#9670;&nbsp;</a></span>initWorkspace()</h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -760,14 +788,20 @@ Friends</h2></td></tr>
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype"><a class="el" href="namespace_ogre.html#a119732ea9d1e88bbddc47b4ac0fa21cb">uint8</a>&#160;</td>
-          <td class="paramname"><em>mipmapsExecutionMask</em> = <code>0x01</code>, </td>
+          <td class="paramtype"><a class="el" href="struct_ogre_1_1_id_string.html">IdString</a>&#160;</td>
+          <td class="paramname"><em>workspaceDefOverride</em> = <code><a class="el" href="struct_ogre_1_1_id_string.html">IdString</a>()</code>, </td>
         </tr>
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype"><a class="el" href="struct_ogre_1_1_id_string.html">IdString</a>&#160;</td>
-          <td class="paramname"><em>workspaceDefOverride</em> = <code><a class="el" href="struct_ogre_1_1_id_string.html">IdString</a>()</code>&#160;</td>
+          <td class="paramtype">const <a class="el" href="group___effects.html#ga1b4b8ae78da8288aeb191b819c0d72d3">CompositorChannelVec</a> &amp;&#160;</td>
+          <td class="paramname"><em>additionalChannels</em> = <code><a class="el" href="group___effects.html#ga1b4b8ae78da8288aeb191b819c0d72d3">CompositorChannelVec</a>()</code>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype"><a class="el" href="namespace_ogre.html#a119732ea9d1e88bbddc47b4ac0fa21cb">uint8</a>&#160;</td>
+          <td class="paramname"><em>executionMask</em> = <code>0xFF</code>&#160;</td>
         </tr>
         <tr>
           <td></td>

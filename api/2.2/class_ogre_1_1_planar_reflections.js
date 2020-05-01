@@ -19,6 +19,7 @@ var class_ogre_1_1_planar_reflections =
     [ "fillConstBufferData", "class_ogre_1_1_planar_reflections.html#ab6b4e4365e298e1964114c9f88affca4", null ],
     [ "getConstBufferSize", "class_ogre_1_1_planar_reflections.html#a6b97bf4ca49cb975146865babaebd38c", null ],
     [ "getMaxActiveActors", "class_ogre_1_1_planar_reflections.html#a216041e0cac9583d98a4023051981296", null ],
+    [ "getMaxNumMipmaps", "class_ogre_1_1_planar_reflections.html#ae8585442d3a502ca1b714b399708e8c3", null ],
     [ "getTexture", "class_ogre_1_1_planar_reflections.html#a0d712e2f34635697669b8cf36d7c1395", null ],
     [ "hasActiveActor", "class_ogre_1_1_planar_reflections.html#ad57f5c1c97d776977f0ac26dae2cb023", null ],
     [ "hasFlushPending", "class_ogre_1_1_planar_reflections.html#ae093845778350033e17071693735d09b", null ],

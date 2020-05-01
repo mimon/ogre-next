@@ -6,6 +6,8 @@ var class_ogre_1_1_skeleton_animation_def =
     [ "_setSkeletonDef", "class_ogre_1_1_skeleton_animation_def.html#a7cdde8136fcfb59fffb9efda0a93fee7", null ],
     [ "build", "class_ogre_1_1_skeleton_animation_def.html#af5e464e914a9074cc9744099f3349756", null ],
     [ "getNameStr", "class_ogre_1_1_skeleton_animation_def.html#ae0ca5ea899f421164d2b74b846ddec44", null ],
+    [ "getNumFrames", "class_ogre_1_1_skeleton_animation_def.html#a7866c07aa08e882042883af1ce96f6eb", null ],
+    [ "getOriginalFrameRate", "class_ogre_1_1_skeleton_animation_def.html#a5029bc5a170774d7ca590bc9573f5c17", null ],
     [ "operator delete", "class_ogre_1_1_skeleton_animation_def.html#a8357fe4fb4849772b94baa4bf47c7ded", null ],
     [ "operator delete", "class_ogre_1_1_skeleton_animation_def.html#acb46d4b0a597156d9ba5abc39d127792", null ],
     [ "operator delete", "class_ogre_1_1_skeleton_animation_def.html#a1c727e879a260c37b00ce5505fe8e144", null ],

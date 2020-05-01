@@ -26,6 +26,7 @@ var class_ogre_1_1_vct_lighting =
     [ "getId", "class_ogre_1_1_vct_lighting.html#ab152c8f646a835c2f88585ad4fe0413a", null ],
     [ "getLightVoxelTextures", "class_ogre_1_1_vct_lighting.html#a9e3b48ac21b6e26731d276988e7d2f00", null ],
     [ "getNumVoxelTextures", "class_ogre_1_1_vct_lighting.html#ac1f369e42029121504f471875b03c5ba", null ],
+    [ "getVoxelizer", "class_ogre_1_1_vct_lighting.html#a8e272167f3d320f8cb44ccd317661002", null ],
     [ "isAnisotropic", "class_ogre_1_1_vct_lighting.html#a03265d0ed16c63b85e1712b17479e6ec", null ],
     [ "needsAmbientHemisphere", "class_ogre_1_1_vct_lighting.html#ad5548f8c921aa7b87c1cb506809bc1be", null ],
     [ "notifyTextureChanged", "class_ogre_1_1_vct_lighting.html#aa764dce11aae628b1efc414ce3ee74ba", null ],

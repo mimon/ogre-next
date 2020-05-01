@@ -861,6 +861,13 @@ var group___render_system =
       [ "writeContentsToTimestampedFile", "class_ogre_1_1_render_window.html#aa971d5061a29b749442914de05813682", null ],
       [ "Root", "class_ogre_1_1_render_window.html#a4966338964dbcd90cba2a6b4bd1b3521", null ]
     ] ],
+    [ "RenderWindowDescription", "struct_ogre_1_1_render_window_description.html", [
+      [ "height", "struct_ogre_1_1_render_window_description.html#aef01dea93700872d39d4a59bd91a436c", null ],
+      [ "miscParams", "struct_ogre_1_1_render_window_description.html#a9d041f83279956a42785c6894bea178a", null ],
+      [ "name", "struct_ogre_1_1_render_window_description.html#a3608fbf0281bd14dd5ddb0a2d5753e7b", null ],
+      [ "useFullScreen", "struct_ogre_1_1_render_window_description.html#a5809e1727a29bbc2737e090ab338c6a7", null ],
+      [ "width", "struct_ogre_1_1_render_window_description.html#a0dfc7a4ce6e13696ce64de821cd551b4", null ]
+    ] ],
     [ "RqBits", "class_ogre_1_1_rq_bits.html", [
       [ "DepthBits", "class_ogre_1_1_rq_bits.html#a7912bfb33e1f303a8ea0d92b95294b31", null ],
       [ "DepthShift", "class_ogre_1_1_rq_bits.html#ac9ca5c712c57d352c79583bff3d5ef64", null ],
@@ -1999,6 +2006,7 @@ var group___render_system =
     [ "DepthBufferMap2", "group___render_system.html#ga9028f924eb43635fc009ad71cdceab02", null ],
     [ "HardwareIndexBufferLockGuard", "group___render_system.html#ga38b128c3e3f0b4cf471113da3fab392f", null ],
     [ "HardwareVertexBufferLockGuard", "group___render_system.html#gaa071037bd63c8e1fab0d9d8ce7f47d8c", null ],
+    [ "RenderWindowDescriptionList", "group___render_system.html#ga7a03bf97326d0d0385b91a74e2c51c5e", null ],
     [ "Capabilities", "group___render_system.html#ga3d2965b7f378ebdcfe8a4a6cf74c3de7", [
       [ "RSC_AUTOMIPMAP", "group___render_system.html#gga3d2965b7f378ebdcfe8a4a6cf74c3de7a36fbedc1dbc7f1a597b593ef26d700a7", null ],
       [ "RSC_BLENDING", "group___render_system.html#gga3d2965b7f378ebdcfe8a4a6cf74c3de7a44257b4bb6f6662f86b5391315b382da", null ],

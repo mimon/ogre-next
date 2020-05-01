@@ -5,7 +5,7 @@ var class_ogre_1_1v1_1_1_static_geometry_1_1_geometry_bucket =
     [ "~GeometryBucket", "class_ogre_1_1v1_1_1_static_geometry_1_1_geometry_bucket.html#ad905446a8c8f35d372a5572e88b56264", null ],
     [ "_setHlmsHashes", "class_ogre_1_1v1_1_1_static_geometry_1_1_geometry_bucket.html#aa48f836bea94634f8e6f60755b2d1bb1", null ],
     [ "_setNullDatablock", "class_ogre_1_1v1_1_1_static_geometry_1_1_geometry_bucket.html#a040f6de2d0aa0b483acac3e69608c47c", null ],
-    [ "_updateCustomGpuParameter", "class_ogre_1_1v1_1_1_static_geometry_1_1_geometry_bucket.html#a742052f8185975e8b92103c924b005d3", null ],
+    [ "_updateCustomGpuParameter", "class_ogre_1_1v1_1_1_static_geometry_1_1_geometry_bucket.html#a2f92a5741b1c1123f7f76ce2a551c9c8", null ],
     [ "addPoseWeight", "class_ogre_1_1v1_1_1_static_geometry_1_1_geometry_bucket.html#ab4c66fed80a7372f7898fccd1f821eb1", null ],
     [ "assign", "class_ogre_1_1v1_1_1_static_geometry_1_1_geometry_bucket.html#a0aac19fe9d078b8e7eaaf864f1e42d42", null ],
     [ "build", "class_ogre_1_1v1_1_1_static_geometry_1_1_geometry_bucket.html#a8ff710d4789b1dd89e7113d432ef29ee", null ],

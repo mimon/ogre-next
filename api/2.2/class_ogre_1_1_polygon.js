@@ -1,7 +1,7 @@
 var class_ogre_1_1_polygon =
 [
-    [ "Edge", "class_ogre_1_1_polygon.html#ae6e7019c9a29ef5eb95e6c063d355830", null ],
-    [ "EdgeMap", "class_ogre_1_1_polygon.html#a41cea1c56ef6ae8aec9e15b63a0cd4a6", null ],
+    [ "Edge", "class_ogre_1_1_polygon.html#a9405d8c298356e329363ed663d2fbd20", null ],
+    [ "EdgeMap", "class_ogre_1_1_polygon.html#a2e9e0c2abd6c18c910b7b75ab01f1513", null ],
     [ "VertexList", "class_ogre_1_1_polygon.html#a55b73fdabd35c480dd873009c546c20f", null ],
     [ "Polygon", "class_ogre_1_1_polygon.html#a1530c1d4761371c423916f4b497d612e", null ],
     [ "~Polygon", "class_ogre_1_1_polygon.html#a7ce008c85c18f7c28776a7e6b5fb60f3", null ],

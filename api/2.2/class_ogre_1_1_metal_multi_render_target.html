@@ -105,7 +105,7 @@ $(document).ready(function(){initNavTree('class_ogre_1_1_metal_multi_render_targ
 <table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="pub-types"></a>
 Public Types</h2></td></tr>
-<tr class="memitem:ad1ea48cc62564b4f6729bbd13882af2b"><td class="memItemLeft" align="right" valign="top">typedef <a class="el" href="struct_ogre_1_1vector.html">vector</a>&lt; <a class="el" href="class_ogre_1_1_render_texture.html">RenderTexture</a> * &gt;::type&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_ogre_1_1_multi_render_target.html#ad1ea48cc62564b4f6729bbd13882af2b">BoundSufaceList</a></td></tr>
+<tr class="memitem:ad1ea48cc62564b4f6729bbd13882af2b"><td class="memItemLeft" align="right" valign="top">typedef vector&lt; <a class="el" href="class_ogre_1_1_render_texture.html">RenderTexture</a> * &gt;::type&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_ogre_1_1_multi_render_target.html#ad1ea48cc62564b4f6729bbd13882af2b">BoundSufaceList</a></td></tr>
 <tr class="separator:ad1ea48cc62564b4f6729bbd13882af2b"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a4b42772d32712767391c749f4745397a"><td class="memItemLeft" align="right" valign="top">enum &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_ogre_1_1_render_target.html#a4b42772d32712767391c749f4745397a">FrameBuffer</a> { <a class="el" href="class_ogre_1_1_render_target.html#a4b42772d32712767391c749f4745397aaa9d982cf6f703ba525577fdd487ae5e8">FB_FRONT</a>, 
 <a class="el" href="class_ogre_1_1_render_target.html#a4b42772d32712767391c749f4745397aa632020df02d4d37ee90ff4ff0a5b7b86">FB_BACK</a>, 
@@ -342,7 +342,7 @@ Public Member Functions</h2></td></tr>
   <td class="mlabels-left">
       <table class="memname">
         <tr>
-          <td class="memname">typedef <a class="el" href="struct_ogre_1_1vector.html">vector</a>&lt;<a class="el" href="class_ogre_1_1_render_texture.html">RenderTexture</a>*&gt;::type <a class="el" href="class_ogre_1_1_multi_render_target.html#ad1ea48cc62564b4f6729bbd13882af2b">Ogre::MultiRenderTarget::BoundSufaceList</a></td>
+          <td class="memname">typedef vector&lt;<a class="el" href="class_ogre_1_1_render_texture.html">RenderTexture</a>*&gt;::type <a class="el" href="class_ogre_1_1_multi_render_target.html#ad1ea48cc62564b4f6729bbd13882af2b">Ogre::MultiRenderTarget::BoundSufaceList</a></td>
         </tr>
       </table>
   </td>
@@ -1055,7 +1055,7 @@ you can use it like this for example : <pre>
 </div><div class="memdoc">
 
 <p>This is an overloaded member function, provided for convenience. It differs from the above function only in what argument(s) it accepts. </p>
-<dl class="deprecated"><dt><b><a class="el" href="deprecated.html#_deprecated000001">Deprecated:</a></b></dt><dd>This function is deprecated as behavior for dst.size &lt; RenderTarget.size was inconsistent in previous versions of <a class="el" href="namespace_ogre.html">Ogre</a>.</dd></dl>
+<dl class="deprecated"><dt><b><a class="el" href="deprecated.html#_deprecated000003">Deprecated:</a></b></dt><dd>This function is deprecated as behavior for dst.size &lt; RenderTarget.size was inconsistent in previous versions of <a class="el" href="namespace_ogre.html">Ogre</a>.</dd></dl>
 <p>Sometimes the whole rect was used as a source, sometimes the rect with the size equal to the size of destination rect but located in the top left corner of the render target, sometimes the destination rect itself. Use the overload with explicitly specified source and destination boxes instead. </p>
 
 <p class="reference">References <a class="el" href="class_ogre_1_1_render_target.html#ab02f58cb99451d6c34235a3e78bb9417">Ogre::RenderTarget::copyContentsToMemory()</a>.</p>

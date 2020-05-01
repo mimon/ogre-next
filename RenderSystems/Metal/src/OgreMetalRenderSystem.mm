@@ -64,6 +64,7 @@ Copyright (c) 2000-2016 Torus Knot Software Ltd
 #import <Metal/Metal.h>
 #import <Foundation/NSEnumerator.h>
 
+#include <sstream>
 
 namespace Ogre
 {
@@ -387,8 +388,8 @@ namespace Ogre
         rsc->setCapability( RSC_TILER_CAN_CLEAR_STENCIL_REGION );
 #endif
 
+        rsc->setCapability( RSC_UAV );
 #if OGRE_PLATFORM != OGRE_PLATFORM_APPLE_IOS
-        rsc->setCapability(RSC_UAV);
         rsc->setCapability(RSC_TEXTURE_CUBE_MAP_ARRAY);
 #endif
         rsc->setCapability( RSC_TYPED_UAV_LOADS );
@@ -488,7 +489,7 @@ namespace Ogre
             setActiveDevice(&mDevice);
             String selectedDeviceName = deviceItem ? deviceItem->getDescription() :
                 MetalDeviceItem(mDevice.mDevice, 0).getDescription() + " (system default)";
-            LogManager::getSingleton().stream() << "Metal: Requested \"" << mDeviceName <<
+            *LogManager::getSingleton().stream().raw() << "Metal: Requested \"" << mDeviceName <<
                 "\", selected \"" << selectedDeviceName << "\"";
 
             if( miscParams )
@@ -1723,7 +1724,8 @@ namespace Ogre
     //-------------------------------------------------------------------------
     template <typename TDescriptorSetTexture,
               typename TTexSlot,
-              typename TBufferPacked>
+              typename TBufferPacked,
+              bool isUav>
     void MetalRenderSystem::_descriptorSetTextureCreated( TDescriptorSetTexture *newSet,
                                                           const FastArray<TTexSlot> &texContainer,
                                                           uint16 *shaderTypeTexCount )
@@ -1772,8 +1774,13 @@ namespace Ogre
                 }
 
                 const typename TDescriptorSetTexture::TextureSlot &texSlot = itor->getTexture();
-                if( texSlot.needsDifferentView() )
+                const TextureTypes::TextureTypes texType = texSlot.texture->getTextureType();
+                if( texSlot.needsDifferentView() ||
+                    ( isUav &&
+                      ( texType == TextureTypes::TypeCube || texType == TextureTypes::TypeCubeArray ) ) )
+                {
                     ++metalSet->numTextureViews;
+                }
                 ++numTextures;
             }
             else
@@ -1869,7 +1876,10 @@ namespace Ogre
                 MetalTextureGpu *metalTex = static_cast<MetalTextureGpu*>( texSlot.texture );
                 __unsafe_unretained id<MTLTexture> textureHandle = metalTex->getDisplayTextureName();
 
-                if( texSlot.needsDifferentView() )
+                const TextureTypes::TextureTypes texType = texSlot.texture->getTextureType();
+                if( texSlot.needsDifferentView() ||
+                    ( isUav &&
+                      ( texType == TextureTypes::TypeCube || texType == TextureTypes::TypeCubeArray ) ) )
                 {
                     metalSet->textureViews[texViewIndex] = metalTex->getView( texSlot );
                     textureHandle = metalSet->textureViews[texViewIndex];
@@ -1946,7 +1956,8 @@ namespace Ogre
         _descriptorSetTextureCreated<
                 DescriptorSetTexture2,
                 DescriptorSetTexture2::Slot,
-                MetalTexBufferPacked>( newSet, newSet->mTextures, newSet->mShaderTypeTexCount );
+                MetalTexBufferPacked,
+                false>( newSet, newSet->mTextures, newSet->mShaderTypeTexCount );
     }
     //-------------------------------------------------------------------------
     void MetalRenderSystem::_descriptorSetTexture2Destroyed( DescriptorSetTexture2 *set )
@@ -1967,7 +1978,8 @@ namespace Ogre
         _descriptorSetTextureCreated<
                 DescriptorSetUav,
                 DescriptorSetUav::Slot,
-                MetalUavBufferPacked>( newSet, newSet->mUavs, 0 );
+                MetalUavBufferPacked,
+                true>( newSet, newSet->mUavs, 0 );
     }
     //-------------------------------------------------------------------------
     void MetalRenderSystem::_descriptorSetUavDestroyed( DescriptorSetUav *set )

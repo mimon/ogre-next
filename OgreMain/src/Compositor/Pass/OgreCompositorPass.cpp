@@ -33,6 +33,7 @@ THE SOFTWARE.
 #include "Compositor/OgreCompositorNode.h"
 #include "Compositor/OgreCompositorNodeDef.h"
 #include "Compositor/OgreCompositorWorkspace.h"
+#include "Compositor/OgreCompositorWorkspaceListener.h"
 
 #include "OgrePixelFormatGpuUtils.h"
 #include "OgreViewport.h"
@@ -482,6 +483,48 @@ namespace Ogre
         }
 
         return retVal;
+    }
+    //-----------------------------------------------------------------------------------
+    void CompositorPass::notifyPassEarlyPreExecuteListeners(void)
+    {
+        const CompositorWorkspaceListenerVec& listeners = mParentNode->getWorkspace()->getListeners();
+
+        CompositorWorkspaceListenerVec::const_iterator itor = listeners.begin();
+        CompositorWorkspaceListenerVec::const_iterator end  = listeners.end();
+
+        while( itor != end )
+        {
+            (*itor)->passEarlyPreExecute( this );
+            ++itor;
+        }
+    }
+    //-----------------------------------------------------------------------------------
+    void CompositorPass::notifyPassPreExecuteListeners(void)
+    {
+        const CompositorWorkspaceListenerVec& listeners = mParentNode->getWorkspace()->getListeners();
+
+        CompositorWorkspaceListenerVec::const_iterator itor = listeners.begin();
+        CompositorWorkspaceListenerVec::const_iterator end  = listeners.end();
+
+        while( itor != end )
+        {
+            (*itor)->passPreExecute( this );
+            ++itor;
+        }
+    }
+    //-----------------------------------------------------------------------------------
+    void CompositorPass::notifyPassPosExecuteListeners(void)
+    {
+        const CompositorWorkspaceListenerVec& listeners = mParentNode->getWorkspace()->getListeners();
+
+        CompositorWorkspaceListenerVec::const_iterator itor = listeners.begin();
+        CompositorWorkspaceListenerVec::const_iterator end  = listeners.end();
+
+        while( itor != end )
+        {
+            (*itor)->passPosExecute( this );
+            ++itor;
+        }
     }
     //-----------------------------------------------------------------------------------
     void CompositorPass::addResourceTransition( ResourceLayoutMap::iterator currentLayout,

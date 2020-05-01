@@ -16,6 +16,8 @@ var class_ogre_1_1_image2 =
     [ "_setAutoDelete", "class_ogre_1_1_image2.html#a3e1c994ef2593120e930535c26c83ea3", null ],
     [ "convertFromTexture", "class_ogre_1_1_image2.html#aaf13aa1cedd6abda976a6f837d1bd29b", null ],
     [ "copyContentsToMemory", "class_ogre_1_1_image2.html#a1a837e1213f1d754d01d08075f0e5379", null ],
+    [ "createEmptyImage", "class_ogre_1_1_image2.html#a313d5c18ad48dd7e94cba236754121f8", null ],
+    [ "createEmptyImageLike", "class_ogre_1_1_image2.html#a39eb13ec60c94720c3f4f298ea535fdc", null ],
     [ "encode", "class_ogre_1_1_image2.html#a9b32812ad755fe1c86c603d990efc89b", null ],
     [ "flipAroundX", "class_ogre_1_1_image2.html#afd16c6b35d6894e55a16a69d02333a55", null ],
     [ "flipAroundY", "class_ogre_1_1_image2.html#a484d360ac37a07a6901b08b712591694", null ],

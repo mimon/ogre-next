@@ -67,6 +67,7 @@ var group___general =
       [ "AnyNumeric", "class_ogre_1_1_any_numeric.html#ae46b3b0ebe2e956031cfa3f771087708", null ],
       [ "AnyNumeric", "class_ogre_1_1_any_numeric.html#a56d143332e5388489b3a3c3a11c45e30", null ],
       [ "AnyNumeric", "class_ogre_1_1_any_numeric.html#a9ae2045cc85e7a8e134d54e0babc2a3f", null ],
+      [ "~AnyNumeric", "class_ogre_1_1_any_numeric.html#adc22f71f7106988f2d8090bf823185f8", null ],
       [ "destroy", "class_ogre_1_1_any_numeric.html#a3c414d8a6803eb4b319d39c2628b435b", null ],
       [ "get", "class_ogre_1_1_any_numeric.html#a51ca51022adb2a144ee64ead939f47c7", null ],
       [ "getType", "class_ogre_1_1_any_numeric.html#a6b3a6e9aea067f131a6aa8e899defe9f", null ],
@@ -806,7 +807,7 @@ var group___general =
       [ "Exception", "class_ogre_1_1_exception.html#adc5a5e5eb027cdd0591566d2518cc3fd", null ],
       [ "Exception", "class_ogre_1_1_exception.html#aaa6e0d203a91b43870058082aeb34428", null ],
       [ "Exception", "class_ogre_1_1_exception.html#a82249d342184fd23af4dd1c0ac589c57", null ],
-      [ "~Exception", "class_ogre_1_1_exception.html#a5aeb1d634e6d2dc9e547ff37bd9dc051", null ],
+      [ "~Exception", "class_ogre_1_1_exception.html#a551ddbc1f317f31c4d33a0da6262cc63", null ],
       [ "getDescription", "class_ogre_1_1_exception.html#a08d436f2af44566f7f40f4467f1d82ff", null ],
       [ "getFile", "class_ogre_1_1_exception.html#a70505a2dab963bc420f04048a3690ef2", null ],
       [ "getFullDescription", "class_ogre_1_1_exception.html#af6e85a048732d785797152da81a2706c", null ],
@@ -840,6 +841,7 @@ var group___general =
         [ "ERR_INVALID_CALL", "class_ogre_1_1_file_not_found_exception.html#a9bdf9b8a0a83b95818d676848beaa29ba69f87eaf2ef88aabef0d5d11666b6705", null ]
       ] ],
       [ "FileNotFoundException", "class_ogre_1_1_file_not_found_exception.html#ac5774daad7866a3b538731c16ba08faf", null ],
+      [ "~FileNotFoundException", "class_ogre_1_1_file_not_found_exception.html#af78517adc8ac77b0a3cfb14add58f16d", null ],
       [ "getDescription", "class_ogre_1_1_file_not_found_exception.html#a08d436f2af44566f7f40f4467f1d82ff", null ],
       [ "getFile", "class_ogre_1_1_file_not_found_exception.html#a70505a2dab963bc420f04048a3690ef2", null ],
       [ "getFullDescription", "class_ogre_1_1_file_not_found_exception.html#af6e85a048732d785797152da81a2706c", null ],
@@ -1040,6 +1042,7 @@ var group___general =
         [ "ERR_INVALID_CALL", "class_ogre_1_1_internal_error_exception.html#a9bdf9b8a0a83b95818d676848beaa29ba69f87eaf2ef88aabef0d5d11666b6705", null ]
       ] ],
       [ "InternalErrorException", "class_ogre_1_1_internal_error_exception.html#a5bc4d45afee8370b1688b13dd6099cb2", null ],
+      [ "~InternalErrorException", "class_ogre_1_1_internal_error_exception.html#ab9693e3d56c24e10c3c621b28ed85021", null ],
       [ "getDescription", "class_ogre_1_1_internal_error_exception.html#a08d436f2af44566f7f40f4467f1d82ff", null ],
       [ "getFile", "class_ogre_1_1_internal_error_exception.html#a70505a2dab963bc420f04048a3690ef2", null ],
       [ "getFullDescription", "class_ogre_1_1_internal_error_exception.html#af6e85a048732d785797152da81a2706c", null ],
@@ -1063,6 +1066,7 @@ var group___general =
         [ "ERR_INVALID_CALL", "class_ogre_1_1_invalid_call_exception.html#a9bdf9b8a0a83b95818d676848beaa29ba69f87eaf2ef88aabef0d5d11666b6705", null ]
       ] ],
       [ "InvalidCallException", "class_ogre_1_1_invalid_call_exception.html#a49d7f567dc5242ac1cdcc057e6273ad0", null ],
+      [ "~InvalidCallException", "class_ogre_1_1_invalid_call_exception.html#abdd81d1d657cecf82f54a3556ba298cc", null ],
       [ "getDescription", "class_ogre_1_1_invalid_call_exception.html#a08d436f2af44566f7f40f4467f1d82ff", null ],
       [ "getFile", "class_ogre_1_1_invalid_call_exception.html#a70505a2dab963bc420f04048a3690ef2", null ],
       [ "getFullDescription", "class_ogre_1_1_invalid_call_exception.html#af6e85a048732d785797152da81a2706c", null ],
@@ -1086,6 +1090,7 @@ var group___general =
         [ "ERR_INVALID_CALL", "class_ogre_1_1_invalid_parameters_exception.html#a9bdf9b8a0a83b95818d676848beaa29ba69f87eaf2ef88aabef0d5d11666b6705", null ]
       ] ],
       [ "InvalidParametersException", "class_ogre_1_1_invalid_parameters_exception.html#ac6276640f16c331e952b71f3a174bd8f", null ],
+      [ "~InvalidParametersException", "class_ogre_1_1_invalid_parameters_exception.html#a0fa8bb4a751eb10a8754ac30d2e04325", null ],
       [ "getDescription", "class_ogre_1_1_invalid_parameters_exception.html#a08d436f2af44566f7f40f4467f1d82ff", null ],
       [ "getFile", "class_ogre_1_1_invalid_parameters_exception.html#a70505a2dab963bc420f04048a3690ef2", null ],
       [ "getFullDescription", "class_ogre_1_1_invalid_parameters_exception.html#af6e85a048732d785797152da81a2706c", null ],
@@ -1109,6 +1114,7 @@ var group___general =
         [ "ERR_INVALID_CALL", "class_ogre_1_1_invalid_state_exception.html#a9bdf9b8a0a83b95818d676848beaa29ba69f87eaf2ef88aabef0d5d11666b6705", null ]
       ] ],
       [ "InvalidStateException", "class_ogre_1_1_invalid_state_exception.html#ab0379b445379968669795492ba1ef567", null ],
+      [ "~InvalidStateException", "class_ogre_1_1_invalid_state_exception.html#a2e2bbff106ab4021f61be3d5fd2e7811", null ],
       [ "getDescription", "class_ogre_1_1_invalid_state_exception.html#a08d436f2af44566f7f40f4467f1d82ff", null ],
       [ "getFile", "class_ogre_1_1_invalid_state_exception.html#a70505a2dab963bc420f04048a3690ef2", null ],
       [ "getFullDescription", "class_ogre_1_1_invalid_state_exception.html#af6e85a048732d785797152da81a2706c", null ],
@@ -1132,6 +1138,7 @@ var group___general =
         [ "ERR_INVALID_CALL", "class_ogre_1_1_i_o_exception.html#a9bdf9b8a0a83b95818d676848beaa29ba69f87eaf2ef88aabef0d5d11666b6705", null ]
       ] ],
       [ "IOException", "class_ogre_1_1_i_o_exception.html#a9cb13ae6d95e203689c43dfe194cf0c7", null ],
+      [ "~IOException", "class_ogre_1_1_i_o_exception.html#a01912ee8f53d224d8259a1046a4863c8", null ],
       [ "getDescription", "class_ogre_1_1_i_o_exception.html#a08d436f2af44566f7f40f4467f1d82ff", null ],
       [ "getFile", "class_ogre_1_1_i_o_exception.html#a70505a2dab963bc420f04048a3690ef2", null ],
       [ "getFullDescription", "class_ogre_1_1_i_o_exception.html#af6e85a048732d785797152da81a2706c", null ],
@@ -1155,6 +1162,7 @@ var group___general =
         [ "ERR_INVALID_CALL", "class_ogre_1_1_item_identity_exception.html#a9bdf9b8a0a83b95818d676848beaa29ba69f87eaf2ef88aabef0d5d11666b6705", null ]
       ] ],
       [ "ItemIdentityException", "class_ogre_1_1_item_identity_exception.html#ae98c4a38b709e81ef21722be30db5060", null ],
+      [ "~ItemIdentityException", "class_ogre_1_1_item_identity_exception.html#ab6eaf47039304b2de2f354ab10ce0121", null ],
       [ "getDescription", "class_ogre_1_1_item_identity_exception.html#a08d436f2af44566f7f40f4467f1d82ff", null ],
       [ "getFile", "class_ogre_1_1_item_identity_exception.html#a70505a2dab963bc420f04048a3690ef2", null ],
       [ "getFullDescription", "class_ogre_1_1_item_identity_exception.html#af6e85a048732d785797152da81a2706c", null ],
@@ -1196,12 +1204,10 @@ var group___general =
     ] ],
     [ "Log", "class_ogre_1_1_log.html", [
       [ "Stream", "class_ogre_1_1_log_1_1_stream.html", [
-        [ "Flush", "struct_ogre_1_1_log_1_1_stream_1_1_flush.html", null ],
         [ "Stream", "class_ogre_1_1_log_1_1_stream.html#abb964da863230b1cf237756dbad019a0", null ],
         [ "Stream", "class_ogre_1_1_log_1_1_stream.html#a6fc9e8bdfbe99542e713d6dd1cab6445", null ],
         [ "~Stream", "class_ogre_1_1_log_1_1_stream.html#ae6c2f83ae8ef776ed5c7cd4ab29e6c99", null ],
-        [ "operator<<", "class_ogre_1_1_log_1_1_stream.html#ad6c8bfec86eb1b94005d4f2df7aa7d87", null ],
-        [ "operator<<", "class_ogre_1_1_log_1_1_stream.html#ab05a9baee615031647a629216165b040", null ]
+        [ "raw", "class_ogre_1_1_log_1_1_stream.html#a4ce8336e3c0408c81dfb9e4f8bc0ceb1", null ]
       ] ],
       [ "Log", "class_ogre_1_1_log.html#a149aec94bfb4bcc03c947626f89916ad", null ],
       [ "~Log", "class_ogre_1_1_log.html#a7d36bb9b3f6f6890dd78ae503b6ce349", null ],
@@ -1629,6 +1635,7 @@ var group___general =
         [ "ERR_INVALID_CALL", "class_ogre_1_1_rendering_a_p_i_exception.html#a9bdf9b8a0a83b95818d676848beaa29ba69f87eaf2ef88aabef0d5d11666b6705", null ]
       ] ],
       [ "RenderingAPIException", "class_ogre_1_1_rendering_a_p_i_exception.html#aa3f950b457a33a114a74f9b8993a885d", null ],
+      [ "~RenderingAPIException", "class_ogre_1_1_rendering_a_p_i_exception.html#a569c60c64b13e2bd73d579a1584367f0", null ],
       [ "getDescription", "class_ogre_1_1_rendering_a_p_i_exception.html#a08d436f2af44566f7f40f4467f1d82ff", null ],
       [ "getFile", "class_ogre_1_1_rendering_a_p_i_exception.html#a70505a2dab963bc420f04048a3690ef2", null ],
       [ "getFullDescription", "class_ogre_1_1_rendering_a_p_i_exception.html#af6e85a048732d785797152da81a2706c", null ],
@@ -1636,13 +1643,6 @@ var group___general =
       [ "getNumber", "class_ogre_1_1_rendering_a_p_i_exception.html#ab4518b52083342bc207ef3b677114e38", null ],
       [ "getSource", "class_ogre_1_1_rendering_a_p_i_exception.html#ac3c2e6a43d2b1030eaf3ee8a34247737", null ],
       [ "what", "class_ogre_1_1_rendering_a_p_i_exception.html#a5323fd0394409fc11d86ac60491ea3e8", null ]
-    ] ],
-    [ "RenderWindowDescription", "struct_ogre_1_1_render_window_description.html", [
-      [ "height", "struct_ogre_1_1_render_window_description.html#aef01dea93700872d39d4a59bd91a436c", null ],
-      [ "miscParams", "struct_ogre_1_1_render_window_description.html#a9d041f83279956a42785c6894bea178a", null ],
-      [ "name", "struct_ogre_1_1_render_window_description.html#a3608fbf0281bd14dd5ddb0a2d5753e7b", null ],
-      [ "useFullScreen", "struct_ogre_1_1_render_window_description.html#a5809e1727a29bbc2737e090ab338c6a7", null ],
-      [ "width", "struct_ogre_1_1_render_window_description.html#a0dfc7a4ce6e13696ce64de821cd551b4", null ]
     ] ],
     [ "Root", "class_ogre_1_1_root.html", [
       [ "MovableObjectFactoryIterator", "class_ogre_1_1_root.html#a724ee7dcbdb7b8052420df2fecd07c0d", null ],
@@ -1661,6 +1661,7 @@ var group___general =
       [ "_popCurrentSceneManager", "class_ogre_1_1_root.html#a16b5488539651d697d0a4dd5cdbdd4c3", null ],
       [ "_pushCurrentSceneManager", "class_ogre_1_1_root.html#a14ab7036973eb56ee4e1ad10304d9b12", null ],
       [ "_renderingFrameEnded", "class_ogre_1_1_root.html#a5716ab44216f79865216750e414b1b7e", null ],
+      [ "_setLightProfilesInvHeight", "class_ogre_1_1_root.html#a9de9a666d0bc69e85810db2b10ab8cba", null ],
       [ "_updateAllRenderTargets", "class_ogre_1_1_root.html#aba26bc9123d8725d971e458e48c2694f", null ],
       [ "_updateAllRenderTargets", "class_ogre_1_1_root.html#a24559fa6a4f1772c7518fcb0911278f4", null ],
       [ "addFrameListener", "class_ogre_1_1_root.html#aed3244a81b1c1cec76c675f8e62d7f5e", null ],
@@ -1687,6 +1688,7 @@ var group___general =
       [ "getFrameStats", "class_ogre_1_1_root.html#a72fedb344c77ad9a87c3ccb0c8ca9f5c", null ],
       [ "getHlmsManager", "class_ogre_1_1_root.html#aa69cef77e340238e290029ac96071724", null ],
       [ "getInstalledPlugins", "class_ogre_1_1_root.html#a56808b5253027913a78d254f6421d908", null ],
+      [ "getLightProfilesInvHeight", "class_ogre_1_1_root.html#a9ae3b7c976695b6ac0e1df4764481d55", null ],
       [ "getMeshManagerV1", "class_ogre_1_1_root.html#a207eb0dfac7dfbc58c2c03d6c962afbd", null ],
       [ "getMovableObjectFactory", "class_ogre_1_1_root.html#ab89302520cbbe6d78d25e325081ea906", null ],
       [ "getMovableObjectFactoryIterator", "class_ogre_1_1_root.html#a18d21240d53ca480b6c122d80185ac3b", null ],
@@ -1760,6 +1762,7 @@ var group___general =
         [ "ERR_INVALID_CALL", "class_ogre_1_1_runtime_assertion_exception.html#a9bdf9b8a0a83b95818d676848beaa29ba69f87eaf2ef88aabef0d5d11666b6705", null ]
       ] ],
       [ "RuntimeAssertionException", "class_ogre_1_1_runtime_assertion_exception.html#a871fffb1a89b647d78c7581e539363e5", null ],
+      [ "~RuntimeAssertionException", "class_ogre_1_1_runtime_assertion_exception.html#af3a22f862d5868390187d4fdd15a7d9e", null ],
       [ "getDescription", "class_ogre_1_1_runtime_assertion_exception.html#a08d436f2af44566f7f40f4467f1d82ff", null ],
       [ "getFile", "class_ogre_1_1_runtime_assertion_exception.html#a70505a2dab963bc420f04048a3690ef2", null ],
       [ "getFullDescription", "class_ogre_1_1_runtime_assertion_exception.html#af6e85a048732d785797152da81a2706c", null ],
@@ -2066,6 +2069,7 @@ var group___general =
       [ "useCount", "class_ogre_1_1_shared_ptr_info_free.html#a18b7520ec0d1a7d2617344a88204cb4d", null ]
     ] ],
     [ "SharedPtrInfoNone", "struct_ogre_1_1_shared_ptr_info_none.html", [
+      [ "~SharedPtrInfoNone", "struct_ogre_1_1_shared_ptr_info_none.html#a575eaf3fe9b51d7da230e858ac636d60", null ],
       [ "useCount", "struct_ogre_1_1_shared_ptr_info_none.html#a18b7520ec0d1a7d2617344a88204cb4d", null ]
     ] ],
     [ "Singleton", "class_ogre_1_1_singleton.html", [
@@ -2338,6 +2342,7 @@ var group___general =
         [ "ERR_INVALID_CALL", "class_ogre_1_1_unimplemented_exception.html#a9bdf9b8a0a83b95818d676848beaa29ba69f87eaf2ef88aabef0d5d11666b6705", null ]
       ] ],
       [ "UnimplementedException", "class_ogre_1_1_unimplemented_exception.html#a454b97468f2b1f1d935442971bf082ec", null ],
+      [ "~UnimplementedException", "class_ogre_1_1_unimplemented_exception.html#a566adbb0ac6c15386d9649117f855d01", null ],
       [ "getDescription", "class_ogre_1_1_unimplemented_exception.html#a08d436f2af44566f7f40f4467f1d82ff", null ],
       [ "getFile", "class_ogre_1_1_unimplemented_exception.html#a70505a2dab963bc420f04048a3690ef2", null ],
       [ "getFullDescription", "class_ogre_1_1_unimplemented_exception.html#af6e85a048732d785797152da81a2706c", null ],
@@ -2481,10 +2486,10 @@ var group___general =
     [ "AbstractNodeList", "group___general.html#gae6612ea0b05ddf514b5478a6c0c0cb09", null ],
     [ "AbstractNodeListPtr", "group___general.html#gad207f4cd0b8599200e52d366fe61f069", null ],
     [ "AbstractNodePtr", "group___general.html#ga15cfb375beeafed87e1bdd96ef10ff36", null ],
-    [ "AliasTextureNamePairList", "group___general.html#ga20898062bd79359acd1137276d9b0e37", null ],
+    [ "AliasTextureNamePairList", "group___general.html#ga6ba37dfc5b90ddf191695822b26b3eff", null ],
     [ "ARGB", "group___general.html#gaa329d9aeeafb7aa8ccc4f52fe4904e9f", null ],
     [ "BGRA", "group___general.html#gaebed1ceefe1a5fb28f59ea894031680f", null ],
-    [ "BinaryOptionList", "group___general.html#ga426e97fd0ca35b59af1d3309ba4780b0", null ],
+    [ "BinaryOptionList", "group___general.html#ga1349994da6582545bdc210cb63d00e36", null ],
     [ "ConcreteNodeList", "group___general.html#gab5c85536eb8d5fcfd30b2d4ea2c643d5", null ],
     [ "ConcreteNodeListPtr", "group___general.html#ga9d11953f4cfbc8a1e225b910d881dc36", null ],
     [ "ConcreteNodePtr", "group___general.html#ga3e6697969dbea85ec6ce5a95b89f85d4", null ],
@@ -2495,24 +2500,21 @@ var group___general =
     [ "FloatRect", "group___general.html#ga39213af9254535e83b4beca0859e8a2f", null ],
     [ "LightArray", "group___general.html#gae68d52abf76f574fcde6eb0f89eb128f", null ],
     [ "LightClosestArray", "group___general.html#ga8795828980c8be4892c41f4f4b7a7337", null ],
-    [ "LightClosestVec", "group___general.html#ga9f560544b6ad28c260ae56f2cf42fd29", null ],
     [ "LightList", "group___general.html#ga9870d1f08a71391b8716b43bb2064b2d", null ],
-    [ "NameValuePairList", "group___general.html#gadccb207c184efc0a6fb2a00ab6320d19", null ],
+    [ "NameValuePairList", "group___general.html#ga442a408f658c0cbfbe3e404e91a0fcc5", null ],
     [ "ParamCommandMap", "group___general.html#ga2bce134286f461b9f474618eb0e249b9", null ],
-    [ "ParamDictionaryMap", "group___general.html#gadb243c5b21d57e9c053b067801f47780", null ],
     [ "ParameterList", "group___general.html#gac3c212f18e4a3e6aba496571cfbe5400", null ],
     [ "RealRect", "group___general.html#ga3e1c672c1d342ffb4f122f44e342bc90", null ],
     [ "Rect", "group___general.html#gae714035a753a8f484650598dc4143db8", null ],
     [ "RenderSystemList", "group___general.html#ga8ec3f24590c290929ec15b4af5757351", null ],
-    [ "RenderWindowDescriptionList", "group___general.html#ga7a03bf97326d0d0385b91a74e2c51c5e", null ],
     [ "RGBA", "group___general.html#ga8c0fefd117985c6df93c4714f370bcd6", null ],
     [ "ScriptTokenList", "group___general.html#ga35ce2ec94e72326005e37f8ab44437b2", null ],
     [ "ScriptTokenListPtr", "group___general.html#gacd063ace8e2697904ef8c500b1096902", null ],
     [ "StringVector", "group___general.html#ga0899c03496d3c25c6555889aa76a78db", null ],
     [ "StringVectorPtr", "group___general.html#gae6b84ceebcdcc285f37bf9fba216697d", null ],
     [ "TrackVertexColourType", "group___general.html#gaf3fdba7211d7078a43201a1721532f9e", null ],
-    [ "UnaryOptionList", "group___general.html#gaf8039ad2eb9856cb1b181eb3d9507885", null ],
-    [ "WindowList", "group___general.html#gafcca0600d9f7ee630fa6500af203309d", [
+    [ "UnaryOptionList", "group___general.html#ga1fdbb1354b0aef3b66cfb0f34b8d5fde", null ],
+    [ "WindowList", "group___general.html#ga91a7b2f88b5150f745e3d8c1b60ae499", [
       [ "ID_MATERIAL", "group___general.html#gga828fd7e6454d2a188dc27c3df3627244a2b2c49398651a76cbdbfd9db3a15f91f", null ],
       [ "ID_VERTEX_PROGRAM", "group___general.html#gga828fd7e6454d2a188dc27c3df3627244afc12d5155d0be2f3cc12a0fba9b0c03b", null ],
       [ "ID_GEOMETRY_PROGRAM", "group___general.html#gga828fd7e6454d2a188dc27c3df3627244a58ccd20c6e133e7ae33ec1df75b5e04a", null ],
@@ -2799,6 +2801,8 @@ var group___general =
       [ "ID_FLUSH_COMMAND_BUFFERS_AFTER_SHADOW_NODE", "group___general.html#gga828fd7e6454d2a188dc27c3df3627244af024e80a6d24bd0466d5ae89c6ccf42e", null ],
       [ "ID_IS_PREPASS", "group___general.html#gga828fd7e6454d2a188dc27c3df3627244aa86600dafe00d9e9b079f3b9b21f2649", null ],
       [ "ID_USE_PREPASS", "group___general.html#gga828fd7e6454d2a188dc27c3df3627244a62bd3e04052a49ddee45f30238bf85d1", null ],
+      [ "ID_GEN_NORMALS_GBUFFER", "group___general.html#gga828fd7e6454d2a188dc27c3df3627244ad58379614832c5028b4e7b42b7628601", null ],
+      [ "ID_USE_REFRACTIONS", "group___general.html#gga828fd7e6454d2a188dc27c3df3627244acf539e42d7a1aa11e81755f4d53f22ff", null ],
       [ "ID_UV_BAKING", "group___general.html#gga828fd7e6454d2a188dc27c3df3627244ac438b1e13bf7d8926c5d9fafc3eeee6c", null ],
       [ "ID_UV_BAKING_OFFSET", "group___general.html#gga828fd7e6454d2a188dc27c3df3627244a220a6546da92f99214794dd37ec2b1a7", null ],
       [ "ID_BAKE_LIGHTING_ONLY", "group___general.html#gga828fd7e6454d2a188dc27c3df3627244ab2a59a4855391f82cdce17e9b617eae3", null ],
@@ -2812,6 +2816,7 @@ var group___general =
       [ "ID_CAMERA_FAR_CORNERS_WORLD_SPACE_CENTERED", "group___general.html#gga828fd7e6454d2a188dc27c3df3627244ab32b76b0695413894bef27fa25fb01c1", null ],
       [ "ID_CAMERA_DIRECTION", "group___general.html#gga828fd7e6454d2a188dc27c3df3627244a4ad9ea7847d9bf0fe41ee5f073a6728d", null ],
       [ "ID_INPUT", "group___general.html#gga828fd7e6454d2a188dc27c3df3627244a1660d50778edeb1a0b0f52f3ad1adcc7", null ],
+      [ "ID_OUTPUT", "group___general.html#gga828fd7e6454d2a188dc27c3df3627244ac6be51c550b2be1893b8abde5ca512d0", null ],
       [ "ID_NON_TILERS_ONLY", "group___general.html#gga828fd7e6454d2a188dc27c3df3627244ae8d2aa12a30087754ff8d85293bd54d9", null ],
       [ "ID_BUFFERS", "group___general.html#gga828fd7e6454d2a188dc27c3df3627244aadd97324917ac6a799f2e99e3548605e", null ],
       [ "ID_COLOUR", "group___general.html#gga828fd7e6454d2a188dc27c3df3627244a0e2c0bb853504437fda880de01aa6bce", null ],
@@ -2852,9 +2857,12 @@ var group___general =
       [ "ID_COMPUTE_HQ", "group___general.html#gga828fd7e6454d2a188dc27c3df3627244ae40dca789094eaee2c9908a434ca2cd9", null ],
       [ "ID_KERNEL_RADIUS", "group___general.html#gga828fd7e6454d2a188dc27c3df3627244ae7b13a1e3ffc9763845cd8f740743ff5", null ],
       [ "ID_GAUSS_DEVIATION", "group___general.html#gga828fd7e6454d2a188dc27c3df3627244ace623a702be9a7aeb4eb68e29a523b26", null ],
+      [ "ID_SAMPLES_PER_ITERATION", "group___general.html#gga828fd7e6454d2a188dc27c3df3627244a4d85f85ee5e384690e1f1324e91e6b1e", null ],
+      [ "ID_FORCE_MIPMAP_FALLBACK", "group___general.html#gga828fd7e6454d2a188dc27c3df3627244a34ceaa287216aa89af50af30a3118781", null ],
       [ "ID_READ_BACK_AS_TEXTURE", "group___general.html#gga828fd7e6454d2a188dc27c3df3627244a7cd861a63432b75d04469766dc7fed1b", null ],
       [ "ID_SHADOW_NODE", "group___general.html#gga828fd7e6454d2a188dc27c3df3627244a52b8050298e35924a2f7482eeb370068", null ],
       [ "ID_NUM_SPLITS", "group___general.html#gga828fd7e6454d2a188dc27c3df3627244a1526ee526526c370eaa8609edcd211c6", null ],
+      [ "ID_NUM_STABLE_SPLITS", "group___general.html#gga828fd7e6454d2a188dc27c3df3627244ac049e1221eecfc65a41bcdc6dcc04fde", null ],
       [ "ID_PSSM_SPLIT_PADDING", "group___general.html#gga828fd7e6454d2a188dc27c3df3627244ab2248cdf337cd0f38241de0ec80e6a49", null ],
       [ "ID_PSSM_SPLIT_BLEND", "group___general.html#gga828fd7e6454d2a188dc27c3df3627244afa13ce4bb1eac5cad2e91d0ecd2ef64a", null ],
       [ "ID_PSSM_SPLIT_FADE", "group___general.html#gga828fd7e6454d2a188dc27c3df3627244a3ee7785eedf41eb57c76ff8f77db6d6d", null ],
@@ -3097,7 +3105,6 @@ var group___general =
     [ "operator!=", "group___general.html#ga000fe08e9240733ce1630abe43839e39", null ],
     [ "operator<", "group___general.html#ga675a4dbbd77978f9498570697c0f6dbf", null ],
     [ "operator<", "group___general.html#gae1dbf4506ab2500da5ec4ef0b58cb2e1", null ],
-    [ "operator<<", "group___general.html#ga6d67d46d838de3b38264f17fb792cddc", null ],
     [ "operator<=", "group___general.html#gaaa93ff4a9e74ef8d4570f20ae725bd81", null ],
     [ "operator==", "group___general.html#gadf4d7e1076f4d7831f6671d3efc324ba", null ],
     [ "operator==", "group___general.html#ga9e4eed9f10776cc5b07cd81082d73dc8", null ],

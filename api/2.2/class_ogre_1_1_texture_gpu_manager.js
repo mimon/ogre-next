@@ -59,6 +59,7 @@ var class_ogre_1_1_texture_gpu_manager =
     [ "getMemoryStats", "class_ogre_1_1_texture_gpu_manager.html#a3886c70b1674b192547c407edeb4c67e", null ],
     [ "getRenderSystem", "class_ogre_1_1_texture_gpu_manager.html#ac3acc55349bfe208b1ae576ff63ce669", null ],
     [ "getStagingTexture", "class_ogre_1_1_texture_gpu_manager.html#a321eb97d80765a36ebff0bf456a859cb", null ],
+    [ "getVaoManager", "class_ogre_1_1_texture_gpu_manager.html#a6774fbb284ced102de63689603ae337c", null ],
     [ "hasPoolId", "class_ogre_1_1_texture_gpu_manager.html#a064b32e7db16917d223a729f3ce03a96", null ],
     [ "hasTextureResource", "class_ogre_1_1_texture_gpu_manager.html#ae7152f97e84cd44d73afc86d77951120", null ],
     [ "importTextureMetadataCache", "class_ogre_1_1_texture_gpu_manager.html#a423e53613f85ab74171ac4bb291c2555", null ],

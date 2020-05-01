@@ -5,5 +5,5 @@ var _ogre_id_string_8h =
     [ "OGRE_COPY_DEBUG_STRING", "_ogre_id_string_8h.html#a1e70fee37aed5310cd150b404d282b84", null ],
     [ "OGRE_HASH_BITS", "_ogre_id_string_8h.html#a65d81f8d195ea976dbed9daee4cc31f0", null ],
     [ "OGRE_HASH_FUNC", "_ogre_id_string_8h.html#a295b313eb759fefc52c8e195bb9c8e01", null ],
-    [ "IdStringVec", "_ogre_id_string_8h.html#ac1a9ddf210b991270144415dcc00026b", null ]
+    [ "IdStringVec", "_ogre_id_string_8h.html#af5d7e0eaf474c82bfa2bf21d0c624d20", null ]
 ];

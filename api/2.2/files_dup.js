@@ -276,6 +276,8 @@ var files_dup =
     [ "OgreCompositorPassDef.h", "_ogre_compositor_pass_def_8h.html", "_ogre_compositor_pass_def_8h" ],
     [ "OgreCompositorPassDepthCopy.h", "_ogre_compositor_pass_depth_copy_8h.html", null ],
     [ "OgreCompositorPassDepthCopyDef.h", "_ogre_compositor_pass_depth_copy_def_8h.html", null ],
+    [ "OgreCompositorPassIblSpecular.h", "_ogre_compositor_pass_ibl_specular_8h.html", null ],
+    [ "OgreCompositorPassIblSpecularDef.h", "_ogre_compositor_pass_ibl_specular_def_8h.html", null ],
     [ "OgreCompositorPassMipmap.h", "_ogre_compositor_pass_mipmap_8h.html", null ],
     [ "OgreCompositorPassMipmapDef.h", "_ogre_compositor_pass_mipmap_def_8h.html", null ],
     [ "OgreCompositorPassProvider.h", "_ogre_compositor_pass_provider_8h.html", null ],
@@ -326,7 +328,9 @@ var files_dup =
     [ "OgreController.h", "_ogre_controller_8h.html", null ],
     [ "OgreControllerManager.h", "_ogre_controller_manager_8h.html", "_ogre_controller_manager_8h" ],
     [ "OgreConvexBody.h", "_ogre_convex_body_8h.html", null ],
-    [ "OgreCubemapProbe.h", "_ogre_cubemap_probe_8h.html", "_ogre_cubemap_probe_8h" ],
+    [ "OgreCubemapProbe.h", "_ogre_cubemap_probe_8h.html", [
+      [ "CubemapProbe", "class_ogre_1_1_cubemap_probe.html", "class_ogre_1_1_cubemap_probe" ]
+    ] ],
     [ "OgreCustomCompositionPass.h", "_ogre_custom_composition_pass_8h.html", null ],
     [ "OgreCylinderEmitter.h", "_ogre_cylinder_emitter_8h.html", [
       [ "CylinderEmitter", "class_ogre_1_1_cylinder_emitter.html", "class_ogre_1_1_cylinder_emitter" ]
@@ -1174,6 +1178,10 @@ var files_dup =
     ] ],
     [ "OgreId.h", "_ogre_id_8h.html", "_ogre_id_8h" ],
     [ "OgreIdString.h", "_ogre_id_string_8h.html", "_ogre_id_string_8h" ],
+    [ "OgreIesLoader.h", "_ogre_ies_loader_8h.html", "_ogre_ies_loader_8h" ],
+    [ "OgreIfdProbeVisualizer.h", "_ogre_ifd_probe_visualizer_8h.html", [
+      [ "IfdProbeVisualizer", "class_ogre_1_1_ifd_probe_visualizer.html", "class_ogre_1_1_ifd_probe_visualizer" ]
+    ] ],
     [ "OgreImage.h", "_ogre_image_8h.html", "_ogre_image_8h" ],
     [ "OgreImage2.h", "_ogre_image2_8h.html", null ],
     [ "OgreImageCodec.h", "_ogre_image_codec_8h.html", [
@@ -1196,6 +1204,14 @@ var files_dup =
     [ "OgreInternalCubemapProbe.h", "_ogre_internal_cubemap_probe_8h.html", [
       [ "InternalCubemapProbe", "class_ogre_1_1_internal_cubemap_probe.html", "class_ogre_1_1_internal_cubemap_probe" ],
       [ "InternalCubemapProbeFactory", "class_ogre_1_1_internal_cubemap_probe_factory.html", "class_ogre_1_1_internal_cubemap_probe_factory" ]
+    ] ],
+    [ "OgreIrradianceField.h", "_ogre_irradiance_field_8h.html", [
+      [ "IrradianceField", "class_ogre_1_1_irradiance_field.html", "class_ogre_1_1_irradiance_field" ],
+      [ "IrradianceFieldSettings", "struct_ogre_1_1_irradiance_field_settings.html", "struct_ogre_1_1_irradiance_field_settings" ],
+      [ "RasterParams", "struct_ogre_1_1_raster_params.html", "struct_ogre_1_1_raster_params" ]
+    ] ],
+    [ "OgreIrradianceFieldRaster.h", "_ogre_irradiance_field_raster_8h.html", [
+      [ "IrradianceFieldRaster", "class_ogre_1_1_irradiance_field_raster.html", "class_ogre_1_1_irradiance_field_raster" ]
     ] ],
     [ "OgreIrradianceVolume.h", "_ogre_irradiance_volume_8h.html", null ],
     [ "OgreItem.h", "_ogre_item_8h.html", null ],
@@ -1226,6 +1242,9 @@ var files_dup =
       [ "KfTransformArrayMemoryManager", "class_ogre_1_1_kf_transform_array_memory_manager.html", "class_ogre_1_1_kf_transform_array_memory_manager" ]
     ] ],
     [ "OgreLight.h", "_ogre_light_8h.html", null ],
+    [ "OgreLightProfiles.h", "_ogre_light_profiles_8h.html", [
+      [ "LightProfiles", "class_ogre_1_1_light_profiles.html", "class_ogre_1_1_light_profiles" ]
+    ] ],
     [ "OgreLightweightMutex.h", "_ogre_lightweight_mutex_8h.html", [
       [ "LightweightMutex", "class_ogre_1_1_lightweight_mutex.html", "class_ogre_1_1_lightweight_mutex" ],
       [ "ScopedLock", "class_ogre_1_1_scoped_lock.html", "class_ogre_1_1_scoped_lock" ]
@@ -1690,7 +1709,8 @@ var files_dup =
     ] ],
     [ "OgreParallaxCorrectedCubemap.h", "_ogre_parallax_corrected_cubemap_8h.html", "_ogre_parallax_corrected_cubemap_8h" ],
     [ "OgreParallaxCorrectedCubemapAuto.h", "_ogre_parallax_corrected_cubemap_auto_8h.html", [
-      [ "ParallaxCorrectedCubemapAuto", "class_ogre_1_1_parallax_corrected_cubemap_auto.html", "class_ogre_1_1_parallax_corrected_cubemap_auto" ]
+      [ "ParallaxCorrectedCubemapAuto", "class_ogre_1_1_parallax_corrected_cubemap_auto.html", "class_ogre_1_1_parallax_corrected_cubemap_auto" ],
+      [ "ParallaxCorrectedCubemapAutoListener", "class_ogre_1_1_parallax_corrected_cubemap_auto_listener.html", "class_ogre_1_1_parallax_corrected_cubemap_auto_listener" ]
     ] ],
     [ "OgreParallaxCorrectedCubemapBase.h", "_ogre_parallax_corrected_cubemap_base_8h.html", "_ogre_parallax_corrected_cubemap_base_8h" ],
     [ "OgreParticle.h", "_ogre_particle_8h.html", null ],
@@ -1747,6 +1767,9 @@ var files_dup =
     [ "OgrePatchMesh.h", "_ogre_patch_mesh_8h.html", null ],
     [ "OgrePatchSurface.h", "_ogre_patch_surface_8h.html", null ],
     [ "OgrePbsMobileShaderCreationData.h", "_ogre_pbs_mobile_shader_creation_data_8h.html", null ],
+    [ "OgrePccPerPixelGridPlacement.h", "_ogre_pcc_per_pixel_grid_placement_8h.html", [
+      [ "PccPerPixelGridPlacement", "class_ogre_1_1_pcc_per_pixel_grid_placement.html", "class_ogre_1_1_pcc_per_pixel_grid_placement" ]
+    ] ],
     [ "OgrePCPlane.h", "_ogre_p_c_plane_8h.html", [
       [ "PCPlane", "class_ogre_1_1_p_c_plane.html", "class_ogre_1_1_p_c_plane" ]
     ] ],
@@ -1963,6 +1986,7 @@ var files_dup =
     [ "OgreShaderPrimitives.h", "_ogre_shader_primitives_8h.html", [
       [ "float2", "struct_ogre_1_1float2.html", "struct_ogre_1_1float2" ],
       [ "float4", "struct_ogre_1_1float4.html", "struct_ogre_1_1float4" ],
+      [ "float4x3", "struct_ogre_1_1float4x3.html", "struct_ogre_1_1float4x3" ],
       [ "float4x4", "struct_ogre_1_1float4x4.html", "struct_ogre_1_1float4x4" ],
       [ "type4", "struct_ogre_1_1type4.html", "struct_ogre_1_1type4" ],
       [ "uint4", "struct_ogre_1_1uint4.html", "struct_ogre_1_1uint4" ]
@@ -1977,6 +2001,7 @@ var files_dup =
     [ "OgreShaderScriptTranslator.h", "_ogre_shader_script_translator_8h.html", null ],
     [ "OgreShaderSubRenderState.h", "_ogre_shader_sub_render_state_8h.html", "_ogre_shader_sub_render_state_8h" ],
     [ "OgreShadowCameraSetup.h", "_ogre_shadow_camera_setup_8h.html", null ],
+    [ "OgreShadowCameraSetupConcentric.h", "_ogre_shadow_camera_setup_concentric_8h.html", null ],
     [ "OgreShadowCameraSetupFocused.h", "_ogre_shadow_camera_setup_focused_8h.html", null ],
     [ "OgreShadowCameraSetupPlaneOptimal.h", "_ogre_shadow_camera_setup_plane_optimal_8h.html", null ],
     [ "OgreShadowCameraSetupPSSM.h", "_ogre_shadow_camera_setup_p_s_s_m_8h.html", null ],

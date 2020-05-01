@@ -14,6 +14,7 @@ var class_ogre_1_1_texture_gpu_listener =
       [ "ReadyForRendering", "class_ogre_1_1_texture_gpu_listener.html#afe11bd546cf7315f4526488e7078cc7dad4d9c6e3b7755f38d8d5f003be100257", null ],
       [ "Deleted", "class_ogre_1_1_texture_gpu_listener.html#afe11bd546cf7315f4526488e7078cc7dabb2a61a0002ccca6afbde7588787e58e", null ]
     ] ],
+    [ "~TextureGpuListener", "class_ogre_1_1_texture_gpu_listener.html#a315edc6e949e74ca2565d004269a2ad7", null ],
     [ "notifyTextureChanged", "class_ogre_1_1_texture_gpu_listener.html#aad4e9062c9a92d1e2cc57d4bbe50eb95", null ],
     [ "shouldStayLoaded", "class_ogre_1_1_texture_gpu_listener.html#a1427f0b635a4186cd6083a9bab879fa2", null ]
 ];

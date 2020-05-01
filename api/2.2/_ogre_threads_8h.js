@@ -8,6 +8,6 @@ var _ogre_threads_8h =
     [ "THREAD_GET", "_ogre_threads_8h.html#a0524284264a13ff1f7bbc64c85a02540", null ],
     [ "THREAD_ENTRY_POINT", "_ogre_threads_8h.html#a6f423afda536d72cecb3634ab7e902ac", null ],
     [ "ThreadHandlePtr", "_ogre_threads_8h.html#abd64b6e4eaf1f67aaf83a0d2d7f3bde0", null ],
-    [ "ThreadHandleVec", "_ogre_threads_8h.html#a345d0933f394f8f7c21ba15ecc48da49", null ],
+    [ "ThreadHandleVec", "_ogre_threads_8h.html#afce062dc548d2039494b4a77465714b5", null ],
     [ "TlsHandle", "_ogre_threads_8h.html#ad7ea3be12f3852965f47072336fa7e97", null ]
 ];

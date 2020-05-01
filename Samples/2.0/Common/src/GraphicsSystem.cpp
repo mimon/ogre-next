@@ -146,14 +146,17 @@ namespace Demo
 
         mStaticPluginLoader.install( mRoot );
 
-        // enable sRGB Gamma Conversion mode by default for all renderers, but still allow to override it via config dialog
-        Ogre::RenderSystemList::const_iterator pRend;
-        for (pRend = mRoot->getAvailableRenderers().begin(); pRend != mRoot->getAvailableRenderers().end(); ++pRend)
-        {
-            Ogre::RenderSystem* rs = *pRend;
-            rs->setConfigOption("sRGB Gamma Conversion", "Yes");
-        }
+        // enable sRGB Gamma Conversion mode by default for all renderers,
+        // but still allow to override it via config dialog
+        Ogre::RenderSystemList::const_iterator itor = mRoot->getAvailableRenderers().begin();
+        Ogre::RenderSystemList::const_iterator endt = mRoot->getAvailableRenderers().end();
 
+        while( itor != endt )
+        {
+            Ogre::RenderSystem *rs = *itor;
+            rs->setConfigOption( "sRGB Gamma Conversion", "Yes" );
+            ++itor;
+        }
 
         if( mAlwaysAskForConfig || !mRoot->restoreConfig() )
         {
@@ -774,6 +777,12 @@ namespace Demo
 
         // Initialise, parse scripts etc
         Ogre::ResourceGroupManager::getSingleton().initialiseAllResourceGroups( true );
+
+        // Initialize resources for LTC area lights and accurate specular reflections (IBL)
+        Ogre::Hlms *hlms = mRoot->getHlmsManager()->getHlms( Ogre::HLMS_PBS );
+        OGRE_ASSERT_HIGH( dynamic_cast<Ogre::HlmsPbs*>( hlms ) );
+        Ogre::HlmsPbs *hlmsPbs = static_cast<Ogre::HlmsPbs*>( hlms );
+        hlmsPbs->loadLtcMatrix();
     }
     //-----------------------------------------------------------------------------------
     void GraphicsSystem::chooseSceneManager(void)

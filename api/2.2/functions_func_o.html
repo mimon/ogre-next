@@ -115,6 +115,12 @@ $(document).ready(function(){initNavTree('functions_func_o.html',''); initResiza
 <li>objectMoved()
 : <a class="el" href="class_ogre_1_1_object_memory_manager.html#a3ba0525c6ea5c99223df05d5593822ac">Ogre::ObjectMemoryManager</a>
 </li>
+<li>octahedronMappingDecode()
+: <a class="el" href="class_ogre_1_1_math.html#ae614e4d22bc2008436124a596e2d19f9">Ogre::Math</a>
+</li>
+<li>octahedronMappingEncode()
+: <a class="el" href="class_ogre_1_1_math.html#a12f1cd41b467cd21dfa192025553ed46">Ogre::Math</a>
+</li>
 <li>Octree()
 : <a class="el" href="class_ogre_1_1_octree.html#a9d584bd72ad69de05e900f6e9661dbe0">Ogre::Octree</a>
 </li>
@@ -384,7 +390,7 @@ $(document).ready(function(){initNavTree('functions_func_o.html',''); initResiza
 <li>operator+=()
 : <a class="el" href="class_ogre_1_1_any_numeric.html#aa4087f5136e423b245fd620527e2966f">Ogre::AnyNumeric</a>
 , <a class="el" href="class_ogre_1_1_array_quaternion.html#a43d909969db69130ef7cd35c94a60e7e">Ogre::ArrayQuaternion</a>
-, <a class="el" href="class_ogre_1_1_array_vector3.html#af899eb2447629726f0021c24174e2d8d">Ogre::ArrayVector3</a>
+, <a class="el" href="class_ogre_1_1_array_vector3.html#a4e028c8ddea0849816bd5838276b2d84">Ogre::ArrayVector3</a>
 , <a class="el" href="class_ogre_1_1_atomic_object.html#a9aabeb9790ae20baf90b4447626436de">Ogre::AtomicObject&lt; T &gt;</a>
 , <a class="el" href="class_ogre_1_1_atomic_scalar.html#a582c7e533ac3485ca23d206a259b2860">Ogre::AtomicScalar&lt; T &gt;</a>
 , <a class="el" href="class_ogre_1_1_colour_value.html#a8da50314432c59dee0aa3e6a72183e34">Ogre::ColourValue</a>
@@ -406,9 +412,9 @@ $(document).ready(function(){initNavTree('functions_func_o.html',''); initResiza
 , <a class="el" href="class_ogre_1_1_plane.html#ada033b7c48e8628d4e9be5039ffa4278">Ogre::Plane</a>
 , <a class="el" href="class_ogre_1_1_quaternion.html#a98993e6f63209a39149d132623bbf41b">Ogre::Quaternion</a>
 , <a class="el" href="class_ogre_1_1_radian.html#aa2366301db74814149be591856884221">Ogre::Radian</a>
-, <a class="el" href="class_ogre_1_1_vector2.html#a42fdbb90fb53a06fcdcba4476887fc09">Ogre::Vector2</a>
-, <a class="el" href="class_ogre_1_1_vector3.html#a5e7b2efc8efd2caab55fdd73bff752ab">Ogre::Vector3</a>
-, <a class="el" href="class_ogre_1_1_vector4.html#a7640b8de0f67099b531ba8442da36924">Ogre::Vector4</a>
+, <a class="el" href="class_ogre_1_1_vector2.html#a4e717bf7b508e87e891ffb7c21cd17ca">Ogre::Vector2</a>
+, <a class="el" href="class_ogre_1_1_vector3.html#a255e3c7fb62deb607a46c2326a347d42">Ogre::Vector3</a>
+, <a class="el" href="class_ogre_1_1_vector4.html#a11f71dbd36235bdfe5c2c709d2a6cfe2">Ogre::Vector4</a>
 </li>
 <li>operator--()
 : <a class="el" href="class_ogre_1_1_atomic_object.html#a522c27e085a3ed54877a55749c1ed234">Ogre::AtomicObject&lt; T &gt;</a>
@@ -422,7 +428,7 @@ $(document).ready(function(){initNavTree('functions_func_o.html',''); initResiza
 , <a class="el" href="class_ogre_1_1_atomic_scalar.html#ae18cfdca886ab2dd51f0d9a4342e05d5">Ogre::AtomicScalar&lt; T &gt;</a>
 , <a class="el" href="class_ogre_1_1_colour_value.html#abbc9a8f5cc1c054eb5b4633d6b0b2262">Ogre::ColourValue</a>
 , <a class="el" href="class_ogre_1_1_degree.html#a133b76b6d58f5ce8f8e8ea55c04932e0">Ogre::Degree</a>
-, <a class="el" href="class_ogre_1_1_radian.html#a5f96dcd933471eabd3d3a21893554834">Ogre::Radian</a>
+, <a class="el" href="group___math.html#ga223a82b9ff74351959eee91a335e7cdb">Ogre::Radian</a>
 , <a class="el" href="class_ogre_1_1_vector2.html#aa4e5a79a3880c71499ea5c6fc3709151">Ogre::Vector2</a>
 , <a class="el" href="class_ogre_1_1_vector3.html#ac514b9e1f5dbe855b1458a2d72a27621">Ogre::Vector3</a>
 , <a class="el" href="class_ogre_1_1_vector4.html#acc233206a14cef454dd0d9428848ebfc">Ogre::Vector4</a>
@@ -435,22 +441,22 @@ $(document).ready(function(){initNavTree('functions_func_o.html',''); initResiza
 </li>
 <li>operator/()
 : <a class="el" href="class_ogre_1_1_any_numeric.html#aa45d67ae6ca4fca3214d1fba1630e6e5">Ogre::AnyNumeric</a>
-, <a class="el" href="class_ogre_1_1_colour_value.html#ad33e4ae6c7e6d223545613c4991c91ed">Ogre::ColourValue</a>
+, <a class="el" href="class_ogre_1_1_colour_value.html#a435d20368c31728dea21469d1db036f6">Ogre::ColourValue</a>
 , <a class="el" href="class_ogre_1_1_degree.html#a2e68606c59ced916ad55cf4a3158692a">Ogre::Degree</a>
 , <a class="el" href="class_ogre_1_1_radian.html#a48ae159d7a2ae102749613982fb661c9">Ogre::Radian</a>
-, <a class="el" href="class_ogre_1_1_vector2.html#a5c7b2c591b9d7cf49e14478a17633dd6">Ogre::Vector2</a>
+, <a class="el" href="class_ogre_1_1_vector2.html#adf8076a75a981200c203739a66f0cc87">Ogre::Vector2</a>
 , <a class="el" href="class_ogre_1_1_vector3.html#a62cc08b4fae8976000d85fde3e41cde4">Ogre::Vector3</a>
 , <a class="el" href="class_ogre_1_1_vector4.html#a179e4c25ce7a268aab4eb2c76b437bc3">Ogre::Vector4</a>
 </li>
 <li>operator/=()
 : <a class="el" href="class_ogre_1_1_any_numeric.html#a45c2fcf50e3b46055c7cf4f31dbd49f5">Ogre::AnyNumeric</a>
-, <a class="el" href="class_ogre_1_1_array_vector3.html#a448dcf1a6d8eb4298a3dbb687afb7970">Ogre::ArrayVector3</a>
+, <a class="el" href="class_ogre_1_1_array_vector3.html#a63ce091c241e52986e45298af2cc53c8">Ogre::ArrayVector3</a>
 , <a class="el" href="class_ogre_1_1_colour_value.html#a3d17eedbff96cef8dbd4414183e15cb3">Ogre::ColourValue</a>
 , <a class="el" href="class_ogre_1_1_degree.html#a502f121976cd95de2817ddb9b9ac1730">Ogre::Degree</a>
 , <a class="el" href="class_ogre_1_1_radian.html#a16e2f53d94412cdc81c65292ba05c360">Ogre::Radian</a>
 , <a class="el" href="class_ogre_1_1_vector2.html#a5ee66b093d0a415c57e7918523cabeaf">Ogre::Vector2</a>
 , <a class="el" href="class_ogre_1_1_vector3.html#afd733cc4140ba78de2427b8fa9951e12">Ogre::Vector3</a>
-, <a class="el" href="class_ogre_1_1_vector4.html#a0c4b23241a97373da79afc6c993e1370">Ogre::Vector4</a>
+, <a class="el" href="class_ogre_1_1_vector4.html#a4c4def28bfaf96a3326747d2ef2ed08f">Ogre::Vector4</a>
 </li>
 <li>operator&lt;()
 : <a class="el" href="class_ogre_1_1_degree.html#a1b21b5dd134a959f2ff0b4fc36bf2519">Ogre::Degree</a>
@@ -471,7 +477,7 @@ $(document).ready(function(){initNavTree('functions_func_o.html',''); initResiza
 , <a class="el" href="struct_ogre_1_1_id_string.html#aa879e3cd371deb2979f1f5d4b8977d44">Ogre::IdString</a>
 , <a class="el" href="struct_ogre_1_1_light_closest.html#af692c6045bf99f42a763b4de27cece53">Ogre::LightClosest</a>
 , <a class="el" href="struct_ogre_1_1_lod_data_1_1_edge.html#a6f27dffeccc65f1157b1e483bdfdfc05">Ogre::LodData::Edge</a>
-, <a class="el" href="class_ogre_1_1_lw_const_string.html#a811b55e86aebefb4d3b7ffe9b80f5e3c">Ogre::LwConstString</a>
+, <a class="el" href="class_ogre_1_1_lw_const_string.html#a14b796aad34dd7db20f7ae07faea9238">Ogre::LwConstString</a>
 , <a class="el" href="struct_ogre_1_1_metal_discard_buffer_manager_1_1_unsafe_block.html#a6f72772c23311005c30bda5f1f45b543">Ogre::MetalDiscardBufferManager::UnsafeBlock</a>
 , <a class="el" href="struct_ogre_1_1_queued_renderable.html#a8d6b87f3ec79e59736e0a7e38b6fcd44">Ogre::QueuedRenderable</a>
 , <a class="el" href="class_ogre_1_1_radian.html#a24c502ed700ae70138c521c14f8102b3">Ogre::Radian</a>
@@ -487,22 +493,19 @@ $(document).ready(function(){initNavTree('functions_func_o.html',''); initResiza
 , <a class="el" href="struct_ogre_1_1_vertex_element2.html#aca9893d728d44515d27fc7e1995a454b">Ogre::VertexElement2</a>
 , <a class="el" href="struct_ogre_1_1_voxelizer_bucket.html#a3c1cad6128a10f78309502c1cc610790">Ogre::VoxelizerBucket</a>
 </li>
-<li>operator&lt;&lt;()
-: <a class="el" href="class_ogre_1_1_log_1_1_stream.html#ab05a9baee615031647a629216165b040">Ogre::Log::Stream</a>
-</li>
 <li>operator&lt;=()
 : <a class="el" href="class_ogre_1_1_degree.html#ace8f3be58aeb1dcb44fe9d9865fb47c6">Ogre::Degree</a>
 , <a class="el" href="class_ogre_1_1_radian.html#a2cc76b722fcf4b67d242359f5ad95718">Ogre::Radian</a>
 </li>
 <li>operator=()
-: <a class="el" href="class_ogre_1_1_any.html#ace912cd3c6c53f0ebd6c7146e460cc20">Ogre::Any</a>
+: <a class="el" href="class_ogre_1_1_any.html#ab714694739f9a50a361f3087e2188c94">Ogre::Any</a>
 , <a class="el" href="class_ogre_1_1_any_numeric.html#ae50aea5f19e2fd3957eebbd688c0a533">Ogre::AnyNumeric</a>
 , <a class="el" href="class_ogre_1_1_array_matrix4.html#a1a155489580c0134f1adc2b28a274b3a">Ogre::ArrayMatrix4</a>
 , <a class="el" href="class_ogre_1_1_array_vector3.html#a9630a8facb6734a8511e3e0208aea215">Ogre::ArrayVector3</a>
 , <a class="el" href="class_ogre_1_1_atomic_object.html#a8a364f1b9caf8e6370cf934df98d2b65">Ogre::AtomicObject&lt; T &gt;</a>
 , <a class="el" href="class_ogre_1_1_atomic_scalar.html#add12daab3ff51fa24089269ab93100a5">Ogre::AtomicScalar&lt; T &gt;</a>
 , <a class="el" href="class_ogre_1_1_axis_aligned_box.html#afa0d6b257b3c1da62dd8944a02eae3f1">Ogre::AxisAlignedBox</a>
-, <a class="el" href="class_ogre_1_1_com_ptr.html#a7964d374f2a252a3196718d61083fa66">Ogre::ComPtr&lt; T &gt;</a>
+, <a class="el" href="class_ogre_1_1_com_ptr.html#aa39efdb3a1c8ed0591de49d258d2840a">Ogre::ComPtr&lt; T &gt;</a>
 , <a class="el" href="class_ogre_1_1_degree.html#a88066c650a6e3e2033a9d74820569063">Ogre::Degree</a>
 , <a class="el" href="class_ogre_1_1_dual_quaternion.html#a410cb35a3ac7a805f4628c9e62ad46f9">Ogre::DualQuaternion</a>
 , <a class="el" href="class_ogre_1_1_exception.html#a775cb6cbbd395ba4ec7e7414737a5a31">Ogre::Exception</a>
@@ -536,7 +539,7 @@ $(document).ready(function(){initNavTree('functions_func_o.html',''); initResiza
 , <a class="el" href="struct_ogre_1_1_t_rect.html#a7acb1f97164a856f9e39305dbd2812bd">Ogre::TRect&lt; T &gt;</a>
 , <a class="el" href="class_ogre_1_1_vector2.html#a94d813e76f805306436e19a785e75a26">Ogre::Vector2</a>
 , <a class="el" href="class_ogre_1_1_vector3.html#a554fbfe97d222e9e7669faf168104f06">Ogre::Vector3</a>
-, <a class="el" href="class_ogre_1_1_vector4.html#a69daa0f94cfeb2c725521b1672204bf7">Ogre::Vector4</a>
+, <a class="el" href="class_ogre_1_1_vector4.html#a465dfb677017e546628f87470d6dbcd6">Ogre::Vector4</a>
 </li>
 <li>operator==()
 : <a class="el" href="struct_ogre_1_1_aabb.html#add6eee6db76e4b675b86bf7b400ea3b8">Ogre::Aabb</a>
@@ -588,7 +591,7 @@ $(document).ready(function(){initNavTree('functions_func_o.html',''); initResiza
 </li>
 <li>operator&gt;()
 : <a class="el" href="class_ogre_1_1_degree.html#a501f79ce69c3a73d5c07c945c3251097">Ogre::Degree</a>
-, <a class="el" href="class_ogre_1_1_lw_const_string.html#a382cc0da35436866b56fc81a5d411e47">Ogre::LwConstString</a>
+, <a class="el" href="class_ogre_1_1_lw_const_string.html#ac6b53d23014784a8152dcef4c08b54b9">Ogre::LwConstString</a>
 , <a class="el" href="class_ogre_1_1_radian.html#a6b34aca5c2b5cbc483dde8f22d3de0a1">Ogre::Radian</a>
 , <a class="el" href="class_ogre_1_1_vector2.html#a00d70ff0bee759da4dbc4e9ff822a939">Ogre::Vector2</a>
 , <a class="el" href="class_ogre_1_1_vector3.html#ae7e7bd521456f7302c5d5357908e90aa">Ogre::Vector3</a>
@@ -603,16 +606,16 @@ $(document).ready(function(){initNavTree('functions_func_o.html',''); initResiza
 <li>operator[]()
 : <a class="el" href="class_ogre_1_1_colour_value.html#af3579c76f3cd365ac54454be6a3f6f89">Ogre::ColourValue</a>
 , <a class="el" href="class_ogre_1_1_dual_quaternion.html#aac4241fa632d45ee6ae2d155914ddff7">Ogre::DualQuaternion</a>
-, <a class="el" href="class_ogre_1_1_fast_array.html#ad75cc26a016e825d55b3f77c03e3a764">Ogre::FastArray&lt; T &gt;</a>
-, <a class="el" href="class_ogre_1_1_hashed_vector.html#a8fdc5a6a26761097885fbe0c573c9af8">Ogre::HashedVector&lt; T &gt;</a>
-, <a class="el" href="class_ogre_1_1_matrix3.html#a05c722c341f21dd2ffc36fb1414e284b">Ogre::Matrix3</a>
-, <a class="el" href="class_ogre_1_1_matrix4.html#aa996041c004dbfd5629120299ee0cb6f">Ogre::Matrix4</a>
+, <a class="el" href="class_ogre_1_1_fast_array.html#a6e289350f8b159b8de5f0edcd267f228">Ogre::FastArray&lt; T &gt;</a>
+, <a class="el" href="class_ogre_1_1_hashed_vector.html#a9120055a62efa71e25268f3af49aaac6">Ogre::HashedVector&lt; T &gt;</a>
+, <a class="el" href="class_ogre_1_1_matrix3.html#a8043454ea50049c6849d60ead7dbd7a7">Ogre::Matrix3</a>
+, <a class="el" href="class_ogre_1_1_matrix4.html#a4fc7ceb31b1c3e2ea6f0c0b2ae2b4ab4">Ogre::Matrix4</a>
 , <a class="el" href="class_ogre_1_1_quaternion.html#a074aea0da7fabfde89d204a1f0f0121b">Ogre::Quaternion</a>
 , <a class="el" href="class_ogre_1_1_small_vector_template_common.html#ab3bb5e3be2e6a4f8b68b61c1c16028e4">Ogre::SmallVectorTemplateCommon&lt; T &gt;</a>
-, <a class="el" href="class_ogre_1_1_stack_vector.html#a412803326a3bae613a64824995d00eae">Ogre::StackVector&lt; T, Capacity &gt;</a>
-, <a class="el" href="class_ogre_1_1_vector2.html#aae029eb05f9ab47565e5b47bb2ee9d91">Ogre::Vector2</a>
-, <a class="el" href="class_ogre_1_1_vector3.html#ab5a34a541047cf3b7aa223d77ee8f126">Ogre::Vector3</a>
-, <a class="el" href="class_ogre_1_1_vector4.html#a96b4c5c76a199850c8c4e61be0feed7d">Ogre::Vector4</a>
+, <a class="el" href="class_ogre_1_1_stack_vector.html#a83c092662bc2f092d14b71eff0acbd44">Ogre::StackVector&lt; T, Capacity &gt;</a>
+, <a class="el" href="class_ogre_1_1_vector2.html#a61f177be0428338b789459f8a032d730">Ogre::Vector2</a>
+, <a class="el" href="class_ogre_1_1_vector3.html#a2db7f74eca6fac9ac5418cc4605c0453">Ogre::Vector3</a>
+, <a class="el" href="class_ogre_1_1_vector4.html#a440c065b191802d3120b54e4857a8a73">Ogre::Vector4</a>
 </li>
 <li>optimise()
 : <a class="el" href="class_ogre_1_1v1_1_1_animation.html#a0326caec926af339758845ea4c4e156a">Ogre::v1::Animation</a>
@@ -644,7 +647,7 @@ $(document).ready(function(){initNavTree('functions_func_o.html',''); initResiza
 : <a class="el" href="class_ogre_1_1_g_l_e_s2_pixel_util.html#aab458cd1ffaaa62f24e70bca408910ff">Ogre::GLES2PixelUtil</a>
 </li>
 <li>Or()
-: <a class="el" href="class_ogre_1_1_mathlib_c.html#ab780c9b15a4b9387e3683e078bddfa74">Ogre::MathlibC</a>
+: <a class="el" href="class_ogre_1_1_mathlib_c.html#a195c68e8b279bc6a0a2d995bfe5c027e">Ogre::MathlibC</a>
 </li>
 <li>orientationEquals()
 : <a class="el" href="class_ogre_1_1_quaternion.html#a0528f264ccc686c5315981d19b75aa0e">Ogre::Quaternion</a>

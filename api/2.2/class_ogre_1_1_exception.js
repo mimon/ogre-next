@@ -16,7 +16,7 @@ var class_ogre_1_1_exception =
     [ "Exception", "class_ogre_1_1_exception.html#adc5a5e5eb027cdd0591566d2518cc3fd", null ],
     [ "Exception", "class_ogre_1_1_exception.html#aaa6e0d203a91b43870058082aeb34428", null ],
     [ "Exception", "class_ogre_1_1_exception.html#a82249d342184fd23af4dd1c0ac589c57", null ],
-    [ "~Exception", "class_ogre_1_1_exception.html#a5aeb1d634e6d2dc9e547ff37bd9dc051", null ],
+    [ "~Exception", "class_ogre_1_1_exception.html#a551ddbc1f317f31c4d33a0da6262cc63", null ],
     [ "getDescription", "class_ogre_1_1_exception.html#a08d436f2af44566f7f40f4467f1d82ff", null ],
     [ "getFile", "class_ogre_1_1_exception.html#a70505a2dab963bc420f04048a3690ef2", null ],
     [ "getFullDescription", "class_ogre_1_1_exception.html#af6e85a048732d785797152da81a2706c", null ],

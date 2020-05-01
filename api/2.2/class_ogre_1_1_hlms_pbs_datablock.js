@@ -3,7 +3,8 @@ var class_ogre_1_1_hlms_pbs_datablock =
     [ "TransparencyModes", "class_ogre_1_1_hlms_pbs_datablock.html#adf6c922e4527b98a3a98aa573b382ceb", [
       [ "None", "class_ogre_1_1_hlms_pbs_datablock.html#adf6c922e4527b98a3a98aa573b382ceba58da4571019c3fa5e4f54ba299fb1a9d", null ],
       [ "Transparent", "class_ogre_1_1_hlms_pbs_datablock.html#adf6c922e4527b98a3a98aa573b382cebab44e86e71d625be994fd999d1b5200c0", null ],
-      [ "Fade", "class_ogre_1_1_hlms_pbs_datablock.html#adf6c922e4527b98a3a98aa573b382cebaab2d3d5abd16b997476cf4ee7bb6cdfa", null ]
+      [ "Fade", "class_ogre_1_1_hlms_pbs_datablock.html#adf6c922e4527b98a3a98aa573b382cebaab2d3d5abd16b997476cf4ee7bb6cdfa", null ],
+      [ "Refractive", "class_ogre_1_1_hlms_pbs_datablock.html#adf6c922e4527b98a3a98aa573b382cebae6f957e8a548c22ddc66c7c02ab9a94a", null ]
     ] ],
     [ "Workflows", "class_ogre_1_1_hlms_pbs_datablock.html#a167f6114c3c5b246a7c4601a6e72cbfd", [
       [ "SpecularWorkflow", "class_ogre_1_1_hlms_pbs_datablock.html#a167f6114c3c5b246a7c4601a6e72cbfda82391fa4ed75db0350e9aff885cecb06", null ],
@@ -31,6 +32,7 @@ var class_ogre_1_1_hlms_pbs_datablock =
     [ "getMetalness", "class_ogre_1_1_hlms_pbs_datablock.html#aa146258b0b8ebf81f35cbcfa072c5575", null ],
     [ "getNormalMapWeight", "class_ogre_1_1_hlms_pbs_datablock.html#abf5019d0bb1eb6851f05c15f9f8e29c5", null ],
     [ "getReceiveShadows", "class_ogre_1_1_hlms_pbs_datablock.html#a51ea9fddb7d365f32407d4f2c7854a61", null ],
+    [ "getRefractionStrength", "class_ogre_1_1_hlms_pbs_datablock.html#a5c932322e7ead23b83564e55deacceae", null ],
     [ "getRoughness", "class_ogre_1_1_hlms_pbs_datablock.html#a1afbd8c2920b62bbebe533e05f19189a", null ],
     [ "getSpecular", "class_ogre_1_1_hlms_pbs_datablock.html#ac8c4dfb67899faae51c6117b4b5f40a1", null ],
     [ "getTextureUvSource", "class_ogre_1_1_hlms_pbs_datablock.html#a7f387f3639df6dcef765b85ab4d64f84", null ],
@@ -46,6 +48,7 @@ var class_ogre_1_1_hlms_pbs_datablock =
     [ "hasSeparateFresnel", "class_ogre_1_1_hlms_pbs_datablock.html#a6d4a248493fc0f442527b73641ad5be5", null ],
     [ "importUnity", "class_ogre_1_1_hlms_pbs_datablock.html#ad8b3c1f10ae5b13c0cb0b35b36f5bf70", null ],
     [ "importUnity", "class_ogre_1_1_hlms_pbs_datablock.html#a5eeb59973f6dd8dde0dcbcadf7ad143e", null ],
+    [ "notifyTextureChanged", "class_ogre_1_1_hlms_pbs_datablock.html#a37a1b52a7dc03675ec00c6ec25b7a346", null ],
     [ "setAlphaTestThreshold", "class_ogre_1_1_hlms_pbs_datablock.html#add11930a49857ecceb800bd224180641", null ],
     [ "setBackgroundDiffuse", "class_ogre_1_1_hlms_pbs_datablock.html#ad48f1f9b97e5a7264b6c534478b8c49c", null ],
     [ "setBrdf", "class_ogre_1_1_hlms_pbs_datablock.html#a2d0a4e307644c4b5c28bf4e6fedaac8b", null ],
@@ -61,6 +64,7 @@ var class_ogre_1_1_hlms_pbs_datablock =
     [ "setMetalness", "class_ogre_1_1_hlms_pbs_datablock.html#ad108f03bb54698b7ee801e4bdd78399c", null ],
     [ "setNormalMapWeight", "class_ogre_1_1_hlms_pbs_datablock.html#a98709511c3cf45d081d5573a50bb71c9", null ],
     [ "setReceiveShadows", "class_ogre_1_1_hlms_pbs_datablock.html#a391527262b73a36a09a3a708e6a46b6a", null ],
+    [ "setRefractionStrength", "class_ogre_1_1_hlms_pbs_datablock.html#a216b57ff082ffcfa2f14ddbc3fe499ba", null ],
     [ "setRoughness", "class_ogre_1_1_hlms_pbs_datablock.html#ad80b40dd9799f18a585e53732c4ff30a", null ],
     [ "setSpecular", "class_ogre_1_1_hlms_pbs_datablock.html#a1f0345650c3834a30848c54bc5508106", null ],
     [ "setTexture", "class_ogre_1_1_hlms_pbs_datablock.html#a4c5eb8d3bea9b3b472c6f9b3c26e4499", null ],
