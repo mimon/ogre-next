@@ -31,6 +31,10 @@ THE SOFTWARE.
 #include "OgreHlmsDatablock.h"
 #include "OgreResourceTransition.h"
 #include "OgreShaderParams.h"
+#include "OgrePixelFormatGpu.h"
+#include "OgreTextureGpuListener.h"
+#include "OgreDescriptorSetUav.h"
+#include "OgreDescriptorSetTexture.h"
 #include "OgreHeaderPrefix.h"
 
 namespace Ogre
@@ -43,7 +47,7 @@ namespace Ogre
     */
 
     //class _OgreExport HlmsComputeJob : public HlmsDatablock
-    class _OgreExport HlmsComputeJob : public PassAlloc
+    class _OgreExport HlmsComputeJob : public PassAlloc, public TextureGpuListener
     {
         friend class HlmsCompute;
 
@@ -78,30 +82,9 @@ namespace Ogre
             }
         };
 
-        struct TextureSlot
-        {
-            BufferPacked *buffer;
-            size_t offset;
-            size_t sizeBytes;
-            TexturePtr texture;
-            /// Samplerblock is only used by regular textures (not UAVs or buffers)
-            HlmsSamplerblock const *samplerblock;
-
-            //Used by UAVs:
-
-            ResourceAccess::ResourceAccess access;
-            int32           mipmapLevel;
-            int32           textureArrayIndex;
-            PixelFormat     pixelFormat;
-
-            TextureSlot() :
-                buffer( 0 ), offset( 0 ), sizeBytes( 0 ), samplerblock( 0 ),
-                access( ResourceAccess::Undefined ), mipmapLevel( 0 ), textureArrayIndex( 0 ),
-                pixelFormat( PF_UNKNOWN ) {}
-        };
-
         typedef vector<ConstBufferSlot>::type ConstBufferSlotVec;
-        typedef vector<TextureSlot>::type TextureSlotVec;
+        typedef FastArray<DescriptorSetTexture2::Slot> DescriptorSetTexSlotArray;
+        typedef FastArray<DescriptorSetUav::Slot> DescriptorSetUavSlotArray;
 
         Hlms    *mCreator;
         IdString mName;
@@ -118,9 +101,14 @@ namespace Ogre
         uint8               mThreadGroupsBasedOnTexSlot;
         uint8               mThreadGroupsBasedDivisor[3];
 
-        ConstBufferSlotVec  mConstBuffers;
-        TextureSlotVec      mTextureSlots;
-        TextureSlotVec      mUavSlots;
+        ConstBufferSlotVec          mConstBuffers;
+        FastArray<const HlmsSamplerblock*>  mSamplerSlots;
+        DescriptorSetTexSlotArray           mTexSlots;
+        DescriptorSetUavSlotArray           mUavSlots;
+
+        DescriptorSetTexture2 const *mTexturesDescSet;
+        DescriptorSetSampler const  *mSamplersDescSet;
+        DescriptorSetUav const      *mUavsDescSet;
 
         bool mInformHlmsOfTextureData;
         uint8 mMaxTexUnitReached;
@@ -132,17 +120,19 @@ namespace Ogre
 
         map<IdString, ShaderParams>::type mShaderParams;
 
-        void updateAutoProperties( const TextureSlotVec &textureSlots,
-                                   uint8 &outMaxTexUnitReached,
-                                   const char *propTexture,
-                                   const IdString &propNumTextureSlots,
-                                   const IdString &propMaxTextureSlot );
+        template <typename T>
+        void removeListenerFromTextures( T &container, size_t first, size_t lastPlusOne );
+
+        void destroyDescriptorSamplers(void);
+        void destroyDescriptorTextures(void);
+        void destroyDescriptorUavs(void);
+
+        void setTextureProperties( const TextureGpu *texture,
+                                   PixelFormatGpu pixelFormat, ResourceAccess::ResourceAccess access,
+                                   LwString &propName, const PixelFormatToShaderType *toShaderType );
+        void clearAutoProperties( const char *propTexture, uint8 maxTexUnitReached );
 
         void removeProperty( IdString key );
-
-        void setBuffer( uint8 slotIdx, BufferPacked *buffer,
-                        size_t offset, size_t sizeBytes,
-                        ResourceAccess::ResourceAccess access, TextureSlotVec &container );
 
     public:
         HlmsComputeJob( IdString name, Hlms *creator, const String &sourceFilename,
@@ -152,6 +142,7 @@ namespace Ogre
         Hlms* getCreator(void) const                { return mCreator; }
 
         IdString getName(void) const                { return mName; }
+        String getNameStr(void) const;
 
         void _updateAutoProperties(void);
 
@@ -298,9 +289,9 @@ namespace Ogre
         void setNumTexUnits( uint8 numSlots );
         /// Destroys a given texture unit, displacing all the higher tex units.
         void removeTexUnit( uint8 slotIdx );
-        size_t getNumTexUnits(void) const               { return mTextureSlots.size(); }
+        size_t getNumTexUnits(void) const               { return mTexSlots.size(); }
 
-        const TexturePtr& getTexture( uint8 slotIdx ) const;
+        TextureGpu* getTexture( uint8 slotIdx ) const;
 
         /// @copydoc setNumTexUnits
         void setNumUavUnits( uint8 numSlots );
@@ -308,7 +299,7 @@ namespace Ogre
         void removeUavUnit( uint8 slotIdx );
         size_t getNumUavUnits(void) const               { return mUavSlots.size(); }
 
-        const TexturePtr& getUavTexture( uint8 slotIdx ) const;
+        TextureGpu *getUavTexture( uint8 slotIdx ) const;
         UavBufferPacked* getUavBuffer( uint8 slotIdx ) const;
 
         /** Sets a texture buffer at the given slot ID.
@@ -327,19 +318,9 @@ namespace Ogre
             The slot index to bind this texture buffer
             In OpenGL, a few cards support between to 16-18 texture units,
             while most cards support up to 32
-        @param texBuffer
-            Texture buffer to bind.
-        @param offset
-            0-based offset. It is possible to bind a region of the buffer.
-            Offset needs to be aligned. You can query the RS capabilities for
-            the alignment, however 256 bytes is the maximum allowed alignment
-            per the OpenGL specification, making it a safe bet to hardcode.
-        @param sizeBytes
-            Size in bytes to bind the tex buffer. When zero,
-            binds from offset until the end of the buffer.
+        @param newSlot
         */
-        void setTexBuffer( uint8 slotIdx, TexBufferPacked *texBuffer,
-                           size_t offset=0, size_t sizeBytes=0 );
+        void setTexBuffer( uint8 slotIdx, const DescriptorSetTexture2::BufferSlot &newSlot);
 
         /** Sets a texture buffer at the given slot ID.
         @remarks
@@ -358,17 +339,13 @@ namespace Ogre
             The slot index to bind this texture
             In OpenGL, some cards support up to 16-18 texture units, while most
             cards support up to 32
-        @param texBuffer
-            Texture buffer to bind.
-        @param texture
-            Texture to bind.
         @param samplerblock
             Optional. We'll create (or retrieve an existing) samplerblock based on the input parameters.
             When null, we leave the previously set samplerblock (if a texture is being set, and if no
             samplerblock was set, we'll create a default one)
         */
-        void setTexture( uint8 slotIdx, TexturePtr &texture,
-						 const HlmsSamplerblock *refParams=0 );
+        void setTexture( uint8 slotIdx, const DescriptorSetTexture2::TextureSlot &newSlot,
+                         const HlmsSamplerblock *refParams=0 );
 
         /** Sets a samplerblock based on reference parameters
         @param slotIdx
@@ -405,23 +382,9 @@ namespace Ogre
         @param slotIdx
             See setNumUavUnits.
             The slot index to bind this UAV buffer.
-        @param access
-            Access. Should match what the shader expects. Needed by Ogre to
-            resolve memory barrier dependencies.
-        @param uavBuffer
-            UAV buffer to bind.
-        @param offset
-            0-based offset. It is possible to bind a region of the buffer.
-            Offset needs to be aligned. You can query the RS capabilities for
-            the alignment, however 256 bytes is the maximum allowed alignment
-            per the OpenGL specification, making it a safe bet to hardcode.
-        @param sizeBytes
-            Size in bytes to bind the tex buffer. When zero,
-            binds from offset until the end of the buffer.
+        @param newSlot
         */
-        void _setUavBuffer( uint8 slotIdx, UavBufferPacked *uavBuffer,
-                            ResourceAccess::ResourceAccess access,
-                            size_t offset=0, size_t sizeBytes=0 );
+        void _setUavBuffer( uint8 slotIdx, const DescriptorSetUav::BufferSlot &newSlot );
 
         /** Sets an UAV texture.
         @remarks
@@ -438,18 +401,20 @@ namespace Ogre
             If in doubt, change the CompositorPassComputeDef instead.
         @param slot
             See setNumUavUnits.
-        @param texture
-        @param textureArrayIndex
-        @param access
-        @param mipmapLevel
-        @param pixelFormat
         */
-        void _setUavTexture( uint8 slotIdx, TexturePtr &texture, int32 textureArrayIndex,
-                             ResourceAccess::ResourceAccess access, int32 mipmapLevel,
-                             PixelFormat pixelFormat );
+        void _setUavTexture( uint8 slotIdx, const DescriptorSetUav::TextureSlot &texSlot );
+
+        /// Sets all texture buffers to nullptr
+        void clearTexBuffers(void);
+        /// Sets all UAV buffers to nullptr
+        void clearUavBuffers(void);
 
         HlmsComputeJob *clone( const String &cloneName );
         void cloneTo( HlmsComputeJob *dstJob );
+
+        // TextureGpuListener overloads
+        virtual void notifyTextureChanged( TextureGpu *texture, TextureGpuListener::Reason reason,
+                                           void *extraData );
     };
 
     /** @} */

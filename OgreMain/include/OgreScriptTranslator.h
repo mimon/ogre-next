@@ -31,6 +31,7 @@ THE SOFTWARE.
 
 #include "OgrePrerequisites.h"
 #include "Compositor/OgreCompositorCommon.h"
+#include "OgreRenderPassDescriptor.h"
 #include "OgreScriptCompiler.h"
 #include "OgreBlendMode.h"
 #include "OgreHeaderPrefix.h"
@@ -38,6 +39,8 @@ THE SOFTWARE.
 namespace Ogre{
 	struct IdString;
     class TextureDefinitionBase;
+    struct RenderTargetViewDef;
+    struct RenderTargetViewEntry;
 
     /** \addtogroup Core
     *  @{
@@ -283,6 +286,19 @@ namespace Ogre{
         CompositorShadowNodeTranslator();
         void translate(ScriptCompiler *compiler, const AbstractNodePtr &node);
     };
+    class _OgreExport CompositorRenderTargetViewTranslator : public ScriptTranslator
+    {
+    protected:
+        RenderTargetViewDef *mRtv;
+
+        void translateRenderTargetViewEntry( RenderTargetViewEntry &attachment,
+                                             PropertyAbstractNode *prop, ScriptCompiler *compiler,
+                                             bool isColour );
+
+    public:
+        CompositorRenderTargetViewTranslator();
+        void translate( ScriptCompiler *compiler, const AbstractNodePtr &node );
+    };
     class _OgreExport CompositorTargetTranslator : public ScriptTranslator
     {
     protected:
@@ -313,6 +329,24 @@ namespace Ogre{
         CompositorShadowMapTargetTranslator();
         void translate(ScriptCompiler *compiler, const AbstractNodePtr &node);
     };
+    class _OgreExport CompositorLoadActionTranslator : public ScriptTranslator
+    {
+    protected:
+        CompositorPassDef *mPassDef;
+        static bool getLoadAction( const Ogre::AbstractNodePtr &node, LoadAction::LoadAction *result );
+    public:
+        CompositorLoadActionTranslator();
+        void translate(ScriptCompiler *compiler, const AbstractNodePtr &node);
+    };
+    class _OgreExport CompositorStoreActionTranslator : public ScriptTranslator
+    {
+    protected:
+        CompositorPassDef *mPassDef;
+        static bool getStoreAction( const Ogre::AbstractNodePtr &node, StoreAction::StoreAction *result );
+    public:
+        CompositorStoreActionTranslator();
+        void translate(ScriptCompiler *compiler, const AbstractNodePtr &node);
+    };
     class _OgreExport CompositorPassTranslator : public ScriptTranslator
     {
     protected:
@@ -336,6 +370,8 @@ namespace Ogre{
                                CompositorTargetDef *targetDef );
         void translateMipmap( ScriptCompiler *compiler, const AbstractNodePtr &node,
                               CompositorTargetDef *targetDef );
+        void translateIblSpecular( ScriptCompiler *compiler, const AbstractNodePtr &node,
+                                   CompositorTargetDef *targetDef );
 
     public:
         CompositorPassTranslator();
@@ -363,10 +399,13 @@ namespace Ogre{
         CompositorWorkspaceTranslator mCompositorWorkspaceTranslator;
         CompositorNodeTranslator mCompositorNodeTranslator;
         CompositorShadowNodeTranslator mCompositorShadowNodeTranslator;
+        CompositorRenderTargetViewTranslator mCompositorRenderTargetViewTranslator;
         CompositorTargetTranslator mCompositorTargetTranslator;
         CompositorShadowMapTargetTypeTranslator mCompositorShadowMapTargetTypeTranslator;
         CompositorShadowMapRepeatTranslator mCompositorShadowMapRepeatTranslator;
         CompositorShadowMapTargetTranslator mCompositorShadowMapTargetTranslator;
+        CompositorLoadActionTranslator mCompositorLoadActionTranslator;
+        CompositorStoreActionTranslator mCompositorStoreActionTranslator;
         CompositorPassTranslator mCompositorPassTranslator;
     public:
         BuiltinScriptTranslatorManager();

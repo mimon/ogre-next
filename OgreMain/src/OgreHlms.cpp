@@ -37,6 +37,7 @@ THE SOFTWARE.
 #include "Vao/OgreVertexArrayObject.h"
 
 #include "Compositor/OgreCompositorShadowNode.h"
+#include "Compositor/Pass/PassScene/OgreCompositorPassSceneDef.h"
 
 #include "OgreLight.h"
 #include "OgreSceneManager.h"
@@ -46,9 +47,10 @@ THE SOFTWARE.
 //#include "OgreMovableObject.h"
 //#include "OgreRenderable.h"
 #include "OgreViewport.h"
-#include "OgreRenderTarget.h"
 #include "OgreDepthBuffer.h"
+#include "OgrePixelFormatGpuUtils.h"
 #include "OgreLwString.h"
+#include "OgreRenderQueue.h"
 
 #include "OgreHlmsListener.h"
 #include "OgreBitset.h"
@@ -108,7 +110,7 @@ namespace Ogre
     const IdString HlmsBaseProp::UvCount5           = IdString( "hlms_uv_count5" );
     const IdString HlmsBaseProp::UvCount6           = IdString( "hlms_uv_count6" );
     const IdString HlmsBaseProp::UvCount7           = IdString( "hlms_uv_count7" );
-    
+
     //Change per frame (grouped together with scene pass)
     const IdString HlmsBaseProp::LightsDirectional  = IdString( "hlms_lights_directional" );
     const IdString HlmsBaseProp::LightsDirNonCaster = IdString( "hlms_lights_directional_non_caster" );
@@ -125,6 +127,8 @@ namespace Ogre
     const IdString HlmsBaseProp::PsoClipDistances	= IdString( "hlms_pso_clip_distances" );
     const IdString HlmsBaseProp::GlobalClipPlanes	= IdString( "hlms_global_clip_planes" );
     const IdString HlmsBaseProp::DualParaboloidMapping= IdString( "hlms_dual_paraboloid_mapping" );
+    const IdString HlmsBaseProp::InstancedStereo    = IdString( "hlms_instanced_stereo" );
+    const IdString HlmsBaseProp::StaticBranchLights = IdString( "hlms_static_branch_lights" );
     const IdString HlmsBaseProp::NumShadowMapLights = IdString( "hlms_num_shadow_map_lights" );
     const IdString HlmsBaseProp::NumShadowMapTextures= IdString("hlms_num_shadow_map_textures" );
     const IdString HlmsBaseProp::PssmSplits         = IdString( "hlms_pssm_splits" );
@@ -136,10 +140,15 @@ namespace Ogre
     const IdString HlmsBaseProp::ShadowUsesDepthTexture= IdString( "hlms_shadow_uses_depth_texture" );
     const IdString HlmsBaseProp::RenderDepthOnly    = IdString( "hlms_render_depth_only" );
     const IdString HlmsBaseProp::FineLightMask      = IdString( "hlms_fine_light_mask" );
+    const IdString HlmsBaseProp::UseUvBaking        = IdString( "hlms_use_uv_baking" );
+    const IdString HlmsBaseProp::UvBaking           = IdString( "hlms_uv_baking" );
+    const IdString HlmsBaseProp::BakeLightingOnly   = IdString( "hlms_bake_lighting_only" );
+    const IdString HlmsBaseProp::GenNormalsGBuf     = IdString( "hlms_gen_normals_gbuffer" );
     const IdString HlmsBaseProp::PrePass            = IdString( "hlms_prepass" );
     const IdString HlmsBaseProp::UsePrePass         = IdString( "hlms_use_prepass" );
     const IdString HlmsBaseProp::UsePrePassMsaa     = IdString( "hlms_use_prepass_msaa" );
     const IdString HlmsBaseProp::UseSsr             = IdString( "hlms_use_ssr" );
+    const IdString HlmsBaseProp::SsRefractionsAvailable = IdString( "hlms_ss_refractions_available" );
     const IdString HlmsBaseProp::EnableVpls         = IdString( "hlms_enable_vpls" );
     const IdString HlmsBaseProp::ForwardPlus        = IdString( "hlms_forwardplus" );
     const IdString HlmsBaseProp::ForwardPlusFlipY   = IdString( "hlms_forwardplus_flipY" );
@@ -159,14 +168,21 @@ namespace Ogre
     const IdString HlmsBaseProp::DecalsDiffuse      = IdString( "hlms_decals_diffuse" );
     const IdString HlmsBaseProp::DecalsNormals      = IdString( "hlms_decals_normals" );
     const IdString HlmsBaseProp::DecalsEmissive     = IdString( "hlms_decals_emissive" );
+    const IdString HlmsBaseProp::FwdPlusCubemapSlotOffset= IdString( "hlms_forwardplus_cubemap_slot_offset" );
     const IdString HlmsBaseProp::Forward3D          = IdString( "forward3d" );
     const IdString HlmsBaseProp::ForwardClustered   = IdString( "forward_clustered" );
     const IdString HlmsBaseProp::VPos               = IdString( "hlms_vpos" );
+    const IdString HlmsBaseProp::ScreenPosInt       = IdString( "hlms_screen_pos_int" );
+    const IdString HlmsBaseProp::ScreenPosUv        = IdString( "hlms_screen_pos_uv" );
+    const IdString HlmsBaseProp::VertexId           = IdString( "hlms_vertex_id" );
 
     //Change per material (hash can be cached on the renderable)
     const IdString HlmsBaseProp::AlphaTest                 = IdString( "alpha_test" );
     const IdString HlmsBaseProp::AlphaTestShadowCasterOnly = IdString( "alpha_test_shadow_caster_only" );
     const IdString HlmsBaseProp::AlphaBlend     = IdString( "hlms_alphablend" );
+    const IdString HlmsBaseProp::ScreenSpaceRefractions    = IdString( "hlms_screen_space_refractions" );
+
+    const IdString HlmsBaseProp::NoReverseDepth = IdString( "hlms_no_reverse_depth" );
 
     const IdString HlmsBaseProp::Syntax         = IdString( "syntax" );
     const IdString HlmsBaseProp::Hlsl           = IdString( "hlsl" );
@@ -236,10 +252,11 @@ namespace Ogre
         mDataFolder( dataFolder ),
         mHlmsManager( 0 ),
         mLightGatheringMode( LightGatherForward ),
-        mNumLightsLimit( 8 ),
-        mNumAreaLightsLimit( 1u ),
-        mAreaLightsRoundMultiple( 1u ),
+        mNumLightsLimit( 0u ),
+        mNumAreaApproxLightsLimit( 1u ),
+        mNumAreaLtcLightsLimit( 1u ),
         mAreaLightsGlobalLightListStart( 0u ),
+        mRealNumAreaApproxLightsWithMask( 0u ),
         mRealNumAreaApproxLights( 0u ),
         mRealNumAreaLtcLights( 0u ),
         mListener( &c_defaultListener ),
@@ -393,7 +410,7 @@ namespace Ogre
         setProperty( HlmsBaseProp::LightsDirNonCaster, 1 );
         setProperty( HlmsBaseProp::LightsPoint, 2 );
         setProperty( HlmsBaseProp::LightsSpot, 3 );
-        
+
         setProperty( HlmsBaseProp::Pose, 0 );
         setProperty( HlmsBaseProp::PoseHalfPrecision, 0 );
         setProperty( HlmsBaseProp::PoseNormals, 0 );
@@ -482,6 +499,9 @@ namespace Ogre
                 ++itLowerCase;
                 ++itor;
             }
+
+            //Enumeration order depends on OS and filesystem. Ensure deterministic alphabetical order.
+            std::sort( pieceFiles[i].begin(), pieceFiles[i].end() );
         }
 
         return retVal;
@@ -569,8 +589,8 @@ namespace Ogre
             {
                 SubStringRef subString( &outSubString.getOriginalBuffer(), it + 1 );
 
-                size_t idx = subString.find( "end" );
-                if( idx == 0 )
+                bool start = subString.startWith( "end" );
+                if( start )
                 {
                     --nesting;
                     it += sizeof( "end" ) - 1;
@@ -579,8 +599,8 @@ namespace Ogre
                 else
                 {
                     if( allowsElse )
-                        idx = subString.find( "else" );
-                    if( idx == 0 )
+                        start = subString.startWith( "else" );
+                    if( start )
                     {
                         if( !allowedElses.test( static_cast<size_t>( nesting ) ) )
                         {
@@ -609,8 +629,8 @@ namespace Ogre
                     {
                         for( size_t i=0; i<sizeof( blockNames ) / sizeof( char* ); ++i )
                         {
-                            size_t idxBlock = subString.find( blockNames[i] );
-                            if( idxBlock == 0 )
+                            bool startBlock = subString.startWith( blockNames[i] );
+                            if( startBlock )
                             {
                                 it = subString.begin() + strlen( blockNames[i] );
                                 if( i == 3 )
@@ -1034,11 +1054,7 @@ namespace Ogre
     //-----------------------------------------------------------------------------------
     void Hlms::copy( String &outBuffer, const SubStringRef &inSubString, size_t length )
     {
-        String::const_iterator itor = inSubString.begin();
-        String::const_iterator end  = inSubString.begin() + length;
-
-        while( itor != end )
-            outBuffer.push_back( *itor++ );
+        outBuffer.append( inSubString.begin(), inSubString.begin() + length );
     }
     //-----------------------------------------------------------------------------------
     void Hlms::repeat( String &outBuffer, const SubStringRef &inSubString, size_t length,
@@ -1052,7 +1068,7 @@ namespace Ogre
             if( *itor == '@' && !counterVar.empty() )
             {
                 SubStringRef subString( &inSubString.getOriginalBuffer(), itor + 1 );
-                if( subString.find( counterVar ) == 0 )
+                if( subString.startWith( counterVar ) )
                 {
                     char tmp[16];
                     sprintf( tmp, "%lu", passNum );
@@ -1169,12 +1185,12 @@ namespace Ogre
                 size_t lineCount = calculateLineCount( subString );
                 if( keyword <= 1 )
                 {
-                    printf( "Syntax Error at line %lu: @%s expects one parameter",
+                    printf( "Syntax Error at line %lu: @%s expects one parameter\n",
                             lineCount, c_operations[keyword].opName );
                 }
                 else
                 {
-                    printf( "Syntax Error at line %lu: @%s expects two or three parameters",
+                    printf( "Syntax Error at line %lu: @%s expects two or three parameters\n",
                             lineCount, c_operations[keyword].opName );
                 }
             }
@@ -1235,7 +1251,7 @@ namespace Ogre
                 {
                     //This isn't a number. Let's try if it's a variable
                     //count = getProperty( argValues[0], -1 );
-					count = getProperty( argValues[0], 0 );
+                    count = getProperty( argValues[0], 0 );
                 }
 
                 /*if( count < 0 )
@@ -1572,12 +1588,12 @@ namespace Ogre
                 size_t lineCount = calculateLineCount( subString );
                 if( keyword <= 1 )
                 {
-                    printf( "Syntax Error at line %lu: @%s expects one parameter",
+                    printf( "Syntax Error at line %lu: @%s expects one parameter\n",
                             lineCount, c_counterOperations[keyword].opName );
                 }
                 else
                 {
-                    printf( "Syntax Error at line %lu: @%s expects two or three parameters",
+                    printf( "Syntax Error at line %lu: @%s expects two or three parameters\n",
                             lineCount, c_counterOperations[keyword].opName );
                 }
             }
@@ -1642,14 +1658,6 @@ namespace Ogre
         return mRenderableCache[(hash >> HlmsBits::RenderableShift) & HlmsBits::RenderableMask];
     }
     //-----------------------------------------------------------------------------------
-    HlmsDatablock* Hlms::createDatablockImpl( IdString datablockName,
-                                              const HlmsMacroblock *macroblock,
-                                              const HlmsBlendblock *blendblock,
-                                              const HlmsParamVec &paramVec )
-    {
-        return OGRE_NEW HlmsDatablock( datablockName, this, macroblock, blendblock, paramVec );
-    }
-    //-----------------------------------------------------------------------------------
     HlmsDatablock* Hlms::createDefaultDatablock(void)
     {
         return createDatablock( IdString(), "[Default]",
@@ -1662,12 +1670,15 @@ namespace Ogre
         mHighQuality = highQuality;
     }
     //-----------------------------------------------------------------------------------
-    void Hlms::setAreaLightForwardSettings( uint16 areaLightsLimit, uint8 areaLightsRoundMultiple )
+    void Hlms::setMaxNonCasterDirectionalLights( uint16 maxLights )
     {
-        assert( areaLightsRoundMultiple != 0u );
-        assert( areaLightsLimit == 0 || areaLightsRoundMultiple <= areaLightsLimit );
-        mNumAreaLightsLimit = areaLightsLimit;
-        mAreaLightsRoundMultiple = areaLightsRoundMultiple;
+        mNumLightsLimit = maxLights;
+    }
+    //-----------------------------------------------------------------------------------
+    void Hlms::setAreaLightForwardSettings( uint16 areaLightsApproxLimit, uint16 areaLightsLtcLimit )
+    {
+        mNumAreaApproxLightsLimit   = areaLightsApproxLimit;
+        mNumAreaLtcLightsLimit      = areaLightsLtcLimit;
     }
     //-----------------------------------------------------------------------------------
     void Hlms::saveAllTexturesFromDatablocks( const String &folderPath,
@@ -2003,6 +2014,11 @@ namespace Ogre
     //-----------------------------------------------------------------------------------
     void Hlms::applyStrongMacroblockRules( HlmsPso &pso )
     {
+        if( !pso.macroblock->mDepthCheck )
+        {
+            //Depth check is already off, we don't need to hold a strong reference.
+            pso.pass.strongMacroblockBits &= ~HlmsPassPso::NoDepthBuffer;
+        }
         if( !pso.macroblock->mDepthWrite )
         {
             //Depth writes is already off, we don't need to hold a strong reference.
@@ -2018,6 +2034,9 @@ namespace Ogre
         {
             HlmsMacroblock prepassMacroblock = *pso.macroblock;
 
+            //This pass has no depth buffer, disable check and keep a hard copy (strong ref.)
+            if( pso.pass.strongMacroblockBits & HlmsPassPso::NoDepthBuffer )
+                prepassMacroblock.mDepthCheck = false;
             //This is a depth prepass, disable depth writes and keep a hard copy (strong ref.)
             if( pso.pass.strongMacroblockBits & HlmsPassPso::ForceDisableDepthWrites )
                 prepassMacroblock.mDepthWrite = false;
@@ -2271,6 +2290,10 @@ namespace Ogre
             }
         }
 
+        mTextureNameStrings.clear();
+        for( size_t i=0; i<NumShaderTypes; ++i )
+            mTextureRegs[i].clear();
+
         notifyPropertiesMergedPreGenerationStep();
         mListener->propertiesMergedPreGenerationStep( mShaderProfile, passCache,
                                                       renderableCache.setProperties,
@@ -2345,6 +2368,9 @@ namespace Ogre
         mRenderSystem->_hlmsPipelineStateObjectCreated( &pso );
 
         const HlmsCache* retVal = addShaderCache( finalHash, pso );
+
+        applyTextureRegisters( retVal );
+
         return retVal;
     }
     //-----------------------------------------------------------------------------------
@@ -2456,7 +2482,7 @@ namespace Ogre
         mSetProperties.clear();
 
         setProperty( HlmsBaseProp::Skeleton, renderable->hasSkeletonAnimation() );
-        
+
         setProperty( HlmsBaseProp::Pose, renderable->getNumPoses() );
         setProperty( HlmsBaseProp::PoseHalfPrecision, renderable->getPoseHalfPrecision() );
         setProperty( HlmsBaseProp::PoseNormals, renderable->getPoseNormals() );
@@ -2473,7 +2499,7 @@ namespace Ogre
 
         setProperty( HlmsBaseProp::AlphaTest, datablock->getAlphaTest() != CMPF_ALWAYS_PASS );
         setProperty( HlmsBaseProp::AlphaTestShadowCasterOnly, datablock->getAlphaTestShadowCasterOnly() );
-        setProperty( HlmsBaseProp::AlphaBlend, datablock->getBlendblock(false)->mIsTransparent );
+        setProperty( HlmsBaseProp::AlphaBlend, datablock->getBlendblock(false)->isAutoTransparent() );
 
         if( renderable->getUseIdentityWorldMatrix() )
             setProperty( HlmsBaseProp::IdentityWorld, 1 );
@@ -2501,7 +2527,7 @@ namespace Ogre
         //For shadow casters, turn normals off. UVs & diffuse also off unless there's alpha testing.
         setProperty( HlmsBaseProp::Normal, 0 );
         setProperty( HlmsBaseProp::QTangent, 0 );
-        setProperty( HlmsBaseProp::AlphaBlend, datablock->getBlendblock(true)->mIsTransparent );
+        setProperty( HlmsBaseProp::AlphaBlend, datablock->getBlendblock(true)->isAutoTransparent() );
         PiecesMap piecesCaster[NumShaderTypes];
         if( datablock->getAlphaTest() != CMPF_ALWAYS_PASS )
         {
@@ -2535,6 +2561,9 @@ namespace Ogre
     HlmsCache Hlms::preparePassHashBase( const CompositorShadowNode *shadowNode, bool casterPass,
                                          bool dualParaboloid, SceneManager *sceneManager )
     {
+        if( !mRenderSystem->isReverseDepth() )
+            setProperty( HlmsBaseProp::NoReverseDepth, 1 );
+
         if( !casterPass )
         {
             if( shadowNode )
@@ -2557,7 +2586,7 @@ namespace Ogre
                     isPssmFade = *pssmFade != 0.0f;
                 setProperty( HlmsBaseProp::PssmFade, isPssmFade );
 
-                const TextureVec &contiguousShadowMapTex = shadowNode->getContiguousShadowMapTex();
+                const TextureGpuVec &contiguousShadowMapTex = shadowNode->getContiguousShadowMapTex();
 
                 size_t numShadowMapLights = shadowNode->getNumActiveShadowCastingLights();
                 if( numPssmSplits )
@@ -2682,7 +2711,7 @@ namespace Ogre
                 {
                     bool missmatch = false;
 
-                    if( PixelUtil::isDepth( contiguousShadowMapTex[i]->getFormat() ) )
+                    if( PixelFormatGpuUtils::isDepth( contiguousShadowMapTex[i]->getPixelFormat() ) )
                     {
                         missmatch = usesDepthTextures == 0;
                         usesDepthTextures = 1;
@@ -2710,6 +2739,28 @@ namespace Ogre
                 setProperty( HlmsBaseProp::ShadowUsesDepthTexture, usesDepthTextures );
             }
 
+            const CompositorPass *pass = sceneManager->getCurrentCompositorPass();
+
+            if( pass && pass->getType() == PASS_SCENE )
+            {
+                OGRE_ASSERT_HIGH( dynamic_cast<const CompositorPassSceneDef*>( pass->getDefinition() ) );
+                const CompositorPassSceneDef *passSceneDef =
+                        static_cast<const CompositorPassSceneDef*>( pass->getDefinition() );
+                if( passSceneDef->mUvBakingSet != 0xFF )
+                {
+                    setProperty( HlmsBaseProp::UseUvBaking, 1 );
+                    setProperty( HlmsBaseProp::UvBaking, passSceneDef->mUvBakingSet );
+                    if( passSceneDef->mBakeLightingOnly )
+                        setProperty( HlmsBaseProp::BakeLightingOnly, 1 );
+                }
+
+                if( passSceneDef->mInstancedStereo )
+                    setProperty( HlmsBaseProp::InstancedStereo, 1 );
+
+                if( passSceneDef->mGenNormalsGBuf )
+                    setProperty( HlmsBaseProp::GenNormalsGBuf, 1 );
+            }
+
             ForwardPlusBase *forwardPlus = sceneManager->_getActivePassForwardPlus();
             if( forwardPlus )
                 forwardPlus->setHlmsPassProperties( this );
@@ -2720,8 +2771,8 @@ namespace Ogre
                 //we need to always flip because origin is different, but it's consistent
                 //between texture and render window. In GL, RenderWindows don't need
                 //to flip, but textures do.
-                RenderTarget *renderTarget = sceneManager->getCurrentViewport()->getTarget();
-                setProperty( HlmsBaseProp::ForwardPlusFlipY, renderTarget->requiresTextureFlipping() );
+                const RenderPassDescriptor *renderPassDesc = mRenderSystem->getCurrentPassDescriptor();
+                setProperty( HlmsBaseProp::ForwardPlusFlipY, renderPassDesc->requiresTextureFlipping() );
             }
 
             uint numLightsPerType[Light::NUM_LIGHT_TYPES];
@@ -2783,6 +2834,16 @@ namespace Ogre
                         ++itor;
                     }
                 }
+
+                mRealNumDirectionalLights = numLightsPerType[Light::LT_DIRECTIONAL];
+
+                if( mNumLightsLimit > 0 &&
+                    numLightsPerType[Light::LT_DIRECTIONAL] > shadowCasterDirectional )
+                {
+                    numLightsPerType[Light::LT_DIRECTIONAL] = shadowCasterDirectional + mNumLightsLimit;
+
+                    setProperty( HlmsBaseProp::StaticBranchLights, 1 );
+                }
             }
             else if( mLightGatheringMode == LightGatherForward )
             {
@@ -2827,24 +2888,21 @@ namespace Ogre
             {
                 //Approx area lights
                 numLightsPerType[Light::LT_AREA_APPROX] =
-                        std::min<uint16>( numLightsPerType[Light::LT_AREA_APPROX], mNumAreaLightsLimit );
+                        std::min<uint16>( numLightsPerType[Light::LT_AREA_APPROX],
+                                          mNumAreaApproxLightsLimit );
                 mRealNumAreaApproxLights = numLightsPerType[Light::LT_AREA_APPROX];
+                mRealNumAreaApproxLightsWithMask = numAreaApproxLightsWithMask;
                 numLightsPerType[Light::LT_AREA_APPROX] =
-                        Ogre::alignToNextMultiple( numLightsPerType[Light::LT_AREA_APPROX],
-                        mAreaLightsRoundMultiple );
-                numLightsPerType[Light::LT_AREA_APPROX] =
-                        std::min<uint16>( numLightsPerType[Light::LT_AREA_APPROX], mNumAreaLightsLimit );
+                        std::min<uint16>( numLightsPerType[Light::LT_AREA_APPROX],
+                                          mNumAreaApproxLightsLimit );
             }
             {
                 //LTC area lights
                 numLightsPerType[Light::LT_AREA_LTC] =
-                        std::min<uint16>( numLightsPerType[Light::LT_AREA_LTC], mNumAreaLightsLimit );
+                        std::min<uint16>( numLightsPerType[Light::LT_AREA_LTC], mNumAreaLtcLightsLimit );
                 mRealNumAreaLtcLights = numLightsPerType[Light::LT_AREA_LTC];
                 numLightsPerType[Light::LT_AREA_LTC] =
-                        Ogre::alignToNextMultiple( numLightsPerType[Light::LT_AREA_LTC],
-                        mAreaLightsRoundMultiple );
-                numLightsPerType[Light::LT_AREA_LTC] =
-                        std::min<uint16>( numLightsPerType[Light::LT_AREA_LTC], mNumAreaLightsLimit );
+                        std::min<uint16>( numLightsPerType[Light::LT_AREA_LTC], mNumAreaLtcLightsLimit );
             }
 
             //The value is cummulative for each type (order: Directional, point, spot)
@@ -2852,10 +2910,12 @@ namespace Ogre
             setProperty( HlmsBaseProp::LightsDirNonCaster,numLightsPerType[Light::LT_DIRECTIONAL] );
             setProperty( HlmsBaseProp::LightsPoint,       numLightsPerType[Light::LT_POINT] );
             setProperty( HlmsBaseProp::LightsSpot,        numLightsPerType[Light::LT_SPOTLIGHT] );
-            setProperty( HlmsBaseProp::LightsAreaApprox,  numLightsPerType[Light::LT_AREA_APPROX] );
-            setProperty( HlmsBaseProp::LightsAreaLtc,     numLightsPerType[Light::LT_AREA_LTC] );
+            if( numLightsPerType[Light::LT_AREA_APPROX] > 0 )
+                setProperty( HlmsBaseProp::LightsAreaApprox, mNumAreaApproxLightsLimit );
+            if( numLightsPerType[Light::LT_AREA_LTC] > 0 )
+                setProperty( HlmsBaseProp::LightsAreaLtc, mNumAreaLtcLightsLimit );
             if( numAreaApproxLightsWithMask > 0 )
-                setProperty( HlmsBaseProp::LightsAreaTexMask, numAreaApproxLightsWithMask );
+                setProperty( HlmsBaseProp::LightsAreaTexMask, 1 );
         }
         else
         {
@@ -2887,39 +2947,54 @@ namespace Ogre
             setProperty( HlmsBaseProp::LightsSpot,        0 );
             setProperty( HlmsBaseProp::LightsAreaApprox,  0 );
 
-            RenderTarget *renderTarget = sceneManager->getCurrentViewport()->getTarget();
+            const RenderPassDescriptor *renderPassDesc = mRenderSystem->getCurrentPassDescriptor();
 
             setProperty( HlmsBaseProp::ShadowUsesDepthTexture,
-                         renderTarget->getForceDisableColourWrites() ? 1 : 0 );
+                         (renderPassDesc->getNumColourEntries() > 0) ? 0 : 1 );
         }
 
-        Camera *camera = sceneManager->getCameraInProgress();
+        const Camera *camera = sceneManager->getCamerasInProgress().renderingCamera;
         if( camera && camera->isReflected() )
         {
             setProperty( HlmsBaseProp::PsoClipDistances, 1 );
             setProperty( HlmsBaseProp::GlobalClipPlanes, 1 );
         }
 
-        RenderTarget *renderTarget = sceneManager->getCurrentViewport()->getTarget();
+        const RenderPassDescriptor *renderPassDesc = mRenderSystem->getCurrentPassDescriptor();
         setProperty( HlmsBaseProp::RenderDepthOnly,
-                     renderTarget->getForceDisableColourWrites() ? 1 : 0 );
+                     (renderPassDesc->getNumColourEntries() > 0) ? 0 : 1 );
 
         if( sceneManager->getCurrentPrePassMode() == PrePassCreate )
+        {
             setProperty( HlmsBaseProp::PrePass, 1 );
+            setProperty( HlmsBaseProp::GenNormalsGBuf, 1 );
+        }
         else if( sceneManager->getCurrentPrePassMode() == PrePassUse )
         {
             setProperty( HlmsBaseProp::UsePrePass, 1 );
             setProperty( HlmsBaseProp::VPos, 1 );
 
+            setProperty( HlmsBaseProp::ScreenPosInt, 1 );
+
             {
-                const TextureVec *prePassTextures = sceneManager->getCurrentPrePassTextures();
-                assert( prePassTextures && !prePassTextures->empty() );
-                if( (*prePassTextures)[0]->getFSAA() > 1 )
-                    setProperty( HlmsBaseProp::UsePrePassMsaa, (*prePassTextures)[0]->getFSAA() );
+                const TextureGpuVec &prePassTextures = sceneManager->getCurrentPrePassTextures();
+                assert( !prePassTextures.empty() );
+                if( prePassTextures[0]->isMultisample() )
+                {
+                    setProperty( HlmsBaseProp::UsePrePassMsaa,
+                                 prePassTextures[0]->getSampleDescription().getColourSamples() );
+                }
             }
 
             if( sceneManager->getCurrentSsrTexture() != 0 )
                 setProperty( HlmsBaseProp::UseSsr, 1 );
+        }
+
+        if( sceneManager->getCurrentRefractionsTexture() != 0 )
+        {
+            setProperty( HlmsBaseProp::VPos, 1 );
+            setProperty( HlmsBaseProp::ScreenPosInt, 1 );
+            setProperty( HlmsBaseProp::SsRefractionsAvailable, 1 );
         }
 
         mListener->preparePassHash( shadowNode, casterPass, dualParaboloid, sceneManager, this );
@@ -2948,7 +3023,7 @@ namespace Ogre
     //-----------------------------------------------------------------------------------
     HlmsPassPso Hlms::getPassPsoForScene( SceneManager *sceneManager )
     {
-        RenderTarget *renderTarget = sceneManager->getCurrentViewport()->getTarget();
+        const RenderPassDescriptor *renderPassDesc = mRenderSystem->getCurrentPassDescriptor();
 
         HlmsPassPso passPso;
 
@@ -2957,15 +3032,28 @@ namespace Ogre
 
         passPso.stencilParams = mRenderSystem->getStencilBufferParams();
 
-        renderTarget->getFormatsForPso( passPso.colourFormat, passPso.hwGamma );
+        for( int i=0; i<OGRE_MAX_MULTIPLE_RENDER_TARGETS; ++i )
+        {
+            if( renderPassDesc->mColour[i].texture )
+            {
+                passPso.colourFormat[i]     = renderPassDesc->mColour[i].texture->getPixelFormat();
+                passPso.sampleDescription   = renderPassDesc->mColour[i].texture->getSampleDescription();
+            }
+            else
+                passPso.colourFormat[i] = PFG_NULL;
+        }
 
-        passPso.depthFormat = PF_NULL;
-        const DepthBuffer *depthBuffer = renderTarget->getDepthBuffer();
-        if( depthBuffer )
-            passPso.depthFormat = depthBuffer->getFormat();
+        passPso.depthFormat = PFG_NULL;
+        if( renderPassDesc->mDepth.texture )
+        {
+            passPso.depthFormat         = renderPassDesc->mDepth.texture->getPixelFormat();
+            passPso.sampleDescription   = renderPassDesc->mDepth.texture->getSampleDescription();
+        }
+        else
+        {
+            passPso.strongMacroblockBits |= HlmsPassPso::NoDepthBuffer;
+        }
 
-        passPso.multisampleCount   = std::max( renderTarget->getFSAA(), 1u );
-        passPso.multisampleQuality = StringConverter::parseInt( renderTarget->getFSAAHint() );
         passPso.adapterId = 1; //TODO: Ask RenderSystem current adapter ID.
 
         if( sceneManager->getCurrentPrePassMode() == PrePassUse )
@@ -2973,13 +3061,58 @@ namespace Ogre
 
         const bool invertVertexWinding = mRenderSystem->getInvertVertexWinding();
 
-        if( (renderTarget->requiresTextureFlipping() && !invertVertexWinding) ||
-            (!renderTarget->requiresTextureFlipping() && invertVertexWinding) )
+        if( (renderPassDesc->requiresTextureFlipping() && !invertVertexWinding) ||
+            (!renderPassDesc->requiresTextureFlipping() && invertVertexWinding) )
         {
             passPso.strongMacroblockBits |= HlmsPassPso::InvertVertexWinding;
         }
 
         return passPso;
+    }
+    //-----------------------------------------------------------------------------------
+    void Hlms::setTextureReg( ShaderType shaderType, const char *texName, int32 texUnit )
+    {
+        const uint32 startIdx = static_cast<uint32>( mTextureNameStrings.size() );
+        char const *copyName = texName;
+        while( *copyName != '\0' )
+            mTextureNameStrings.push_back( *copyName++ );
+        mTextureNameStrings.push_back( '\0' );
+        mTextureRegs[shaderType].push_back( TextureRegs( startIdx, texUnit ) );
+
+        setProperty( texName, texUnit );
+    }
+    //-----------------------------------------------------------------------------------
+    void Hlms::applyTextureRegisters( const HlmsCache *psoEntry )
+    {
+        if( mShaderProfile == "hlsl" || mShaderProfile == "metal" )
+            return; //D3D embeds the texture slots in the shader.
+
+        GpuProgramPtr shaders[NumShaderTypes];
+        shaders[VertexShader]   = psoEntry->pso.vertexShader;
+        shaders[PixelShader]    = psoEntry->pso.pixelShader;
+        shaders[GeometryShader] = psoEntry->pso.geometryShader;
+        shaders[HullShader]     = psoEntry->pso.tesselationHullShader;
+        shaders[DomainShader]   = psoEntry->pso.tesselationDomainShader;
+
+        String paramName;
+        for( size_t i=0; i<NumShaderTypes; ++i )
+        {
+            if( shaders[i] )
+            {
+                GpuProgramParametersSharedPtr params = shaders[i]->getDefaultParameters();
+
+                TextureRegsVec::const_iterator itor = mTextureRegs[i].begin();
+                TextureRegsVec::const_iterator end  = mTextureRegs[i].end();
+
+                while( itor != end )
+                {
+                    const char *paramNameC = &mTextureNameStrings[itor->strNameIdxStart];
+                    paramName = paramNameC;
+                    params->setNamedConstant( paramName, static_cast<int>( itor->texUnit ) );
+                    ++itor;
+                }
+            }
+        }
     }
     //-----------------------------------------------------------------------------------
     const HlmsCache* Hlms::getMaterial( HlmsCache const *lastReturnedValue,

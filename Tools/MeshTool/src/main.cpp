@@ -51,6 +51,7 @@ THE SOFTWARE.
 #include "XML/OgreXMLSkeletonSerializer.h"
 
 #include <iostream>
+#include <sstream>
 #include <sys/stat.h>
 
 using namespace std;
@@ -329,11 +330,11 @@ void parseOpts(UnaryOptionList& unOpts, BinaryOptionList& binOpts)
 
         if( opts.targetVersion == v1::MESH_VERSION_LATEST && !opts.exportAsV2 )
         {
-            LogManager::getSingleton().getDefaultLog()->stream() << "Unrecognised target mesh version '" << bi->second << "'";
+            *LogManager::getSingleton().getDefaultLog()->stream().raw() << "Unrecognised target mesh version '" << bi->second << "'";
         }
         else if( opts.targetVersionV2 == MESH_VERSION_LATEST && opts.exportAsV2 )
         {
-            LogManager::getSingleton().getDefaultLog()->stream() << "Unrecognised target mesh version '" <<
+            *LogManager::getSingleton().getDefaultLog()->stream().raw() << "Unrecognised target mesh version '" <<
                                                                     bi->second <<
                                                                     "' or version can't be used with -v2 argument";
         }
@@ -1240,6 +1241,7 @@ int main(int numargs, char** args)
         if( !loadMesh( source, v1Mesh, v2Mesh, v1Skeleton, meshSerializer2,
                        xmlMeshSerializer, xmlSkeletonSerializer ) )
         {
+            // The contents of the XML may also be invalid
             OGRE_EXCEPT( Exception::ERR_FILE_NOT_FOUND, "Could not open '" + source + "'", "main" );
         }
 

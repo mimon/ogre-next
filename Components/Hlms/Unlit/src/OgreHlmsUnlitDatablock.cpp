@@ -31,9 +31,21 @@ THE SOFTWARE.
 #include "OgreHlmsUnlitDatablock.h"
 #include "OgreHlmsUnlit.h"
 #include "OgreHlmsManager.h"
-#include "OgreHlmsTextureManager.h"
-#include "OgreTexture.h"
+#include "OgreTextureGpu.h"
+#include "OgreTextureGpuManager.h"
+#include "OgreRenderSystem.h"
 #include "OgreLogManager.h"
+#include "OgreString.h"
+
+#define _OgreHlmsTextureBaseClassExport _OgreHlmsUnlitExport
+#define OGRE_HLMS_TEXTURE_BASE_CLASS HlmsUnlitBaseTextureDatablock
+#define OGRE_HLMS_TEXTURE_BASE_MAX_TEX NUM_UNLIT_TEXTURE_TYPES
+#define OGRE_HLMS_CREATOR_CLASS HlmsUnlit
+    #include "OgreHlmsTextureBaseClass.inl"
+#undef _OgreHlmsTextureBaseClassExport
+#undef OGRE_HLMS_TEXTURE_BASE_CLASS
+#undef OGRE_HLMS_TEXTURE_BASE_MAX_TEX
+#undef OGRE_HLMS_CREATOR_CLASS
 
 #include "OgreHlmsUnlitDatablock.cpp.inc"
 
@@ -80,7 +92,7 @@ namespace Ogre
                                             const HlmsMacroblock *macroblock,
                                             const HlmsBlendblock *blendblock,
                                             const HlmsParamVec &params ) :
-        HlmsDatablock( name, creator, macroblock, blendblock, params ),
+        HlmsUnlitBaseTextureDatablock( name, creator, macroblock, blendblock, params ),
         mNumEnabledAnimationMatrices( 0 ),
         mHasColour( false ),
         mR( 1.0f ), mG( 1.0f ), mB( 1.0f ), mA( 1.0f )
@@ -94,14 +106,8 @@ namespace Ogre
         memset( mUvSource, 0, sizeof( mUvSource ) );
         memset( mBlendModes, 0, sizeof( mBlendModes ) );
 
-        memset( mTexIndices, 0, sizeof( mTexIndices ) );
-        memset( mSamplerblocks, 0, sizeof( mSamplerblocks ) );
-
         memset( mEnabledAnimationMatrices, 0, sizeof( mEnabledAnimationMatrices ) );
         memset( mEnablePlanarReflection, 0, sizeof( mEnablePlanarReflection ) );
-
-        for( size_t i=0; i<NUM_UNLIT_TEXTURE_TYPES; ++i )
-            mTexToBakedTextureIdx[i] = NUM_UNLIT_TEXTURE_TYPES;
 
         String paramVal;
 
@@ -120,21 +126,11 @@ namespace Ogre
         }
 
         HlmsManager *hlmsManager = mCreator->getHlmsManager();
-        HlmsTextureManager *hlmsTextureManager = hlmsManager->getTextureManager();
-
-        UnlitBakedTexture textures[NUM_UNLIT_TEXTURE_TYPES];
-
-        const HlmsSamplerblock *defaultSamplerblock = hlmsManager->getSamplerblock( HlmsSamplerblock() );
 
         for( size_t i=0; i<sizeof( c_diffuseMap ) / sizeof( String ); ++i )
         {
             if( Hlms::findParamInVec( params, c_diffuseMap[i], paramVal ) )
             {
-                mTexIndices[i] = 0;
-                textures[i].texture = hlmsTextureManager->getBlankTexture().texture;
-                mSamplerblocks[i] = defaultSamplerblock;
-                hlmsManager->addReference( mSamplerblocks[i] );
-
                 StringVector vec = StringUtil::split( paramVal );
 
                 StringVector::const_iterator itor = vec.begin();
@@ -159,7 +155,7 @@ namespace Ogre
                         if( it == c_unlitBlendModes + sizeof(c_unlitBlendModes) / sizeof( String ) )
                         {
                             //Not blend mode, try loading a texture
-                            textures[i].texture = setTexture( *itor, i );
+                            setTexture( i, *itor );
                         }
                         else
                         {
@@ -172,12 +168,6 @@ namespace Ogre
                 }
             }
         }
-
-        //Remove the reference
-        hlmsManager->destroySamplerblock( defaultSamplerblock );
-
-        for( size_t i=0; i<NUM_UNLIT_TEXTURE_TYPES; ++i )
-            textures[i].samplerBlock = mSamplerblocks[i];
 
         if( Hlms::findParamInVec( params, "animate", paramVal ) )
         {
@@ -212,10 +202,6 @@ namespace Ogre
             }
         }
 
-        bakeTextures( textures );
-
-        calculateHash();
-
         //Use the same hash for everything (the number of materials per buffer is high)
         creator->requestSlot( mNumEnabledAnimationMatrices != 0, this,
                               mNumEnabledAnimationMatrices != 0 );
@@ -225,31 +211,31 @@ namespace Ogre
     {
         if( mAssignedPool )
             static_cast<HlmsUnlit*>(mCreator)->releaseSlot( this );
-
-        HlmsManager *hlmsManager = mCreator->getHlmsManager();
-        if( hlmsManager )
-        {
-            for( size_t i=0; i<NUM_UNLIT_TEXTURE_TYPES; ++i )
-            {
-                if( mSamplerblocks[i] )
-                    hlmsManager->destroySamplerblock( mSamplerblocks[i] );
-            }
-        }
     }
     //-----------------------------------------------------------------------------------
     void HlmsUnlitDatablock::calculateHash()
     {
         IdString hash;
 
-        UnlitBakedTextureArray::const_iterator itor = mBakedTextures.begin();
-        UnlitBakedTextureArray::const_iterator end  = mBakedTextures.end();
-
-        while( itor != end )
+        if( mTexturesDescSet )
         {
-            hash += IdString( itor->texture->getName() );
-            hash += IdString( itor->samplerBlock->mId );
-
-            ++itor;
+            FastArray<const TextureGpu*>::const_iterator itor = mTexturesDescSet->mTextures.begin();
+            FastArray<const TextureGpu*>::const_iterator end  = mTexturesDescSet->mTextures.end();
+            while( itor != end )
+            {
+                hash += (*itor)->getName();
+                ++itor;
+            }
+        }
+        if( mSamplersDescSet )
+        {
+            FastArray<const HlmsSamplerblock*>::const_iterator itor= mSamplersDescSet->mSamplers.begin();
+            FastArray<const HlmsSamplerblock*>::const_iterator end = mSamplersDescSet->mSamplers.end();
+            while( itor != end )
+            {
+                hash += IdString( (*itor)->mId );
+                ++itor;
+            }
         }
 
         if( mTextureHash != hash.mHash )
@@ -259,16 +245,24 @@ namespace Ogre
         }
     }
     //-----------------------------------------------------------------------------------
-    void HlmsUnlitDatablock::scheduleConstBufferUpdate(void)
+    void HlmsUnlitDatablock::uploadToConstBuffer( char *dstPtr, uint8 dirtyFlags )
     {
-        static_cast<HlmsUnlit*>(mCreator)->scheduleForUpdate( this );
-    }
-    //-----------------------------------------------------------------------------------
-    void HlmsUnlitDatablock::uploadToConstBuffer( char *dstPtr )
-    {
+        if( dirtyFlags & (ConstBufferPool::DirtyTextures|ConstBufferPool::DirtySamplers) )
+        {
+            //Must be called first so mTexIndices[i] gets updated before uploading to GPU.
+            updateDescriptorSets( (dirtyFlags & ConstBufferPool::DirtyTextures) != 0,
+                                  (dirtyFlags & ConstBufferPool::DirtySamplers) != 0 );
+        }
+
+        uint16 texIndices[OGRE_NumTexIndices];
+        for( size_t i=0; i<OGRE_NumTexIndices; ++i )
+            texIndices[i] = mTexIndices[i] & ~ManualTexIndexBit;
+
         memcpy( dstPtr, &mAlphaTestThreshold, sizeof( float ) );
         dstPtr += 4 * sizeof(float);
-        memcpy( dstPtr, &mR, MaterialSizeInGpu - 4 * sizeof(float) );
+        memcpy( dstPtr, &mR, MaterialSizeInGpu - 4 * sizeof(float) - sizeof(mTexIndices) );
+        dstPtr += MaterialSizeInGpu - 4 * sizeof(float) - sizeof(mTexIndices);
+        memcpy( dstPtr, texIndices, sizeof(texIndices) );
     }
     //-----------------------------------------------------------------------------------
     void HlmsUnlitDatablock::uploadToExtraBuffer( char *dstPtr )
@@ -283,73 +277,21 @@ namespace Ogre
 #endif
     }
     //-----------------------------------------------------------------------------------
-    void HlmsUnlitDatablock::decompileBakedTextures( UnlitBakedTexture outTextures[NUM_UNLIT_TEXTURE_TYPES] )
+    void HlmsUnlitDatablock::setTexture( uint8 texUnit, const String &name,
+                                         const HlmsSamplerblock *refParams )
     {
-        //Decompile the baked textures to know which texture is assigned to each type.
-        for( size_t i=0; i<NUM_UNLIT_TEXTURE_TYPES; ++i )
+        TextureGpuManager *textureManager = mCreator->getRenderSystem()->getTextureGpuManager();
+        TextureGpu *texture = 0;
+        if( !name.empty() )
         {
-            uint8 idx = mTexToBakedTextureIdx[i];
-
-            if( idx < NUM_UNLIT_TEXTURE_TYPES )
-            {
-                outTextures[i] = UnlitBakedTexture( mBakedTextures[idx].texture, mSamplerblocks[i] );
-            }
-            else
-            {
-                //The texture may be null, but the samplerblock information may still be there.
-                outTextures[i] = UnlitBakedTexture( TexturePtr(), mSamplerblocks[i] );
-            }
+            texture = textureManager->createOrRetrieveTexture(
+                          name, GpuPageOutStrategy::Discard,
+                          TextureFlags::AutomaticBatching |
+                          TextureFlags::PrefersLoadingFromFileAsSRGB,
+                          TextureTypes::Type2D,
+                          ResourceGroupManager::AUTODETECT_RESOURCE_GROUP_NAME );
         }
-    }
-    //-----------------------------------------------------------------------------------
-    void HlmsUnlitDatablock::bakeTextures( const UnlitBakedTexture textures[NUM_UNLIT_TEXTURE_TYPES] )
-    {
-        //The shader might need to be recompiled (mTexToBakedTextureIdx changed).
-        //We'll need to flush.
-        //Most likely mTexIndices also changed, so we need to update the const buffers as well
-        mBakedTextures.clear();
-
-        for( size_t i=0; i<NUM_UNLIT_TEXTURE_TYPES; ++i )
-        {
-            if( !textures[i].texture.isNull() )
-            {
-                UnlitBakedTextureArray::const_iterator itor = std::find( mBakedTextures.begin(),
-                                                                         mBakedTextures.end(),
-                                                                         textures[i] );
-
-                if( itor == mBakedTextures.end() )
-                {
-                    mTexToBakedTextureIdx[i] = mBakedTextures.size();
-                    mBakedTextures.push_back( textures[i] );
-                }
-                else
-                {
-                    mTexToBakedTextureIdx[i] = itor - mBakedTextures.begin();
-                }
-            }
-            else
-            {
-                mTexToBakedTextureIdx[i] = NUM_UNLIT_TEXTURE_TYPES;
-            }
-        }
-
-        calculateHash();
-        flushRenderables();
-        scheduleConstBufferUpdate();
-    }
-    //-----------------------------------------------------------------------------------
-    TexturePtr HlmsUnlitDatablock::setTexture( const String &name, uint8 texUnit )
-    {
-        HlmsManager *hlmsManager = mCreator->getHlmsManager();
-        HlmsTextureManager *hlmsTextureManager = hlmsManager->getTextureManager();
-        HlmsTextureManager::TextureLocation texLocation = hlmsTextureManager->
-                                                    createOrRetrieveTexture(
-                                                        name,
-                                                        HlmsTextureManager::TEXTURE_TYPE_DIFFUSE );
-
-        mTexIndices[texUnit] = texLocation.xIdx;
-
-        return texLocation.texture;
+        setTexture( texUnit, texture, refParams );
     }
     //-----------------------------------------------------------------------------------
     void HlmsUnlitDatablock::setUseColour( bool useColour )
@@ -374,92 +316,11 @@ namespace Ogre
         scheduleConstBufferUpdate();
     }
     //-----------------------------------------------------------------------------------
-    void HlmsUnlitDatablock::setTexture( uint8 texType, uint16 arrayIndex,
-                                       const TexturePtr &newTexture, const HlmsSamplerblock *refParams )
-    {
-        assert( texType < NUM_UNLIT_TEXTURE_TYPES );
-
-        UnlitBakedTexture textures[NUM_UNLIT_TEXTURE_TYPES];
-
-        //Decompile the baked textures to know which texture is assigned to each type.
-        decompileBakedTextures( textures );
-
-        //Set the new samplerblock
-        if( refParams )
-        {
-            HlmsManager *hlmsManager = mCreator->getHlmsManager();
-            const HlmsSamplerblock *oldSamplerblock = mSamplerblocks[texType];
-            mSamplerblocks[texType] = hlmsManager->getSamplerblock( *refParams );
-
-            if( oldSamplerblock )
-                hlmsManager->destroySamplerblock( oldSamplerblock );
-        }
-        else if( !newTexture.isNull() && !mSamplerblocks[texType] )
-        {
-            //Adding a texture, but the samplerblock doesn't exist. Create a default one.
-            HlmsSamplerblock samplerBlockRef;
-            HlmsManager *hlmsManager = mCreator->getHlmsManager();
-            mSamplerblocks[texType] = hlmsManager->getSamplerblock( samplerBlockRef );
-        }
-
-        UnlitBakedTexture oldTex = textures[texType];
-
-        //Set the texture and make the samplerblock changes to take effect
-        textures[texType].texture = newTexture;
-        textures[texType].samplerBlock = mSamplerblocks[texType];
-        mTexIndices[texType] = arrayIndex;
-
-        if( oldTex == textures[texType] )
-        {
-            //Only the array index changed. Just update our constant buffer.
-            scheduleConstBufferUpdate();
-        }
-        else
-        {
-            bakeTextures( textures );
-        }
-    }
-    //-----------------------------------------------------------------------------------
-    TexturePtr HlmsUnlitDatablock::getTexture( uint8 texType ) const
-    {
-        assert( texType < NUM_UNLIT_TEXTURE_TYPES );
-
-        TexturePtr retVal;
-
-        if( mTexToBakedTextureIdx[texType] < mBakedTextures.size() )
-            retVal = mBakedTextures[mTexToBakedTextureIdx[texType]].texture;
-
-        return retVal;
-    }
-    //-----------------------------------------------------------------------------------
     void HlmsUnlitDatablock::setTextureSwizzle( uint8 texType, uint8 r, uint8 g, uint8 b, uint8 a )
     {
         assert( texType < NUM_UNLIT_TEXTURE_TYPES );
         mTextureSwizzles[texType] = (r << 6u) | ((g & 0x03u) << 4u) | ((b & 0x03u) << 2u) | (a & 0x03u);
         flushRenderables();
-    }
-    //-----------------------------------------------------------------------------------
-    void HlmsUnlitDatablock::setSamplerblock( uint8 texType, const HlmsSamplerblock &params )
-    {
-        const HlmsSamplerblock *oldSamplerblock = mSamplerblocks[texType];
-        HlmsManager *hlmsManager = mCreator->getHlmsManager();
-        mSamplerblocks[texType] = hlmsManager->getSamplerblock( params );
-
-        if( oldSamplerblock )
-            hlmsManager->destroySamplerblock( oldSamplerblock );
-
-        if( oldSamplerblock != mSamplerblocks[texType] )
-        {
-            UnlitBakedTexture textures[NUM_UNLIT_TEXTURE_TYPES];
-            decompileBakedTextures( textures );
-            bakeTextures( textures );
-        }
-    }
-    //-----------------------------------------------------------------------------------
-    const HlmsSamplerblock* HlmsUnlitDatablock::getSamplerblock( uint8 texType ) const
-    {
-        assert( texType < NUM_UNLIT_TEXTURE_TYPES );
-        return mSamplerblocks[texType];
     }
     //-----------------------------------------------------------------------------------
     void HlmsUnlitDatablock::setTextureUvSource( uint8 sourceType, uint8 uvSet )
@@ -565,9 +426,18 @@ namespace Ogre
         return mEnablePlanarReflection[textureUnit];
     }
     //-----------------------------------------------------------------------------------
-    uint8 HlmsUnlitDatablock::getBakedTextureIdx( uint8 texType ) const
+    ColourValue HlmsUnlitDatablock::getDiffuseColour(void) const
     {
-        assert( texType < NUM_UNLIT_TEXTURE_TYPES );
-        return mTexToBakedTextureIdx[texType];
+        return ColourValue( 0, 0, 0, 0 );
+    }
+    //-----------------------------------------------------------------------------------
+    ColourValue HlmsUnlitDatablock::getEmissiveColour(void) const
+    {
+        return hasColour() ? getColour() : ColourValue::White;
+    }
+    //-----------------------------------------------------------------------------------
+    TextureGpu* HlmsUnlitDatablock::getEmissiveTexture(void) const
+    {
+        return getTexture( 0 );
     }
 }

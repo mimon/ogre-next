@@ -4,7 +4,6 @@ compositor_node StereoRenderingNode
 
 	target rt_renderwindow
 	{
-		
 		pass clear
 		{
 			//Get executed on the first eye
@@ -12,7 +11,7 @@ compositor_node StereoRenderingNode
 			//Don't be affected by the modifier, apply to the whole screen
 			viewport_modifier_mask	0x00
 
-			colour_value 0.2 0.4 0.6 1
+			colour_value			0.2 0.4 0.6 1
 		}
 
 		//Eye render

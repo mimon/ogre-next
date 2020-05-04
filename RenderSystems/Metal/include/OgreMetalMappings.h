@@ -31,7 +31,7 @@ Copyright (c) 2000-2016 Torus Knot Software Ltd
 
 #include "OgreMetalPrerequisites.h"
 
-#include "OgrePixelFormat.h"
+#include "OgrePixelFormatGpu.h"
 #include "OgreBlendMode.h"
 #include "Vao/OgreVertexElements.h"
 #include "OgreHlmsSamplerblock.h"
@@ -48,9 +48,8 @@ namespace Ogre
     class _OgreMetalExport MetalMappings
     {
     public:
-        static MTLPixelFormat getPixelFormat( PixelFormat pf, bool isGamma );
         /// Can throw if PixelFormat is not depth.
-        static void getDepthStencilFormat( MetalDevice *device, PixelFormat pf,
+        static void getDepthStencilFormat( MetalDevice *device, PixelFormatGpu pf,
                                            MTLPixelFormat &outDepth, MTLPixelFormat &outStencil );
         static MTLBlendFactor get( SceneBlendFactor op );
         static MTLBlendOperation get( SceneBlendOperation op );
@@ -68,6 +67,8 @@ namespace Ogre
         static MTLSamplerAddressMode get( TextureAddressingMode mode );
 
         static MTLVertexFormat dataTypeToVertexFormat( MTLDataType dataType );
+
+        static MTLPixelFormat get( PixelFormatGpu pf );
 
         static GpuConstantType get( MTLDataType dataType );
     };

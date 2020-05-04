@@ -29,14 +29,19 @@ THE SOFTWARE.
 #ifndef __CompositorManager2_H__
 #define __CompositorManager2_H__
 
-#include "OgreHeaderPrefix.h"
+#include "OgrePrerequisites.h"
+
 #include "OgreCompositorCommon.h"
+
 #include "OgreIdString.h"
 #include "OgreResourceTransition.h"
 #include "OgreVector4.h"
+#include "OgrePixelFormatGpu.h"
 #include "Compositor/OgreCompositorChannel.h"
 
-#include "OgreTexture.h"
+#include "ogrestd/map.h"
+
+#include "OgreHeaderPrefix.h"
 
 namespace Ogre
 {
@@ -46,7 +51,7 @@ namespace Ogre
     }
     class CompositorPassProvider;
 
-    typedef vector<TexturePtr>::type TextureVec;
+    typedef vector<TextureGpu*>::type TextureGpuVec;
     typedef vector<UavBufferPacked*>::type UavBufferPackedVec;
 
     /** \addtogroup Core
@@ -126,7 +131,6 @@ namespace Ogre
 
         typedef vector<CompositorWorkspace*>::type              WorkspaceVec;
         typedef vector<QueuedWorkspace>::type                   QueuedWorkspaceVec;
-        typedef vector<CompositorWorkspaceListener*>::type      CompositorWorkspaceListenerVec;
         WorkspaceVec            mWorkspaces;
         /// All workspaces created via addWorkspace are first stored in this
         /// container, to prevent corrupting mWorkspaces' iterators in
@@ -140,7 +144,7 @@ namespace Ogre
 
         RenderSystem            *mRenderSystem;
 
-        TextureVec              mNullTextureList;
+        TextureGpuVec           mNullTextureList;
         v1::Rectangle2D         *mSharedTriangleFS;
         v1::Rectangle2D         *mSharedQuadFS;
         ObjectMemoryManager     *mDummyObjectMemoryManager;
@@ -221,7 +225,7 @@ namespace Ogre
         /** Get an appropriately defined 'null' texture, i.e. one which will always
             result in no shadows.
         */
-        TexturePtr getNullShadowTexture( PixelFormat format );
+        TextureGpu* getNullShadowTexture( PixelFormatGpu format );
 
         /** Returns a shared fullscreen rectangle/triangle useful for PASS_QUAD passes
         @remarks
@@ -334,7 +338,7 @@ namespace Ogre
             This is useful when you want to skip a pass (like Clear) when rendering the second
             eye (or the second split from the second player).
         */
-        CompositorWorkspace* addWorkspace( SceneManager *sceneManager, RenderTarget *finalRenderTarget,
+        CompositorWorkspace* addWorkspace( SceneManager *sceneManager, TextureGpu *finalRenderTarget,
                                            Camera *defaultCam, IdString definitionName, bool bEnabled,
                                            int position=-1, const UavBufferPackedVec *uavBuffers=0,
                                            const ResourceLayoutMap* initialLayouts=0,
@@ -342,7 +346,7 @@ namespace Ogre
                                            const Vector4 &vpOffsetScale = Vector4::ZERO,
                                            uint8 vpModifierMask=0x00, uint8 executionMask=0xFF );
 
-        /// Overload that allows a full RenderTexture to be used as render target (see CubeMapping demo)
+        /// Overload that allows having multiple external input/outputs
         CompositorWorkspace* addWorkspace( SceneManager *sceneManager,
                                            const CompositorChannelVec &externalRenderTargets,
                                            Camera *defaultCam, IdString definitionName, bool bEnabled,
@@ -377,12 +381,12 @@ namespace Ogre
         void validateAllNodes();
 
         /// Will call the renderSystem which in turns calls _updateImplementation
-        void _update( SceneManagerEnumerator &sceneManagers, HlmsManager *hlmsManager );
+        void _update( void );
         
         /// This should be called by the render system to
         /// perform the actual compositor manager update.
         /// DO NOT CALL THIS DIRECTLY.
-        void _updateImplementation( SceneManagerEnumerator &sceneManagers, HlmsManager *hlmsManager );
+        void _updateImplementation( void );
 
         void _swapAllFinalTargets(void);
 
@@ -408,6 +412,8 @@ namespace Ogre
 
         void addListener( CompositorWorkspaceListener *listener );
         void removeListener( CompositorWorkspaceListener *listener );
+
+        RenderSystem* getRenderSystem(void) const;
     };
 
     /** @} */

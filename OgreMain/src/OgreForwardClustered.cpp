@@ -30,7 +30,6 @@ THE SOFTWARE.
 
 #include "OgreForwardClustered.h"
 #include "OgreSceneManager.h"
-#include "OgreRenderTarget.h"
 #include "OgreViewport.h"
 #include "OgreCamera.h"
 #include "OgreDecal.h"
@@ -54,23 +53,26 @@ namespace Ogre
 {
     static const size_t c_reservedLightSlotsPerCell     = 3u;
     static const size_t c_reservedDecalsSlotsPerCell    = 1u;
+    static const size_t c_reservedCubemapProbeSlotsPerCell  = 1u;
 
     ForwardClustered::ForwardClustered( uint32 width, uint32 height,
                                         uint32 numSlices, uint32 lightsPerCell,
-                                        uint32 decalsPerCell,
+                                        uint32 decalsPerCell, uint32 cubemapProbesPerCell,
                                         float minDistance, float maxDistance,
                                         SceneManager *sceneManager ) :
-        ForwardPlusBase( sceneManager, decalsPerCell > 0u ),
+        ForwardPlusBase( sceneManager, decalsPerCell > 0u, cubemapProbesPerCell > 0u ),
         mWidth( width ),
         mHeight( height ),
         mNumSlices( numSlices ),
         /*mWidth( 1 ),
         mHeight( 1 ),
         mNumSlices( 2 ),*/
-        mReservedSlotsPerCell( ((lightsPerCell > 0u) ? 3u : 0u) + ((decalsPerCell > 0u) ? 1u : 0u) ),
-        mObjsPerCell( lightsPerCell + decalsPerCell + mReservedSlotsPerCell ),
+        mReservedSlotsPerCell( ((lightsPerCell > 0u) ? 3u : 0u) + ((decalsPerCell > 0u) ? 1u : 0u) +
+                               ((cubemapProbesPerCell > 0u) ? 1u : 0u) ),
+        mObjsPerCell( lightsPerCell + decalsPerCell + cubemapProbesPerCell + mReservedSlotsPerCell ),
         mLightsPerCell( lightsPerCell ),
         mDecalsPerCell( decalsPerCell ),
+        mCubemapProbesPerCell( cubemapProbesPerCell ),
         mGridBuffer( 0 ),
         mCurrentCamera( 0 ),
         mMinDistance( minDistance ),
@@ -145,6 +147,18 @@ namespace Ogre
         const size_t slicesRemainder = mNumSlices % numThreads;
         if( slicesRemainder > threadId )
             collectLightForSlice( threadId + numThreads * slicesPerThread, threadId );
+    }
+    //-----------------------------------------------------------------------------------
+    inline size_t ForwardClustered::getDecalsOffsetStart() const
+    {
+        return mLightsPerCell + c_reservedLightSlotsPerCell;
+    }
+    //-----------------------------------------------------------------------------------
+    inline size_t ForwardClustered::getCubemapProbesOffsetStart() const
+    {
+        const bool hasDecals = mDecalsEnabled;
+        return mLightsPerCell + c_reservedLightSlotsPerCell +
+                (hasDecals ? (c_reservedDecalsSlotsPerCell + mDecalsPerCell) : 0u);
     }
     //-----------------------------------------------------------------------------------
     void ForwardClustered::collectObjsForSlice( const size_t numPackedFrustumsPerSlice,
@@ -618,7 +632,9 @@ namespace Ogre
         }
 
         const bool hasDecals = mDecalsEnabled;
-        const size_t decalOffsetStart = mLightsPerCell + c_reservedLightSlotsPerCell;
+        const bool hasCubemaps = mCubemapProbesEnabled;
+        const size_t decalOffsetStart = getDecalsOffsetStart();
+        const size_t cubemapOffsetStart = getCubemapProbesOffsetStart();
 
         const VisibleObjectsPerRq &objsPerRqInThread0 = mSceneManager->_getTmpVisibleObjectsList()[0];
         const size_t actualMaxDecalRq = std::min( MaxDecalRq, objsPerRqInThread0.size() );
@@ -627,6 +643,14 @@ namespace Ogre
                              mDecalsPerCell,
                              decalOffsetStart + c_reservedDecalsSlotsPerCell,
                              ObjType_Decal, (uint16)c_ForwardPlusNumFloat4PerDecal );
+
+        const size_t actualMaxCubemapProbeRq = std::min( MaxCubemapProbeRq, objsPerRqInThread0.size() );
+        collectObjsForSlice( numPackedFrustumsPerSlice, frustumStartIdx,
+                             mCubemapProbeFloat4Offset, MinCubemapProbeRq, actualMaxCubemapProbeRq,
+                             mCubemapProbesPerCell,
+                             cubemapOffsetStart + c_reservedCubemapProbeSlotsPerCell,
+                             ObjType_CubemapProbe,
+                             (uint16)c_ForwardPlusNumFloat4PerCubemapProbe );
 
         {
             //Now write all the light counts
@@ -656,6 +680,11 @@ namespace Ogre
                     mGridBuffer[gridIdx+decalOffsetStart+0u] =
                             static_cast<uint16>( itor->objCount[ObjType_Decal] );
                 }
+                if( hasCubemaps )
+                {
+                    mGridBuffer[gridIdx+cubemapOffsetStart+0u] =
+                            static_cast<uint16>( itor->objCount[ObjType_CubemapProbe] );
+                }
                 gridIdx += cellSize;
                 ++itor;
             }
@@ -667,9 +696,11 @@ namespace Ogre
         return left->getCachedDistanceToCameraAsReal() < right->getCachedDistanceToCameraAsReal();
     }
 
-    void ForwardClustered::collectObjs( const Camera *camera, size_t &outNumDecals )
+    void ForwardClustered::collectObjs( const Camera *camera, size_t &outNumDecals,
+                                        size_t &outNumCubemapProbes )
     {
         size_t numDecals = 0;
+        size_t numCubemapProbes = 0;
 
         const bool didCollect = mSceneManager->_collectForwardPlusObjects( camera );
 
@@ -704,10 +735,13 @@ namespace Ogre
             for( size_t rqId=0; rqId<numRqs; ++rqId )
             {
                 if( MinDecalRq >= rqId && rqId <= MaxDecalRq )
+                {
                     numDecals += objsPerRqInThread0[rqId].size();
-
-                std::sort( objsPerRqInThread0[rqId].begin(), objsPerRqInThread0[rqId].end(),
-                           OrderObjsByDistanceToCamera );
+                    std::sort( objsPerRqInThread0[rqId].begin(), objsPerRqInThread0[rqId].end(),
+                               OrderObjsByDistanceToCamera );
+                }
+                if( MinCubemapProbeRq >= rqId && rqId <= MaxCubemapProbeRq )
+                    numCubemapProbes += objsPerRqInThread0[rqId].size();
             }
         }
         else
@@ -718,6 +752,7 @@ namespace Ogre
         }
 
         outNumDecals = numDecals;
+        outNumCubemapProbes = numCubemapProbes;
     }
     //-----------------------------------------------------------------------------------
     inline bool OrderLightByDistanceToCamera( const Light *left, const Light *right )
@@ -774,8 +809,8 @@ namespace Ogre
                                        Light::MAX_FORWARD_PLUS_LIGHTS, mCurrentLightList );
         }
 
-        size_t numDecals;
-        collectObjs( camera, numDecals );
+        size_t numDecals, numCubemapProbes;
+        collectObjs( camera, numDecals, numCubemapProbes );
 
         const size_t numLights = mCurrentLightList.size();
 
@@ -786,14 +821,15 @@ namespace Ogre
         CachedGridBuffer &gridBuffers = cachedGrid->gridBuffers[cachedGrid->currentBufIdx];
         if( !gridBuffers.gridBuffer )
         {
-            gridBuffers.gridBuffer = mVaoManager->createTexBuffer( PF_R16_UINT,
+            gridBuffers.gridBuffer = mVaoManager->createTexBuffer( PFG_R16_UINT,
                                                                    mWidth * mHeight * mNumSlices *
                                                                    mObjsPerCell * sizeof(uint16),
                                                                    BT_DYNAMIC_PERSISTENT, 0, false );
         }
 
         const size_t bufferBytesNeeded = calculateBytesNeeded( std::max<size_t>( numLights, 96u ),
-                                                               std::max<size_t>( numDecals, 16u ) );
+                                                               std::max<size_t>( numDecals, 16u ),
+                                                               std::max<size_t>( numCubemapProbes, 4u) );
         if( !gridBuffers.globalLightListBuffer ||
             gridBuffers.globalLightListBuffer->getNumElements() < bufferBytesNeeded )
         {
@@ -805,7 +841,7 @@ namespace Ogre
             }
 
             gridBuffers.globalLightListBuffer = mVaoManager->createTexBuffer(
-                                                                    PF_FLOAT32_RGBA,
+                                                                    PFG_RGBA32_FLOAT,
                                                                     bufferBytesNeeded,
                                                                     BT_DYNAMIC_PERSISTENT, 0, false );
         }
@@ -855,21 +891,25 @@ namespace Ogre
         return (4 + 4) * 4;
     }
     //-----------------------------------------------------------------------------------
-    void ForwardClustered::fillConstBufferData( Viewport *viewport, RenderTarget* renderTarget,
-                                                IdString shaderSyntax,
+    void ForwardClustered::fillConstBufferData( Viewport *viewport, TextureGpu *renderTarget,
+                                                IdString shaderSyntax, bool instancedStereo,
                                                 float * RESTRICT_ALIAS passBufferPtr ) const
     {
-        const float viewportWidth = static_cast<float>( viewport->getActualWidth());
-        const float viewportHeight = static_cast<float>( viewport->getActualHeight() );
-        const float viewportWidthOffset = static_cast<float>( viewport->getActualLeft() );
-        float viewportHeightOffset = static_cast<float>( viewport->getActualTop() );
+        const float viewportWidth =
+                instancedStereo ? 1.0f : static_cast<float>( viewport->getActualWidth());
+        const float viewportHeight =
+                instancedStereo ? 1.0f : static_cast<float>( viewport->getActualHeight() );
+        const float viewportWidthOffset =
+                instancedStereo ? 0.0f : static_cast<float>( viewport->getActualLeft() );
+        float viewportHeightOffset =
+                instancedStereo ? 0.0f : static_cast<float>( viewport->getActualTop() );
 
         //The way ogre represents viewports is top = 0 bottom = 1. As a result if 'texture flipping'
         //is required then all is ok. However if it is not required then viewport offsets are
         //actually represented from the bottom up.
         //As a result we need convert our viewport height offsets to work bottom up instead of top down;
         //This is compounded by OpenGL standard being different to DirectX and Metal
-        if ( !renderTarget->requiresTextureFlipping() && shaderSyntax == "glsl" )
+        if ( !renderTarget->requiresTextureFlipping() && shaderSyntax == "glsl" && !instancedStereo )
         {
             viewportHeightOffset =
                     static_cast<float>( (1.0 - (viewport->getTop() + viewport->getHeight())) *
@@ -915,16 +955,23 @@ namespace Ogre
             }
             if( mSceneManager->getDecalsEmissive() && prePassMode != PrePassCreate )
             {
-                bool mergedTex = mSceneManager->getDecalsDiffuse() == mSceneManager->getDecalsEmissive();
-                hlms->_setProperty( HlmsBaseProp::DecalsEmissive,   mergedTex ? 1 : 3 );
+                hlms->_setProperty( HlmsBaseProp::DecalsEmissive,
+                                    mSceneManager->isDecalsDiffuseEmissiveMerged() ? 1 : 3 );
                 ++numDecalsTex;
             }
 
-            const size_t decalOffsetStart = mLightsPerCell + c_reservedLightSlotsPerCell;
+            const size_t decalOffsetStart = getDecalsOffsetStart();
             hlms->_setProperty( HlmsBaseProp::FwdPlusDecalsSlotOffset,
                                 static_cast<int32>( decalOffsetStart ) );
 
             hlms->_setProperty( HlmsBaseProp::EnableDecals, numDecalsTex );
+        }
+
+        if( mCubemapProbesEnabled )
+        {
+            const size_t cubemapOffsetStart = getCubemapProbesOffsetStart();
+            hlms->_setProperty( HlmsBaseProp::FwdPlusCubemapSlotOffset,
+                                static_cast<int32>( cubemapOffsetStart ) );
         }
     }
     //-----------------------------------------------------------------------------------

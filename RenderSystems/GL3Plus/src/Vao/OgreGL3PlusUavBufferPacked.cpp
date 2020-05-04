@@ -30,8 +30,6 @@ THE SOFTWARE.
 #include "Vao/OgreGL3PlusBufferInterface.h"
 #include "Vao/OgreGL3PlusTexBufferPacked.h"
 
-#include "OgreGL3PlusPixelFormat.h"
-
 namespace Ogre
 {
     GL3PlusUavBufferPacked::GL3PlusUavBufferPacked(
@@ -47,7 +45,7 @@ namespace Ogre
     {
     }
     //-----------------------------------------------------------------------------------
-    TexBufferPacked* GL3PlusUavBufferPacked::getAsTexBufferImpl( PixelFormat pixelFormat )
+    TexBufferPacked* GL3PlusUavBufferPacked::getAsTexBufferImpl( PixelFormatGpu pixelFormat )
     {
         assert( dynamic_cast<GL3PlusBufferInterface*>( mBufferInterface ) );
 
@@ -60,6 +58,8 @@ namespace Ogre
                                                         mNumElements, mBytesPerElement, 0,
                                                         mBufferType, (void*)0, false,
                                                         (VaoManager*)0, bufferInterface, pixelFormat );
+        //We were overriden by the BufferPacked we just created. Restore this back!
+        bufferInterface->_notifyBuffer( this );
 
         mTexBufferViews.push_back( retVal );
 

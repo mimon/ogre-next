@@ -35,11 +35,10 @@ THE SOFTWARE.
 
 namespace Ogre
 {
-    CbTexture::CbTexture( uint16 _texUnit, bool _bEnabled, Texture *_texture,
+    CbTexture::CbTexture( uint16 _texUnit, TextureGpu *_texture,
                           const HlmsSamplerblock *_samplerBlock ) :
         CbBase( CB_SET_TEXTURE ),
         texUnit( _texUnit ),
-        bEnabled( _bEnabled ),
         texture( _texture ),
         samplerBlock( _samplerBlock )
     {
@@ -48,22 +47,37 @@ namespace Ogre
     void CommandBuffer::execute_setTexture( CommandBuffer *_this, const CbBase * RESTRICT_ALIAS _cmd )
     {
         const CbTexture *cmd = static_cast<const CbTexture*>( _cmd );
-        _this->mRenderSystem->_setTexture( cmd->texUnit, cmd->bEnabled, cmd->texture );
+        _this->mRenderSystem->_setTexture( cmd->texUnit, cmd->texture );
 
         if( cmd->samplerBlock )
             _this->mRenderSystem->_setHlmsSamplerblock( cmd->texUnit, cmd->samplerBlock );
     }
 
-    CbTextureDisableFrom::CbTextureDisableFrom( uint16 _fromTexUnit ) :
-        CbBase( CB_TEXTURE_DISABLE_FROM ),
-        fromTexUnit( _fromTexUnit )
+    CbTextures::CbTextures( uint16 _texUnit, uint16 _hazardousTexIdx,
+                            const DescriptorSetTexture *_descSet ) :
+        CbBase( CB_SET_TEXTURES ),
+        texUnit( _texUnit ),
+        hazardousTexIdx( _hazardousTexIdx ),
+        descSet( _descSet )
     {
     }
 
-    void CommandBuffer::execute_disableTextureUnitsFrom( CommandBuffer *_this,
-                                                         const CbBase * RESTRICT_ALIAS _cmd )
+    void CommandBuffer::execute_setTextures( CommandBuffer *_this, const CbBase * RESTRICT_ALIAS _cmd )
     {
-        const CbTextureDisableFrom *cmd = static_cast<const CbTextureDisableFrom*>( _cmd );
-        _this->mRenderSystem->_disableTextureUnitsFrom( cmd->fromTexUnit );
+        const CbTextures *cmd = static_cast<const CbTextures*>( _cmd );
+        _this->mRenderSystem->_setTextures( cmd->texUnit, cmd->descSet, cmd->hazardousTexIdx );
+    }
+
+    CbSamplers::CbSamplers( uint16 _texUnit, const DescriptorSetSampler *_descSet ) :
+        CbBase( CB_SET_SAMPLERS ),
+        texUnit( _texUnit ),
+        descSet( _descSet )
+    {
+    }
+
+    void CommandBuffer::execute_setSamplers( CommandBuffer *_this, const CbBase * RESTRICT_ALIAS _cmd )
+    {
+        const CbSamplers *cmd = static_cast<const CbSamplers*>( _cmd );
+        _this->mRenderSystem->_setSamplers( cmd->texUnit, cmd->descSet );
     }
 }

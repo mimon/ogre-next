@@ -49,13 +49,19 @@ namespace Ogre
     //-----------------------------------------------------------------------------------
     //-----------------------------------------------------------------------------------
     CompositorPassStencil::CompositorPassStencil( const CompositorPassStencilDef *definition,
-                                                    const CompositorChannel &target,
-                                                    CompositorNode *parentNode,
-                                                    RenderSystem *renderSystem ) :
-                CompositorPass( definition, target, parentNode ),
+                                                  const RenderTargetViewDef *rtv,
+                                                  CompositorNode *parentNode,
+                                                  RenderSystem *renderSystem ) :
+                CompositorPass( definition, parentNode ),
                 mDefinition( definition ),
                 mRenderSystem( renderSystem )
     {
+        initialize( rtv );
+    }
+    //-----------------------------------------------------------------------------------
+    void CompositorPassStencil::postRenderPassDescriptorSetup( RenderPassDescriptor *renderPassDesc )
+    {
+        renderPassDesc->mInformationOnly = true;
     }
     //-----------------------------------------------------------------------------------
     void CompositorPassStencil::execute( const Camera *lodCamera )
@@ -68,20 +74,17 @@ namespace Ogre
             --mNumPassesLeft;
         }
 
-        CompositorWorkspaceListener *listener = mParentNode->getWorkspace()->getListener();
-        if( listener )
-            listener->passEarlyPreExecute( this );
+        notifyPassEarlyPreExecuteListeners();
 
         executeResourceTransitions();
 
         //Fire the listener in case it wants to change anything
-        if( listener )
-            listener->passPreExecute( this );
+        notifyPassPreExecuteListeners();
 
-        mRenderSystem->_setViewport( mViewport );
+        setRenderPassDescToCurrent();
+
         mRenderSystem->setStencilBufferParams( mDefinition->mStencilRef, mDefinition->mStencilParams );
 
-        if( listener )
-            listener->passPosExecute( this );
+        notifyPassPosExecuteListeners();
     }
 }

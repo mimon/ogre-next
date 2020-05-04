@@ -48,9 +48,12 @@ THE SOFTWARE.
 
 #include "OgreTimer.h"
 #include "OgreStringConverter.h"
+#include "OgreLwString.h"
 
 #import <Metal/MTLDevice.h>
 #import <Metal/MTLRenderCommandEncoder.h>
+#import <Metal/MTLComputeCommandEncoder.h>
+#import <Metal/MTLComputePipeline.h>
 
 namespace Ogre
 {
@@ -85,8 +88,49 @@ namespace Ogre
 #endif
     const uint32 c_indexBufferAlignment = 4u;
 
-    MetalVaoManager::MetalVaoManager( uint8 dynamicBufferMultiplier, MetalDevice *device ) :
+    static const char *c_vboTypes[] =
+    {
+        "CPU_INACCESSIBLE",
+        "CPU_ACCESSIBLE_DEFAULT",
+        "CPU_ACCESSIBLE_PERSISTENT",
+        "CPU_ACCESSIBLE_PERSISTENT_COHERENT",
+    };
+
+#if OGRE_PLATFORM != OGRE_PLATFORM_APPLE_IOS
+    static const char c_gpuMemcpyComputeShader[] =
+            "#include <metal_stdlib>\n"
+            "using namespace metal;\n"
+            "\n"
+            "struct Params\n"
+            "{\n"
+            "	uint32_t dstOffset;\n"
+            "	uint32_t srcOffset;\n"
+            "	uint32_t sizeBytes;\n"
+            "};\n"
+            "\n"
+            "kernel void ogre_gpu_memcpy\n"
+            "(\n"
+            "	device uint8_t* dst			[[ buffer(0) ]],\n"
+            "	device uint8_t* src			[[ buffer(1) ]],\n"
+            "	constant Params &p			[[ buffer(2) ]],\n"
+            "	uint3 gl_GlobalInvocationID	[[thread_position_in_grid]]\n"
+            ")\n"
+            "{\n"
+            "//	for( uint32_t i=0u; i<p.sizeBytes; ++i )\n"
+            "//		dst[i + p.dstOffset] = src[i + p.srcOffset];\n"
+            "	uint32_t srcOffsetStart	= p.srcOffset + gl_GlobalInvocationID.x * 64u;\n"
+            "	uint32_t dstOffsetStart	= p.dstOffset + gl_GlobalInvocationID.x * 64u;\n"
+            "	uint32_t numBytesToCopy	= min( 64u, p.sizeBytes - gl_GlobalInvocationID.x * 64u );\n"
+            "	for( uint32_t i=0u; i<numBytesToCopy; ++i )\n"
+            "		dst[i + dstOffsetStart] = src[i + srcOffsetStart];\n"
+            "}";
+#endif
+
+    MetalVaoManager::MetalVaoManager( uint8 dynamicBufferMultiplier, MetalDevice *device,
+                                      const NameValuePairList *params ) :
+        VaoManager( params ),
         mVaoNames( 1 ),
+        mSemaphoreFlushed( true ),
         mDevice( device ),
         mDrawId( 0 )
     {
@@ -111,15 +155,33 @@ namespace Ogre
         mConstBufferAlignment   = 256;
         mTexBufferAlignment     = 256;
 
-        //Keep pools of 128MB for static buffers
-        mDefaultPoolSize[CPU_INACCESSIBLE]  = 128 * 1024 * 1024;
+        //Keep pools of 32MB for static buffers
+        mDefaultPoolSize[CPU_INACCESSIBLE]  = 32 * 1024 * 1024;
 
-        //Keep pools of 32MB each for dynamic buffers
+        //Keep pools of 4MB each for dynamic buffers
         for( size_t i=CPU_ACCESSIBLE_DEFAULT; i<=CPU_ACCESSIBLE_PERSISTENT_COHERENT; ++i )
-            mDefaultPoolSize[i] = 32 * 1024 * 1024;
+            mDefaultPoolSize[i] = 4 * 1024 * 1024;
 
         mSupportsIndirectBuffers    = false; // TODO: the _render() overload is not implemented yet!
 #endif
+        if( params )
+        {
+            for( size_t i=0; i<MAX_VBO_FLAG; ++i )
+            {
+                NameValuePairList::const_iterator itor =
+                        params->find( String( "VaoManager::" ) + c_vboTypes[i] );
+                if( itor != params->end() )
+                {
+                    mDefaultPoolSize[i] = StringConverter::parseUnsignedInt( itor->second,
+                                                                             mDefaultPoolSize[i] );
+                }
+            }
+        }
+
+        mAlreadyWaitedForSemaphore.resize( mDynamicBufferMultiplier, true );
+        mFrameSyncVec.resize( mDynamicBufferMultiplier, 0 );
+        for( size_t i=0; i<mDynamicBufferMultiplier; ++i )
+            mFrameSyncVec[i] = dispatch_semaphore_create( 0 );
 
         mConstBufferMaxSize = 64 * 1024;        //64kb
         mTexBufferMaxSize   = 128 * 1024 * 1024;//128MB
@@ -128,22 +190,25 @@ namespace Ogre
 
         mDynamicBufferMultiplier = dynamicBufferMultiplier;
 
+        const uint32 maxNumInstances = 4096u * 2u;
 #if OGRE_PLATFORM == OGRE_PLATFORM_APPLE_IOS
-        uint32 *drawIdPtr = static_cast<uint32*>( OGRE_MALLOC_SIMD( 4096 * sizeof(uint32),
+        uint32 *drawIdPtr = static_cast<uint32*>( OGRE_MALLOC_SIMD( maxNumInstances * sizeof(uint32),
                                                                     MEMCATEGORY_GEOMETRY ) );
-        for( uint32 i=0; i<4096; ++i )
+        for( uint32 i=0; i<maxNumInstances; ++i )
             drawIdPtr[i] = i;
-        mDrawId = createConstBuffer( 4096 * sizeof(uint32), BT_IMMUTABLE, drawIdPtr, false );
+        mDrawId = createConstBuffer( maxNumInstances * sizeof(uint32), BT_IMMUTABLE, drawIdPtr, false );
         OGRE_FREE_SIMD( drawIdPtr, MEMCATEGORY_GEOMETRY );
         drawIdPtr = 0;
 #else
         VertexElement2Vec vertexElements;
         vertexElements.push_back( VertexElement2( VET_UINT1, VES_COUNT ) );
-        uint32 *drawIdPtr = static_cast<uint32*>( OGRE_MALLOC_SIMD( 4096 * sizeof(uint32),
+        uint32 *drawIdPtr = static_cast<uint32*>( OGRE_MALLOC_SIMD( maxNumInstances * sizeof(uint32),
                                                                     MEMCATEGORY_GEOMETRY ) );
-        for( uint32 i=0; i<4096; ++i )
+        for( uint32 i=0; i<maxNumInstances; ++i )
             drawIdPtr[i] = i;
-        mDrawId = createVertexBuffer( vertexElements, 4096, BT_IMMUTABLE, drawIdPtr, true );
+        mDrawId = createVertexBuffer( vertexElements, maxNumInstances, BT_IMMUTABLE, drawIdPtr, true );
+
+        createUnalignedCopyShader();
 #endif
     }
     //-----------------------------------------------------------------------------------
@@ -151,6 +216,240 @@ namespace Ogre
     {
         destroyAllVertexArrayObjects();
         deleteAllBuffers();
+
+        for( size_t i=0; i<MAX_VBO_FLAG; ++i )
+        {
+            VboVec::iterator itor = mVbos[i].begin();
+            VboVec::iterator end  = mVbos[i].end();
+
+            while( itor != end )
+            {
+                itor->vboName = 0;
+                delete itor->dynamicBuffer;
+                itor->dynamicBuffer = 0;
+                ++itor;
+            }
+        }
+    }
+    //-----------------------------------------------------------------------------------
+#if OGRE_PLATFORM != OGRE_PLATFORM_APPLE_IOS
+    void MetalVaoManager::createUnalignedCopyShader(void)
+    {
+        NSError *error;
+        id <MTLLibrary> library =
+                [mDevice->mDevice newLibraryWithSource:
+                [NSString stringWithUTF8String:c_gpuMemcpyComputeShader]
+                                               options:nil
+                                                 error:&error];
+
+        if( !library )
+        {
+            String errorDesc;
+            if( error )
+                errorDesc = [error localizedDescription].UTF8String;
+
+            OGRE_EXCEPT( Exception::ERR_RENDERINGAPI_ERROR,
+                         "Metal SL Compiler Error while compiling internal c_gpuMemcpyComputeShader:\n" +
+                         errorDesc,
+                         "MetalVaoManager::MetalVaoManager" );
+        }
+        else
+        {
+            if( error )
+            {
+                String errorDesc;
+                if( error )
+                    errorDesc = [error localizedDescription].UTF8String;
+                LogManager::getSingleton().logMessage(
+                            "Metal SL Compiler Warnings in c_gpuMemcpyComputeShader:\n" + errorDesc );
+            }
+        }
+        library.label = @"c_gpuMemcpyComputeShader";
+        id<MTLFunction> unalignedCopyFunc = [library newFunctionWithName:@"ogre_gpu_memcpy"];
+        if( !unalignedCopyFunc )
+        {
+            OGRE_EXCEPT( Exception::ERR_RENDERINGAPI_ERROR,
+                         "Error retriving entry point from internal 'ogre_gpu_memcpy'",
+                         "MetalVaoManager::MetalVaoManager" );
+        }
+
+        MTLComputePipelineDescriptor *psd = [[MTLComputePipelineDescriptor alloc] init];
+        psd.computeFunction = unalignedCopyFunc;
+        mUnalignedCopyPso =
+                [mDevice->mDevice newComputePipelineStateWithDescriptor:psd
+                                                                options:MTLPipelineOptionNone
+                                                             reflection:nil
+                                                                  error:&error];
+        if( !mUnalignedCopyPso || error )
+        {
+            String errorDesc;
+            if( error )
+                errorDesc = [error localizedDescription].UTF8String;
+
+            OGRE_EXCEPT( Exception::ERR_RENDERINGAPI_ERROR,
+                         "Failed to create pipeline state for compute for mUnalignedCopyPso, error " +
+                         errorDesc, "MetalVaoManager::MetalVaoManager" );
+        }
+    }
+#endif
+    //-----------------------------------------------------------------------------------
+    void MetalVaoManager::getMemoryStats( const Block &block, size_t vboIdx, size_t poolCapacity,
+                                          LwString &text, MemoryStatsEntryVec &outStats,
+                                          Log *log ) const
+    {
+        if( log )
+        {
+            text.clear();
+            text.a( c_vboTypes[vboIdx], ";",
+                    (uint64)block.offset, ";",
+                    (uint64)block.size, ";",
+                    (uint64)poolCapacity );
+            log->logMessage( text.c_str(), LML_CRITICAL );
+        }
+
+        MemoryStatsEntry entry( (uint32)vboIdx, block.offset, block.size, poolCapacity );
+        outStats.push_back( entry );
+    }
+    //-----------------------------------------------------------------------------------
+    void MetalVaoManager::getMemoryStats( MemoryStatsEntryVec &outStats, size_t &outCapacityBytes,
+                                          size_t &outFreeBytes, Log *log ) const
+    {
+        size_t capacityBytes = 0;
+        size_t freeBytes = 0;
+        MemoryStatsEntryVec statsVec;
+        statsVec.swap( outStats );
+
+        vector<char>::type tmpBuffer;
+        tmpBuffer.resize( 512 * 1024 ); //512kb per line should be way more than enough
+        LwString text( LwString::FromEmptyPointer( &tmpBuffer[0], tmpBuffer.size() ) );
+
+        if( log )
+            log->logMessage( "Pool Type;Offset;Size Bytes;Pool Capacity", LML_CRITICAL );
+
+        for( int vboIdx=0; vboIdx<MAX_VBO_FLAG; ++vboIdx )
+        {
+            VboVec::const_iterator itor = mVbos[vboIdx].begin();
+            VboVec::const_iterator end  = mVbos[vboIdx].end();
+
+            while( itor != end )
+            {
+                const Vbo &vbo = *itor;
+                capacityBytes += vbo.sizeBytes;
+
+                Block usedBlock( 0, 0 );
+
+                BlockVec freeBlocks = vbo.freeBlocks;
+                while( !freeBlocks.empty() )
+                {
+                    //Find the free block that comes next
+                    BlockVec::iterator nextBlock;
+                    {
+                        BlockVec::iterator itBlock = freeBlocks.begin();
+                        BlockVec::iterator enBlock = freeBlocks.end();
+
+                        nextBlock = itBlock;
+
+                        while( itBlock != enBlock )
+                        {
+                            if( nextBlock->offset < itBlock->offset )
+                                nextBlock = itBlock;
+                            ++itBlock;
+                        }
+                    }
+
+                    freeBytes += nextBlock->size;
+                    usedBlock.size = nextBlock->offset;
+
+                    //usedBlock.size could be 0 if:
+                    //  1. All of memory is free
+                    //  2. There's two contiguous free blocks, which should not happen
+                    //     due to mergeContiguousBlocks
+                    if( usedBlock.size > 0u )
+                        getMemoryStats( usedBlock, vboIdx, vbo.sizeBytes, text, statsVec, log );
+
+                    usedBlock.offset += usedBlock.size;
+                    usedBlock.size = 0;
+                    efficientVectorRemove( freeBlocks, nextBlock );
+                }
+
+                if( usedBlock.size > 0u || (usedBlock.offset == 0 && usedBlock.size == 0) )
+                    getMemoryStats( usedBlock, vboIdx, vbo.sizeBytes, text, statsVec, log );
+
+                ++itor;
+            }
+        }
+
+        outCapacityBytes = capacityBytes;
+        outFreeBytes = freeBytes;
+        statsVec.swap( outStats );
+    }
+    //-----------------------------------------------------------------------------------
+    void MetalVaoManager::switchVboPoolIndexImpl( size_t oldPoolIdx, size_t newPoolIdx,
+                                                  BufferPacked *buffer )
+    {
+        if( mSupportsIndirectBuffers || buffer->getBufferPackedType() != BP_TYPE_INDIRECT )
+        {
+            MetalBufferInterface *bufferInterface = static_cast<MetalBufferInterface*>(
+                                                        buffer->getBufferInterface() );
+            if( bufferInterface->getVboPoolIndex() == oldPoolIdx )
+                bufferInterface->_setVboPoolIndex( newPoolIdx );
+        }
+    }
+    //-----------------------------------------------------------------------------------
+    void MetalVaoManager::cleanupEmptyPools(void)
+    {
+        for( int vboIdx=0; vboIdx<MAX_VBO_FLAG; ++vboIdx )
+        {
+            VboVec::iterator itor = mVbos[vboIdx].begin();
+            VboVec::iterator end  = mVbos[vboIdx].end();
+
+            while( itor != end )
+            {
+                Vbo &vbo = *itor;
+                if( vbo.freeBlocks.size() == 1u &&
+                    vbo.sizeBytes == vbo.freeBlocks.back().size )
+                {
+                    VaoVec::iterator itVao = mVaos.begin();
+                    VaoVec::iterator enVao = mVaos.end();
+
+                    while( itVao != enVao )
+                    {
+                        bool usesBuffer = false;
+                        Vao::VertexBindingVec::const_iterator itBuf = itVao->vertexBuffers.begin();
+                        Vao::VertexBindingVec::const_iterator enBuf = itVao->vertexBuffers.end();
+
+                        while( itBuf != enBuf && !usesBuffer )
+                        {
+                            OGRE_ASSERT_LOW( itBuf->vertexBufferVbo != vbo.vboName &&
+                                             "A VertexArrayObject still references "
+                                             "a deleted vertex buffer!" );
+                            ++itBuf;
+                        }
+
+                        OGRE_ASSERT_LOW( itVao->indexBufferVbo != vbo.vboName &&
+                                         "A VertexArrayObject still references "
+                                         "a deleted index buffer!" );
+                        ++itVao;
+                    }
+
+                    vbo.vboName = 0;
+                    delete vbo.dynamicBuffer;
+                    vbo.dynamicBuffer = 0;
+
+                    //There's (unrelated) live buffers whose vboIdx will now point out of bounds.
+                    //We need to update them so they don't crash deallocateVbo later.
+                    switchVboPoolIndex( (size_t)(mVbos[vboIdx].size() - 1u),
+                                        (size_t)(itor - mVbos[vboIdx].begin()) );
+
+                    itor = efficientVectorRemove( mVbos[vboIdx], itor );
+                    end  = mVbos[vboIdx].end();
+                }
+                else
+                {
+                    ++itor;
+                }
+            }
+        }
     }
     //-----------------------------------------------------------------------------------
     void MetalVaoManager::allocateVbo( size_t sizeBytes, size_t alignment, BufferType bufferType,
@@ -528,7 +827,7 @@ namespace Ogre
                        constBuffer->getBufferType() );
     }
     //-----------------------------------------------------------------------------------
-    TexBufferPacked* MetalVaoManager::createTexBufferImpl( PixelFormat pixelFormat, size_t sizeBytes,
+    TexBufferPacked* MetalVaoManager::createTexBufferImpl( PixelFormatGpu pixelFormat, size_t sizeBytes,
                                                            BufferType bufferType,
                                                            void *initialData, bool keepAsShadow )
     {
@@ -588,7 +887,7 @@ namespace Ogre
         size_t vboIdx;
         size_t bufferOffset;
 
-        size_t alignment = mUavBufferAlignment;
+        size_t alignment = Math::lcm( mUavBufferAlignment, bytesPerElement );
 
         //UAV Buffers can't be dynamic.
         const BufferType bufferType = BT_DEFAULT;
@@ -728,6 +1027,21 @@ namespace Ogre
     //-----------------------------------------------------------------------------------
     void MetalVaoManager::destroyVertexArrayObjectImpl( VertexArrayObject *vao )
     {
+        VaoVec::iterator itor = mVaos.begin();
+        VaoVec::iterator end  = mVaos.end();
+
+        while( itor != end && itor->vaoName != vao->getVaoName() )
+            ++itor;
+
+        if( itor != end )
+        {
+            --itor->refCount;
+
+            if( !itor->refCount )
+                efficientVectorRemove( mVaos, itor );
+        }
+
+        //We delete it here because this class has no virtual destructor on purpose
         OGRE_DELETE vao;
     }
     //-----------------------------------------------------------------------------------
@@ -766,7 +1080,7 @@ namespace Ogre
             }
         }
 
-        //vao.refCount = 0;
+        vao.refCount = 0;
 
         if( indexBuffer )
         {
@@ -806,7 +1120,7 @@ namespace Ogre
             itor = mVaos.begin() + mVaos.size() - 1;
         }
 
-        //++itor->refCount;
+        ++itor->refCount;
 
         return itor;
     }
@@ -863,7 +1177,14 @@ namespace Ogre
             resourceOptions |= MTLResourceCPUCacheModeDefaultCache;
 
         id<MTLBuffer> bufferName = [mDevice->mDevice newBufferWithLength:sizeBytes
-                                                                         options:resourceOptions];
+                                                                 options:resourceOptions];
+        if( !bufferName )
+        {
+            OGRE_EXCEPT( Exception::ERR_RENDERINGAPI_ERROR,
+                         "Out of GPU memory or driver refused.\n"
+                         "Requested: " + StringConverter::toString( sizeBytes ) + " bytes.",
+                         "MetalVaoManager::createStagingBuffer" );
+        }
 
         MetalStagingBuffer *stagingBuffer = OGRE_NEW MetalStagingBuffer( 0, sizeBytes, this, forUpload,
                                                                          bufferName, mDevice );
@@ -879,6 +1200,41 @@ namespace Ogre
         return AsyncTicketPtr( OGRE_NEW MetalAsyncTicket( creator, stagingBuffer,
                                                           elementStart, elementCount, mDevice ) );
     }
+    //-----------------------------------------------------------------------------------
+#if OGRE_PLATFORM != OGRE_PLATFORM_APPLE_IOS
+    void MetalVaoManager::unalignedCopy( id<MTLBuffer> dstBuffer, size_t dstOffsetBytes,
+                                         id<MTLBuffer> srcBuffer, size_t srcOffsetBytes,
+                                         size_t sizeBytes )
+    {
+        __unsafe_unretained id<MTLComputeCommandEncoder> computeEncoder = mDevice->getComputeEncoder();
+
+        [computeEncoder setBuffer:dstBuffer offset:0 atIndex:0];
+        [computeEncoder setBuffer:srcBuffer offset:0 atIndex:1];
+        uint32_t copyInfo[3] =
+        {
+            static_cast<uint32_t>( dstOffsetBytes ),
+            static_cast<uint32_t>( srcOffsetBytes ),
+            static_cast<uint32_t>( sizeBytes )
+        };
+        [computeEncoder setBytes:copyInfo length:sizeof(copyInfo) atIndex:2];
+
+        MTLSize threadsPerThreadgroup   = MTLSizeMake( 1024u, 1u, 1u );
+        MTLSize threadgroupsPerGrid     = MTLSizeMake( 1u, 1u, 1u );
+
+        const size_t threadsRequired = alignToNextMultiple( sizeBytes, 64u ) / 64u;
+        threadsPerThreadgroup.width =
+                std::min<NSUInteger>( static_cast<NSUInteger>( threadsRequired ), 1024u );
+        threadgroupsPerGrid.width =
+                static_cast<NSUInteger>( alignToNextMultiple( threadsRequired,
+                                                              threadsPerThreadgroup.width ) /
+                                         threadsPerThreadgroup.width );
+
+        [computeEncoder setComputePipelineState:mUnalignedCopyPso];
+
+        [computeEncoder dispatchThreadgroups:threadgroupsPerGrid
+                       threadsPerThreadgroup:threadsPerThreadgroup];
+    }
+#endif
     //-----------------------------------------------------------------------------------
     void MetalVaoManager::_update(void)
     {
@@ -925,6 +1281,14 @@ namespace Ogre
             }
         }
 
+        if( !mSemaphoreFlushed )
+        {
+            //We could only reach here if _update() was called
+            //twice in a row without completing a full frame.
+            //Without this, waitForTailFrameToFinish will deadlock.
+            mDevice->commitAndNextCommandBuffer();
+        }
+
         if( !mDelayedDestroyBuffers.empty() &&
             mDelayedDestroyBuffers.front().frameNumDynamic == mDynamicBufferCurrentFrame )
         {
@@ -932,13 +1296,31 @@ namespace Ogre
             destroyDelayedBuffers( mDynamicBufferCurrentFrame );
         }
 
+        //We must call this to raise the semaphore count in case we haven't already
+        waitForTailFrameToFinish();
+
         VaoManager::_update();
+
+        mSemaphoreFlushed = false;
+        mAlreadyWaitedForSemaphore[mDynamicBufferCurrentFrame] = false;
+        __block dispatch_semaphore_t blockSemaphore = mFrameSyncVec[mDynamicBufferCurrentFrame];
+        [mDevice->mCurrentCommandBuffer addCompletedHandler:^(id<MTLCommandBuffer> buffer)
+        {
+            dispatch_semaphore_signal( blockSemaphore );
+        }];
 
         mDynamicBufferCurrentFrame = (mDynamicBufferCurrentFrame + 1) % mDynamicBufferMultiplier;
     }
     //-----------------------------------------------------------------------------------
+    void MetalVaoManager::_notifyNewCommandBuffer(void)
+    {
+        mSemaphoreFlushed = true;
+    }
+    //-----------------------------------------------------------------------------------
     void MetalVaoManager::_notifyDeviceStalled(void)
     {
+        mSemaphoreFlushed = true;
+
         for( size_t i=0; i<2u; ++i )
         {
             StagingBufferVec::const_iterator itor = mRefedStagingBuffers[i].begin();
@@ -961,26 +1343,49 @@ namespace Ogre
                 ++itor;
             }
         }
+
+        _destroyAllDelayedBuffers();
+
+        mFrameCount += mDynamicBufferMultiplier;
     }
     //-----------------------------------------------------------------------------------
     uint8 MetalVaoManager::waitForTailFrameToFinish(void)
     {
         //MetalRenderSystem::_beginFrameOnce does a global waiting for us, but if we're outside
         //the render loop (i.e. user is manually uploading data) we may have to call this earlier.
-        mDevice->mRenderSystem->_waitForTailFrameToFinish();
+        if( !mAlreadyWaitedForSemaphore[mDynamicBufferCurrentFrame] )
+        {
+            waitFor( mFrameSyncVec[mDynamicBufferCurrentFrame], mDevice );
+            //Semaphore was just grabbed, so ensure we don't grab it twice.
+            mAlreadyWaitedForSemaphore[mDynamicBufferCurrentFrame] = true;
+        }
+        //mDevice->mRenderSystem->_waitForTailFrameToFinish();
         return mDynamicBufferCurrentFrame;
     }
     //-----------------------------------------------------------------------------------
     void MetalVaoManager::waitForSpecificFrameToFinish( uint32 frameCount )
     {
-        if( mFrameCount - frameCount == mDynamicBufferMultiplier )
+        if( frameCount == mFrameCount )
         {
-            //Used last frame. We may be able to wait just for that frame.
-            waitForTailFrameToFinish();
-        }
-        else if( mFrameCount - frameCount <= mDynamicBufferMultiplier )
-        {
+            //Full stall
             mDevice->stall();
+            //"mFrameCount += mDynamicBufferMultiplier" is already handled in _notifyDeviceStalled;
+        }
+        if( mFrameCount - frameCount <= mDynamicBufferMultiplier )
+        {
+            //Let's wait on one of our existing fences...
+            //frameDiff has to be in range [1; mDynamicBufferMultiplier]
+            size_t frameDiff = mFrameCount - frameCount;
+
+            const size_t idx = (mDynamicBufferCurrentFrame +
+                                mDynamicBufferMultiplier - frameDiff) % mDynamicBufferMultiplier;
+
+            if( !mAlreadyWaitedForSemaphore[idx] )
+            {
+                waitFor( mFrameSyncVec[idx], mDevice );
+                //Semaphore was just grabbed, so ensure we don't grab it twice.
+                mAlreadyWaitedForSemaphore[idx] = true;
+            }
         }
         else
         {
@@ -990,10 +1395,37 @@ namespace Ogre
     //-----------------------------------------------------------------------------------
     bool MetalVaoManager::isFrameFinished( uint32 frameCount )
     {
-        if( mFrameCount - frameCount == mDynamicBufferMultiplier )
-            return mDevice->mRenderSystem->_willTailFrameStall();
+        bool retVal = false;
+        if( frameCount == mFrameCount )
+        {
+            //Full stall
+            //retVal = false;
+        }
+        else if( mFrameCount - frameCount <= mDynamicBufferMultiplier )
+        {
+            //frameDiff has to be in range [1; mDynamicBufferMultiplier]
+            size_t frameDiff = mFrameCount - frameCount;
+            const size_t idx = (mDynamicBufferCurrentFrame +
+                                mDynamicBufferMultiplier - frameDiff) % mDynamicBufferMultiplier;
 
-        return mFrameCount - frameCount > mDynamicBufferMultiplier;
+            if( !mAlreadyWaitedForSemaphore[idx] )
+            {
+                const long result = dispatch_semaphore_wait( mFrameSyncVec[idx], DISPATCH_TIME_NOW );
+                if( result == 0 )
+                {
+                    retVal = true;
+                    //Semaphore was just grabbed, so ensure we don't grab it twice.
+                    mAlreadyWaitedForSemaphore[idx] = true;
+                }
+            }
+        }
+        else
+        {
+            //No stall
+            retVal = true;
+        }
+
+        return retVal;
     }
     //-----------------------------------------------------------------------------------
     dispatch_semaphore_t MetalVaoManager::waitFor( dispatch_semaphore_t fenceName, MetalDevice *device )

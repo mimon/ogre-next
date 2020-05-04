@@ -303,6 +303,19 @@ execution count is reset and executed N times again)
 
 This parameter replaces the `only_initial` parameter in Ogre 1.x.
 
+-   flush\_command\_buffers \<off|on\>;
+
+Whether to flush the command buffer at the end of the pass.
+This can incur in a performance overhead (see OpenGL's glFlush and
+D3D11' ID3D11DeviceContext::Flush) for info.
+Usually you want to leave this off. However for VR applications that
+must meet VSync, profiling may show your workload benefits from
+submitting earlier so the GPU can start right away executing
+rendering commands.
+
+The main reason to use this is in CPU-bound scenarios where
+the GPU starts too late after sitting idle.
+
 -   identifier \<number\>;
 
 An arbitrary user-defined numeric ID used for identifying individual
@@ -342,9 +355,6 @@ now Stencil is also cleared. This follows performance reasons, as GPU
 architectures where the Z buffer is tied with the stencil buffer,
 clearing only the Z buffer hinders the driver from discarding the buffer
 entirely or using fast Z clears.
-
-Additionally, all passes can define the viewport area they will work on,
-meaning clearing specific regions is now possible.
 
 ### generate_mipmaps {#CompositorNodesPassesGenerateMipmaps}
 
@@ -503,7 +513,7 @@ Replaces last\_render\_queue. The default is `max` which is a special
 parameter that implies the last active render queue ID. If numeric,
 value must be between 0 and 255. The value is **not** inclusive.
 
--   viewport \<left\>; \<top\>; \<width\>; \<height\>;
+-   viewport \[idx\] \<left\>; \<top\>; \<width\>; \<height\>;
     \[\<scissor\_left\>; \<scissor\_top\>; \<scissor\_width\>;
     \<scissor\_height\>;\]
 
@@ -515,6 +525,12 @@ When 4 parameters are suplied, the scissor box will match the
 viewport's. All 8 parameters allow to set a custom scissor box. *Note:*
 Scissor testing must be enabled by the Hlms Macroblock for it to work,
 we just set the size here.
+
+When the optional 'idx' parameter is supplied at the begginning there will be
+either 5 or 9 parameters instead of 4 or 8 respectively.
+This index allows you to set multiple viewports for e.g. instanced\_stereo or
+for shaders that make use of gl\_ViewportIndex/SV\_ViewportArrayIndex.
+When not provided, this value defaults to 0. The value is in range \[0; 16\)
 
 The Compositor will automatically share Viewport pointers between
 different passes to the same RenderTarget (even for different nodes) as
@@ -607,10 +623,10 @@ should we render to. Default: No.
 **Note:** if the target is not a cubemap, Ogre will still try to rotate
 the camera, often to unintended angles.
 
--   enable\_forward3d \[yes|no\]
+-   enable\_plus \[yes|no\]
 
-When yes, this pass will use Forward3D (must be enabled first by the
-developer via C++, see Forward3D sample). When No, Forward3D will not be
+When yes, this pass will use Forward3D/ForwardClustered (must be enabled first
+by the developer via C++, see Forward3D sample). When No, Forward3D will not be
 used for this pass, which can improve performance both CPU and GPU side
 (but many lights are likely not going to be drawn or used). Default:
 Yes.
@@ -619,6 +635,11 @@ Yes.
 saving if F3D didn't already have a cache from a previous pass during
 the same frame, with the exact same camera and angle). GPU side, the
 pixel shaders will be lighter.
+
+-   flush\_command\_buffers\_after\_shadow\_node \[yes|no\]
+
+Same as flush\_command\_buffers. Does not do anything if 'shadows' is set to
+'reuse' (or was set to 'first' and this node is not the first)
 
 -   expose \<textureName\>;
 
@@ -642,6 +663,11 @@ Indicates this pass will take advantage of the data generated during the prepass
 which means depth buffer writes may be forced to off; normals will be sourced
 for the GBuffer. And if present, a reflection texture will be used for calculating
 SSR (Screen Space Reflections).
+
+-   instanced\_stereo \[yes|no\]
+
+Whether to use instanced stereo, for VR rendering. See InstancedStereo and OpenVR samples.
+You will probably want to also set multiple viewports, at the very least viewports 0 and 1
 
 ### stencil {#CompositorNodesPassesStencil}
 
@@ -979,7 +1005,7 @@ Mostly relevant for UAVs but is also useful for rendering. See
 
 -   mipmaps \<num Mipmaps\>
 
-Default: 0; Indicates how many mipmaps to use. 0 for none. Use -1 to
+Default: 1; Indicates how many mipmaps to use. 1 for none. Use 0 to
 fill all mipmaps until 1x1
 
 -   automipmaps
@@ -1248,6 +1274,21 @@ declarations. The default is uniform.
 Only used by PSSM techniques. Specifies the number of splits per light.
 Can vary per shadow map. The number of splits must be greater than 2.
 Default is 3.
+
+-   num\_stable\_splits \<num\_stable\_splits\>
+
+PSSM tends to be very unstable to camera rotation changes. Rotate the camera around
+and the shadow mapping artifacts keep changing.
+
+setNumStableSplits allows you to fix that problem; by switching to ConcentricShadowCamera
+for the first N splits you specify; while the rest of the splits will use
+FocusedShadowCameraSetup.
+
+We achieve rotation stability by sacrificing overall quality. Using ConcentricShadowCamera
+on higher splits means sacrificing exponentially a lot more quality (and even performance);
+thus the recommended values are num\_stable\_splits = 1 or num\_stable\_splits = 2
+
+The default is num\_stable\_splits = 0 which disables the feature
 
 -   pssm\_lambda \<lambda\>
 

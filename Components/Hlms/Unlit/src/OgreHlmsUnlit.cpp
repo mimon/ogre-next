@@ -30,19 +30,25 @@ THE SOFTWARE.
 
 #include "OgreHlmsUnlit.h"
 #include "OgreHlmsUnlitDatablock.h"
+#include "OgreUnlitProperty.h"
 #include "OgreHlmsListener.h"
 
 #if !OGRE_NO_JSON
 #include "OgreHlmsJsonUnlit.h"
 #endif
 
+#include "OgreLwString.h"
+
 #include "OgreViewport.h"
-#include "OgreRenderTarget.h"
 #include "OgreCamera.h"
 #include "OgreHighLevelGpuProgramManager.h"
 #include "OgreHighLevelGpuProgram.h"
 
+#include "OgreDescriptorSetTexture.h"
+#include "OgreTextureGpu.h"
+
 #include "OgreSceneManager.h"
+#include "OgreRenderQueue.h"
 #include "Compositor/OgreCompositorShadowNode.h"
 #include "Vao/OgreVaoManager.h"
 #include "Vao/OgreConstBufferPacked.h"
@@ -55,7 +61,7 @@ THE SOFTWARE.
 #include "CommandBuffer/OgreCommandBuffer.h"
 #include "CommandBuffer/OgreCbTexture.h"
 #include "CommandBuffer/OgreCbShaderBuffer.h"
-#include "OgreUnlitProperty.h"
+
 
 #include "OgreProfiler.h"
 
@@ -70,9 +76,13 @@ namespace Ogre
                          ExtraBufferParams( 64 * NUM_UNLIT_TEXTURE_TYPES ) ),
         mCurrentPassBuffer( 0 ),
         mLastBoundPool( 0 ),
-        mLastTextureHash( 0 ),
+        mHasSeparateSamplers( 0 ),
+        mLastDescTexture( 0 ),
+        mLastDescSampler( 0 ),
         mUsingExponentialShadowMaps( false ),
-        mEsmK( 600u )
+        mEsmK( 600u ),
+        mTexUnitSlotStart( 2u ),
+        mSamplerUnitSlotStart( 2u )
     {
         //Override defaults
         mLightGatheringMode = LightGatherNone;
@@ -82,14 +92,17 @@ namespace Ogre
     }
     HlmsUnlit::HlmsUnlit( Archive *dataFolder, ArchiveVec *libraryFolders,
                           HlmsTypes type, const String &typeName ) :
-        HlmsBufferManager(type, typeName, dataFolder, libraryFolders),
-        ConstBufferPool(HlmsUnlitDatablock::MaterialSizeInGpuAligned,
-        ExtraBufferParams(64 * NUM_UNLIT_TEXTURE_TYPES)),
-        mCurrentPassBuffer(0),
-        mLastBoundPool(0),
-        mLastTextureHash(0),
+        HlmsBufferManager( type, typeName, dataFolder, libraryFolders ),
+        ConstBufferPool( HlmsUnlitDatablock::MaterialSizeInGpuAligned,
+                         ExtraBufferParams( 64 * NUM_UNLIT_TEXTURE_TYPES ) ),
+        mCurrentPassBuffer( 0 ),
+        mLastBoundPool( 0 ),
+        mLastDescTexture( 0 ),
+        mLastDescSampler( 0 ),
         mUsingExponentialShadowMaps( false ),
-        mEsmK( 600u )
+        mEsmK( 600u ),
+        mTexUnitSlotStart( 2u ),
+        mSamplerUnitSlotStart( 2u )
     {
         //Override defaults
         mLightGatheringMode = LightGatherNone;
@@ -125,6 +138,9 @@ namespace Ogre
                              datablock->mNumEnabledAnimationMatrices != 0 );
                 ++itor;
             }
+
+            const RenderSystemCapabilities *caps = newRs->getCapabilities();
+            mHasSeparateSamplers = caps->hasCapability( RSC_SEPARATE_SAMPLERS_FROM_TEXTURES );
         }
     }
     //-----------------------------------------------------------------------------------
@@ -154,18 +170,20 @@ namespace Ogre
         {
             GpuProgramParametersSharedPtr psParams = retVal->pso.pixelShader->getDefaultParameters();
 
-            int texUnit = 2; //Vertex shader consumes 2 slots with its two tbuffers.
+            int texUnit = mTexUnitSlotStart; //Vertex shader consumes 2 slots with its two tbuffers.
 
-            UnlitBakedTextureArray::const_iterator itor = datablock->mBakedTextures.begin();
-            UnlitBakedTextureArray::const_iterator end  = datablock->mBakedTextures.end();
-
-            if( !getProperty( HlmsBaseProp::ShadowCaster ) )
+            if( !getProperty( HlmsBaseProp::ShadowCaster ) && datablock->mTexturesDescSet )
             {
+                FastArray<const TextureGpu*>::const_iterator itor =
+                        datablock->mTexturesDescSet->mTextures.begin();
+                FastArray<const TextureGpu*>::const_iterator end  =
+                        datablock->mTexturesDescSet->mTextures.end();
+
                 int numTextures = 0;
                 int numArrayTextures = 0;
                 while( itor != end )
                 {
-                    if( itor->texture->getTextureType() == TEX_TYPE_2D_ARRAY )
+                    if( (*itor)->getInternalTextureType() == TextureTypes::Type2DArray )
                     {
                         psParams->setNamedConstant( "textureMapsArray[" +
                                                     StringConverter::toString( numArrayTextures++ ) +
@@ -211,17 +229,55 @@ namespace Ogre
         return retVal;
     }
     //-----------------------------------------------------------------------------------
-    void HlmsUnlit::setTextureProperty( IdString propertyName, HlmsUnlitDatablock *datablock,
+    void HlmsUnlit::setTextureProperty( LwString &propertyName, HlmsUnlitDatablock *datablock,
                                         uint8 texType )
     {
-        uint8 idx = datablock->getBakedTextureIdx( texType );
+        const size_t basePropSize = propertyName.size(); // diffuse_map0
+
+        const uint8 idx = datablock->getIndexToDescriptorTexture( texType );
+
         if( idx != NUM_UNLIT_TEXTURE_TYPES )
         {
-            //In the template the we subtract the "+1" for the index.
-            //We need to increment it now otherwise @property( diffuse_map )
-            //can translate to @property( 0 ) which is not what we want.
-            setProperty( propertyName, idx + 1 );
+            setProperty( propertyName.c_str(), 1 );
+
+            propertyName.resize( basePropSize );
+            propertyName.a( "_idx" );                   //diffuse_map0_idx
+            setProperty( propertyName.c_str(), idx );
+
+            const TextureGpu *texture = datablock->getTexture( texType );
+            if( texture && texture->getInternalTextureType() == TextureTypes::Type2DArray )
+            {
+                propertyName.resize( basePropSize );
+                propertyName.a( "_array" );             //diffuse_map0_array
+                setProperty( propertyName.c_str(), 1 );
+            }
+
+            if( mHasSeparateSamplers )
+            {
+                const uint8 samplerIdx = datablock->getIndexToDescriptorSampler( texType );
+                propertyName.resize( basePropSize );
+                propertyName.a( "_sampler" );           //diffuse_map0_sampler
+                setProperty( propertyName.c_str(), samplerIdx );
+            }
         }
+    }
+    //-----------------------------------------------------------------------------------
+    void HlmsUnlit::calculateHashFor( Renderable *renderable, uint32 &outHash, uint32 &outCasterHash )
+    {
+        assert( dynamic_cast<HlmsUnlitDatablock*>( renderable->getDatablock() ) );
+        HlmsUnlitDatablock *datablock = static_cast<HlmsUnlitDatablock*>( renderable->getDatablock() );
+        if( datablock->getDirtyFlags() & (DirtyTextures|DirtySamplers) )
+        {
+            //Delay hash generation for later, when we have the final (or temporary) descriptor sets.
+            outHash = 0;
+            outCasterHash = 0;
+        }
+        else
+        {
+            Hlms::calculateHashFor( renderable, outHash, outCasterHash );
+        }
+
+        datablock->loadAllTextures();
     }
     //-----------------------------------------------------------------------------------
     struct UvOutput
@@ -243,28 +299,33 @@ namespace Ogre
         setProperty( HlmsBaseProp::Tangent,     0 );
         setProperty( HlmsBaseProp::BonesPerVertex, 0 );
 
-        int texUnit = 2; //Vertex shader consumes 2 slots with its two tbuffers.
+        int texUnit = mTexUnitSlotStart; //Vertex shader consumes 2 slots with its two tbuffers.
         int numTextures = 0;
         int numArrayTextures = 0;
 
+        if( datablock->mTexturesDescSet )
         {
-            UnlitBakedTextureArray::const_iterator itor = datablock->mBakedTextures.begin();
-            UnlitBakedTextureArray::const_iterator end  = datablock->mBakedTextures.end();
+            FastArray<const TextureGpu*>::const_iterator itor =
+                    datablock->mTexturesDescSet->mTextures.begin();
+            FastArray<const TextureGpu*>::const_iterator end  =
+                    datablock->mTexturesDescSet->mTextures.end();
 
             while( itor != end )
             {
-                if( itor->texture->getTextureType() == TEX_TYPE_2D_ARRAY )
+                char tmpBuffer[64];
+                LwString propName( LwString::FromEmptyPointer( tmpBuffer, sizeof(tmpBuffer) ) );
+                if( (*itor)->getInternalTextureType() == TextureTypes::Type2DArray )
                 {
-                    setProperty( "array_texture_bind" + StringConverter::toString( numArrayTextures ),
-                                 texUnit );
+                    propName.a( "array_texture_bind", numArrayTextures );
                     ++numArrayTextures;
                 }
                 else
                 {
-                    setProperty( "texture_bind" + StringConverter::toString( numTextures ),
-                                 texUnit );
+                    propName.a( "texture_bind", numTextures );
                     ++numTextures;
                 }
+
+                setProperty( propName.c_str(), texUnit );
 
                 ++texUnit;
                 ++itor;
@@ -276,24 +337,30 @@ namespace Ogre
         setProperty( UnlitProperty::NumArrayTextures, numArrayTextures );
         setProperty( UnlitProperty::NumTextures, numTextures );
 
-        setProperty( UnlitProperty::DiffuseMap,
-                     datablock->mBakedTextures.empty() ? 0 : NUM_UNLIT_TEXTURE_TYPES );
+        if( datablock->mSamplersDescSet )
+            setProperty( UnlitProperty::NumSamplers, datablock->mSamplersDescSet->mSamplers.size() );
 
         bool hasAnimationMatrices = false;
         UvOutputVec uvOutputs;
         bool hasPlanarReflection = false;
 
+        int32 maxUsedTexUnitPlusOne = 0;
+
+        char tmpBuffer[64];
+        LwString diffuseMapN( LwString::FromEmptyPointer( tmpBuffer, sizeof(tmpBuffer) ) );
+        diffuseMapN.a( "diffuse_map" );
+        const size_t basePropSize = diffuseMapN.size();
+
         for( uint8 i=0; i<NUM_UNLIT_TEXTURE_TYPES; ++i )
         {
+            diffuseMapN.resize( basePropSize );
+            diffuseMapN.a( i ); //diffuse_map0
+
             //Set whether the texture is used.
-            String diffuseMapNStr = "diffuse_map" + StringConverter::toString( i );
-            IdString diffuseMapN( diffuseMapNStr );
             setTextureProperty( diffuseMapN, datablock, i );
 
-            TexturePtr texture = datablock->getTexture( i );
-
             //Sanity check.
-            bool hasTexture = !texture.isNull();
+            bool hasTexture = datablock->getTexture( i ) != 0;
             if( hasTexture && getProperty( *HlmsBaseProp::UvCountPtrs[datablock->mUvSource[i]] ) < 2 )
             {
                 OGRE_EXCEPT( Exception::ERR_INVALID_STATE,
@@ -303,20 +370,18 @@ namespace Ogre
                              "HlmsUnlit::calculateHashForPreCreate" );
             }
 
-            if( !texture.isNull() )
+            if( hasTexture )
             {
-                if( texture->getTextureType() == TEX_TYPE_2D_ARRAY )
-                {
-                    IdString diffuseMapNArray( diffuseMapNStr + "_array" );
-                    setProperty( diffuseMapNArray, 1 );
-                }
-
                 if( datablock->getEnablePlanarReflection( i ) )
                 {
-                    IdString diffuseMapNReflection( diffuseMapNStr + "_reflection" );
+                    diffuseMapN.resize( basePropSize + 1u );
+                    diffuseMapN.a( "_reflection" ); //diffuse_map0_reflection
+                    IdString diffuseMapNReflection( diffuseMapN.c_str() );
                     setProperty( diffuseMapNReflection, 1 );
                     hasPlanarReflection = true;
                 }
+
+                maxUsedTexUnitPlusOne = i + 1;
             }
 
             //Set the blend mode
@@ -374,7 +439,9 @@ namespace Ogre
                 }
 
                 //Generate the texture swizzle for the pixel shader.
-                IdString diffuseMapNTexSwizzle( diffuseMapNStr + "_tex_swizzle" );
+                diffuseMapN.resize( basePropSize + 1u );
+                diffuseMapN.a( "_tex_swizzle" );
+                IdString diffuseMapNTexSwizzle( diffuseMapN.c_str() );
                 String texSwizzle;
                 texSwizzle.reserve( 4 );
 
@@ -393,6 +460,9 @@ namespace Ogre
                 inOutPieces[PixelShader][diffuseMapNTexSwizzle] = texSwizzle;
             }
         }
+
+        if( datablock->mTexturesDescSet )
+            setProperty( UnlitProperty::DiffuseMap, maxUsedTexUnitPlusOne );
 
         if( hasAnimationMatrices )
             setProperty( UnlitProperty::TextureMatrix, 1 );
@@ -493,14 +563,16 @@ namespace Ogre
             }
         }
 
-        RenderTarget *renderTarget = sceneManager->getCurrentViewport()->getTarget();
+        RenderPassDescriptor *renderPassDesc = mRenderSystem->getCurrentPassDescriptor();
         setProperty( HlmsBaseProp::ShadowUsesDepthTexture,
-                     renderTarget->getForceDisableColourWrites() ? 1 : 0 );
+                     (renderPassDesc->getNumColourEntries() > 0) ? 0 : 1 );
         setProperty( HlmsBaseProp::RenderDepthOnly,
-                     renderTarget->getForceDisableColourWrites() ? 1 : 0 );
+                     (renderPassDesc->getNumColourEntries() > 0) ? 0 : 1 );
 
-        Camera *camera = sceneManager->getCameraInProgress();
-        if( camera && camera->isReflected() )
+        setProperty( UnlitProperty::SamplerUnitSlotStart, (int32)mSamplerUnitSlotStart );
+
+        CamerasInProgress cameras = sceneManager->getCamerasInProgress();
+        if( cameras.renderingCamera && cameras.renderingCamera->isReflected() )
         {
             int32 numClipDist = std::max( getProperty( HlmsBaseProp::PsoClipDistances ), 1 );
             setProperty( HlmsBaseProp::PsoClipDistances, numClipDist );
@@ -529,15 +601,14 @@ namespace Ogre
         retVal.setProperties = mSetProperties;
         retVal.pso.pass = passCache.passPso;
 
-        Matrix4 viewMatrix = camera->getViewMatrix(true);
+        Matrix4 viewMatrix = cameras.renderingCamera->getViewMatrix(true);
 
-        Matrix4 projectionMatrix = camera->getProjectionMatrixWithRSDepth();
+        Matrix4 projectionMatrix = cameras.renderingCamera->getProjectionMatrixWithRSDepth();
         Matrix4 identityProjMat;
 
-        mRenderSystem->_convertProjectionMatrix( Matrix4::IDENTITY,
-                                                 identityProjMat, true );
+        mRenderSystem->_convertProjectionMatrix( Matrix4::IDENTITY, identityProjMat );
 
-        if( renderTarget->requiresTextureFlipping() )
+        if( renderPassDesc->requiresTextureFlipping() )
         {
             projectionMatrix[1][0]  = -projectionMatrix[1][0];
             projectionMatrix[1][1]  = -projectionMatrix[1][1];
@@ -560,7 +631,7 @@ namespace Ogre
         //mat4 viewProj[2] + vec4 invWindowSize;
         size_t mapSize = (16 + 16 + 4) * 4;
 
-        const bool isCameraReflected = camera->isReflected();
+        const bool isCameraReflected = cameras.renderingCamera->isReflected();
         //mat4 invViewProj
         if( isCameraReflected || (casterPass && (mUsingExponentialShadowMaps || isShadowCastingPointLight)) )
             mapSize += 16 * 4;
@@ -615,7 +686,7 @@ namespace Ogre
         //vec4 clipPlane0
         if( isCameraReflected )
         {
-            const Plane &reflPlane = camera->getReflectionPlane();
+            const Plane &reflPlane = cameras.renderingCamera->getReflectionPlane();
             *passBufferPtr++ = (float)reflPlane.normal.x;
             *passBufferPtr++ = (float)reflPlane.normal.y;
             *passBufferPtr++ = (float)reflPlane.normal.z;
@@ -644,7 +715,7 @@ namespace Ogre
 
             //vec2 depthRange;
             Real fNear, fFar;
-            shadowNode->getMinMaxDepthRange( camera, fNear, fFar );
+            shadowNode->getMinMaxDepthRange( cameras.renderingCamera, fNear, fFar );
             const Real depthRange = fFar - fNear;
             *passBufferPtr++ = fNear;
             *passBufferPtr++ = 1.0f / depthRange;
@@ -653,7 +724,7 @@ namespace Ogre
             //vec4 cameraPosWS;
             if( isShadowCastingPointLight )
             {
-                const Vector3 &camPos = camera->getDerivedPosition();
+                const Vector3 &camPos = cameras.renderingCamera->getDerivedPosition();
                 *passBufferPtr++ = (float)camPos.x;
                 *passBufferPtr++ = (float)camPos.y;
                 *passBufferPtr++ = (float)camPos.z;
@@ -661,6 +732,7 @@ namespace Ogre
             }
         }
 
+        TextureGpu *renderTarget = mRenderSystem->getCurrentRenderViewports()[0].getCurrentTarget();
         //vec4 invWindowSize;
         *passBufferPtr++ = 1.0f / (float)renderTarget->getWidth();
         *passBufferPtr++ = 1.0f / (float)renderTarget->getHeight();
@@ -679,12 +751,13 @@ namespace Ogre
         {
             size_t bufferSize = std::min<size_t>( mTextureBufferDefaultSize,
                                                   mVaoManager->getTexBufferMaxSize() );
-            TexBufferPacked *newBuffer = mVaoManager->createTexBuffer( PF_FLOAT32_RGBA, bufferSize,
+            TexBufferPacked *newBuffer = mVaoManager->createTexBuffer( PFG_RGBA32_FLOAT, bufferSize,
                                                                        BT_DYNAMIC_PERSISTENT, 0, false );
             mTexBuffers.push_back( newBuffer );
         }
 
-        mLastTextureHash = 0;
+        mLastDescTexture = 0;
+        mLastDescSampler = 0;
         mLastBoundPool = 0;
 
         uploadDirtyDatablocks();
@@ -731,7 +804,8 @@ namespace Ogre
         if( OGRE_EXTRACT_HLMS_TYPE_FROM_CACHE_HASH( lastCacheHash ) != mType )
         {
             //We changed HlmsType, rebind the shared textures.
-            mLastTextureHash = 0;
+            mLastDescTexture = 0;
+            mLastDescSampler = 0;
             mLastBoundPool = 0;
 
             //layout(binding = 0) uniform PassBuffer {} pass
@@ -840,24 +914,39 @@ namespace Ogre
 
         if( !casterPass )
         {
-            if( datablock->mTextureHash != mLastTextureHash )
+            if( datablock->mTexturesDescSet != mLastDescTexture )
             {
-                //Rebind textures
-                size_t texUnit = 2;
+                //Bind textures
+                size_t texUnit = mTexUnitSlotStart;
 
-                UnlitBakedTextureArray::const_iterator itor = datablock->mBakedTextures.begin();
-                UnlitBakedTextureArray::const_iterator end  = datablock->mBakedTextures.end();
-
-                while( itor != end )
+                if( datablock->mTexturesDescSet )
                 {
-                    *commandBuffer->addCommand<CbTexture>() =
-                            CbTexture( texUnit++, true, itor->texture.get(), itor->samplerBlock );
-                    ++itor;
+                    *commandBuffer->addCommand<CbTextures>() =
+                        CbTextures( texUnit, std::numeric_limits<uint16>::max(),
+                                    datablock->mTexturesDescSet );
+
+                    if( !mHasSeparateSamplers )
+                    {
+                        *commandBuffer->addCommand<CbSamplers>() =
+                                CbSamplers( texUnit, datablock->mSamplersDescSet );
+                    }
+
+                    texUnit += datablock->mTexturesDescSet->mTextures.size();
                 }
 
-                *commandBuffer->addCommand<CbTextureDisableFrom>() = CbTextureDisableFrom( texUnit );
+                mLastDescTexture = datablock->mTexturesDescSet;
+            }
 
-                mLastTextureHash = datablock->mTextureHash;
+            if( datablock->mSamplersDescSet != mLastDescSampler && mHasSeparateSamplers )
+            {
+                if( datablock->mSamplersDescSet )
+                {
+                    //Bind samplers
+                    size_t texUnit = mSamplerUnitSlotStart;
+                    *commandBuffer->addCommand<CbSamplers>() =
+                            CbSamplers( texUnit, datablock->mSamplersDescSet );
+                    mLastDescSampler = datablock->mSamplersDescSet;
+                }
             }
         }
 
@@ -939,19 +1028,20 @@ namespace Ogre
 #if !OGRE_NO_JSON
 	//-----------------------------------------------------------------------------------
     void HlmsUnlit::_loadJson( const rapidjson::Value &jsonValue, const HlmsJson::NamedBlocks &blocks,
-                               HlmsDatablock *datablock, HlmsJsonListener *listener,
+                               HlmsDatablock *datablock, const String &resourceGroup,
+                               HlmsJsonListener *listener,
                                const String &additionalTextureExtension ) const
 	{
-		HlmsJsonUnlit jsonUnlit(mHlmsManager);
-		jsonUnlit.loadMaterial(jsonValue, blocks, datablock);
+        HlmsJsonUnlit jsonUnlit( mHlmsManager, mRenderSystem->getTextureGpuManager() );
+        jsonUnlit.loadMaterial( jsonValue, blocks, datablock, resourceGroup );
 	}
 	//-----------------------------------------------------------------------------------
     void HlmsUnlit::_saveJson( const HlmsDatablock *datablock, String &outString,
                                HlmsJsonListener *listener,
                                const String &additionalTextureExtension ) const
 	{
-		HlmsJsonUnlit jsonUnlit(mHlmsManager);
-		jsonUnlit.saveMaterial(datablock, outString);
+        HlmsJsonUnlit jsonUnlit( mHlmsManager, mRenderSystem->getTextureGpuManager() );
+        jsonUnlit.saveMaterial( datablock, outString );
 	}
 	//-----------------------------------------------------------------------------------
 	void HlmsUnlit::_collectSamplerblocks(set<const HlmsSamplerblock*>::type &outSamplerblocks,

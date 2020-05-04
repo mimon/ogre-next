@@ -53,12 +53,18 @@ namespace Ogre {
           mAffectParentNode(false),
           mDoubleSided(false),
           mRectSize(Vector2::UNIT_SCALE),
+          mTexture( 0 ),
           mTextureLightMaskIdx( std::numeric_limits<uint16>::max() ),
           mTexLightMaskDiffuseMipStart( (uint16)(0.95f * 65535) ),
+          mLightProfileIdx( 0u ),
           mShadowFarDist(0),
           mShadowFarDistSquared(0),
           mShadowNearClipDist(-1),
           mShadowFarClipDist(-1)
+    #if OGRE_ENABLE_LIGHT_OBB_RESTRAINT
+        , mObbRestraintSmoothFadeDistance( 0 ),
+          mObbRestraint( 0 )
+    #endif
     {
         //mMinPixelSize should always be zero for lights otherwise lights will disapear
         mMinPixelSize = 0;
@@ -71,6 +77,11 @@ namespace Ogre {
     //-----------------------------------------------------------------------
     Light::~Light()
     {
+        if( mTexture && mTexture->hasAutomaticBatching() )
+        {
+            mTexture->removeListener( this );
+            mTexture = 0;
+        }
     }
     //-----------------------------------------------------------------------
     void Light::setType(LightTypes type)
@@ -584,6 +595,46 @@ namespace Ogre {
         }
     }
     //-----------------------------------------------------------------------
+#if OGRE_ENABLE_LIGHT_OBB_RESTRAINT
+    void Light::setObbRestraint( Node *node )
+    {
+        mObbRestraint = node;
+    }
+    //-----------------------------------------------------------------------
+    void Light::setObbRestraintSmoothFadeDistance( float smoothFadeDistance )
+    {
+        OGRE_ASSERT_MEDIUM( smoothFadeDistance >= 0 );
+        mObbRestraintSmoothFadeDistance = smoothFadeDistance;
+    }
+    //-----------------------------------------------------------------------
+    Vector3 Light::_getObbRestraintFadeFactor(void) const
+    {
+        if( !mObbRestraint )
+            return Vector3::UNIT_SCALE;
+
+        const Vector3 halfSize = mObbRestraint->getScale();
+        const Vector3 fadeDistanceNormalized = mObbRestraintSmoothFadeDistance / halfSize;
+
+        //Shader code will perform:
+        //  (1 - x) * restraintFadeFactor
+        //
+        //where x is the distance to center of the OBB, and is in range [0;1];
+        //as values where x >= 1 means the pixel is outside the OBB
+        //
+        //And:
+        //  1. For x >= 1 - fadeDistanceNormalized, this formula will give values < 1.
+        //  2. For x >= 1, this formula will give <= 0; which means pixel is outside OBB.
+        //
+        //Thus we need to find the value that satisfies:
+        //  (1 - (1-fadeDistanceNormalized)) * restraintFadeFactor <= 1
+        //Thus:
+        //  restraintFadeFactor <= 1 / (1 - (1 - fadeDistanceNormalized))
+        //  restraintFadeFactor <= 1 / fadeDistanceNormalized
+        const Vector3 restraintFadeFactor = 1.0f / fadeDistanceNormalized;
+        return restraintFadeFactor;
+    }
+#endif
+    //-----------------------------------------------------------------------
     void Light::setCustomParameter(uint16 index, const Ogre::Vector4 &value)
     {
         mCustomParameters[index] = value;
@@ -604,7 +655,18 @@ namespace Ogre {
         }
     }
     //-----------------------------------------------------------------------
-    void Light::_updateCustomGpuParameter(uint16 paramIndex, const GpuProgramParameters::AutoConstantEntry& constantEntry, GpuProgramParameters *params) const
+    const Vector4* Light::getCustomParameterNoThrow( uint16 index ) const
+    {
+        const Vector4 *retVal = 0;
+        CustomParameterMap::const_iterator i = mCustomParameters.find(index);
+        if( i != mCustomParameters.end() )
+            retVal = &i->second;
+        return retVal;
+    }
+    //-----------------------------------------------------------------------
+    void Light::_updateCustomGpuParameter( uint16 paramIndex,
+                                           const GpuProgramParameters_AutoConstantEntry &constantEntry,
+                                           GpuProgramParameters *params ) const
     {
         CustomParameterMap::const_iterator i = mCustomParameters.find(paramIndex);
         if (i != mCustomParameters.end())
@@ -614,12 +676,58 @@ namespace Ogre {
         }
     }
     //-----------------------------------------------------------------------
-    void Light::setTexture( const TexturePtr &texture, uint16 sliceIdx )
+    void Light::setTexture( TextureGpu *texture )
     {
-        if( !texture )
-            mTextureLightMaskIdx = std::numeric_limits<Ogre::uint16>::max();
+        if( mTexture && mTexture->hasAutomaticBatching() )
+            mTexture->removeListener( this );
+        if( texture )
+        {
+            OGRE_ASSERT_LOW( texture->hasAutomaticBatching() &&
+                             "If the texture does is not AutomaticBatching, the use Raw calls!" );
+            OGRE_ASSERT_LOW( texture->getTextureType() == TextureTypes::Type2D );
+            texture->addListener( this );
+            texture->scheduleTransitionTo( GpuResidency::Resident );
+            mTexture = texture;
+            mTextureLightMaskIdx = static_cast<uint16>( texture->getInternalSliceStart() );
+        }
         else
-            mTextureLightMaskIdx = sliceIdx;
+        {
+            mTexture = 0;
+            mTextureLightMaskIdx = std::numeric_limits<Ogre::uint16>::max();
+        }
+    }
+    //-----------------------------------------------------------------------------------
+    void Light::setTextureRaw( TextureGpu *texture, uint32 sliceIdx )
+    {
+        if( mTexture && mTexture->hasAutomaticBatching() )
+            mTexture->removeListener( this );
+        OGRE_ASSERT_LOW( (!texture || !texture->hasAutomaticBatching()) &&
+                         "Only use Raw call if texture is not AutomaticBatching!" );
+        OGRE_ASSERT_LOW( texture->getTextureType() == TextureTypes::Type2DArray );
+        mTexture = texture;
+        if( texture )
+            mTextureLightMaskIdx = static_cast<uint16>( sliceIdx );
+        else
+            mTextureLightMaskIdx = std::numeric_limits<Ogre::uint16>::max();
+    }
+    //-----------------------------------------------------------------------------------
+    void Light::notifyTextureChanged( TextureGpu *texture, TextureGpuListener::Reason reason,
+                                      void *extraData )
+    {
+        if( reason == TextureGpuListener::PoolTextureSlotChanged )
+        {
+            if( texture == mTexture )
+                mTextureLightMaskIdx = static_cast<uint16>( mTexture->getInternalSliceStart() );
+        }
+        else if( reason == TextureGpuListener::Deleted )
+        {
+            if( texture == mTexture )
+            {
+                mTextureLightMaskIdx = std::numeric_limits<Ogre::uint16>::max();
+                mTexture->removeListener( this );
+                mTexture = 0;
+            }
+        }
     }
     //-----------------------------------------------------------------------
     //-----------------------------------------------------------------------

@@ -28,7 +28,9 @@ THE SOFTWARE.
 #include "OgreStableHeaders.h"
 
 #include "OgreRenderSystemCapabilities.h"
+
 #include "OgreLogManager.h"
+#include "OgreString.h"
 
 namespace Ogre {
 
@@ -47,6 +49,7 @@ namespace Ogre {
         , mMaxSupportedAnisotropy(0)
         , mVertexTextureUnitsShared(0)
         , mGeometryProgramNumOutputVertices(0)
+        , mMaxThreadsPerThreadgroup(1024u)
     {
         for(int i = 0; i < CAPS_CATEGORY_COUNT; i++)
         {
@@ -57,6 +60,10 @@ namespace Ogre {
         // each rendersystem should enable these
         mCategoryRelevant[CAPS_CATEGORY_D3D9] = false;
         mCategoryRelevant[CAPS_CATEGORY_GL] = false;
+
+        mMaxThreadsPerThreadgroupAxis[0] = 1024u;
+        mMaxThreadsPerThreadgroupAxis[1] = 1024u;
+        mMaxThreadsPerThreadgroupAxis[2] = 64u;
     }
     //-----------------------------------------------------------------------
     RenderSystemCapabilities::~RenderSystemCapabilities()
@@ -309,6 +316,18 @@ namespace Ogre {
             " * Hardware Atomic Counters: "
             + StringConverter::toString(hasCapability(RSC_ATOMIC_COUNTERS), true));
 
+        if( hasCapability( RSC_COMPUTE_PROGRAM ) )
+        {
+            pLog->logMessage(
+                " * Compute max threads per threadgroup per axis: "
+                + StringConverter::toString( mMaxThreadsPerThreadgroupAxis[0] ) + ", "
+                + StringConverter::toString( mMaxThreadsPerThreadgroupAxis[1] ) + ", "
+                + StringConverter::toString( mMaxThreadsPerThreadgroupAxis[2] ) );
+            pLog->logMessage(
+                " * Compute max threads per threadgroup total: "
+                + StringConverter::toString( mMaxThreadsPerThreadgroup ) );
+        }
+
         if (mCategoryRelevant[CAPS_CATEGORY_GL])
         {
             pLog->logMessage(
@@ -399,5 +418,21 @@ namespace Ogre {
             msGPUVendorStrings[GPU_WEBKIT] = "webkit";
         }
     }
-
+    //---------------------------------------------------------------------
+    //---------------------------------------------------------------------
+    //---------------------------------------------------------------------
+    void DriverVersion::fromString( const String &versionString )
+    {
+        StringVector tokens = StringUtil::split( versionString, "." );
+        if( !tokens.empty() )
+        {
+            major = StringConverter::parseInt( tokens[0] );
+            if( tokens.size() > 1 )
+                minor = StringConverter::parseInt( tokens[1] );
+            if( tokens.size() > 2 )
+                release = StringConverter::parseInt( tokens[2] );
+            if( tokens.size() > 3 )
+                build = StringConverter::parseInt( tokens[3] );
+        }
+    }
 }

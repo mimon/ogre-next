@@ -34,6 +34,7 @@ namespace Ogre
     //-----------------------------------------------------------------------------------
     void HlmsPbsDatablock::cloneImpl( HlmsDatablock *datablock ) const
     {
+        HlmsPbsBaseTextureDatablock::cloneImpl( datablock );
         HlmsPbsDatablock *datablockImpl = static_cast<HlmsPbsDatablock*>( datablock );
 
         datablockImpl->mFresnelTypeSizeBytes = mFresnelTypeSizeBytes;
@@ -41,6 +42,7 @@ namespace Ogre
         datablockImpl->mUseAlphaFromTextures = mUseAlphaFromTextures;
         datablockImpl->mWorkflow = mWorkflow;
         datablockImpl->mReceiveShadows = mReceiveShadows;
+        datablockImpl->mCubemapIdxInDescSet = mCubemapIdxInDescSet;
         datablockImpl->mTransparencyMode = mTransparencyMode;
         datablockImpl->mkDr = mkDr;
         datablockImpl->mkDg = mkDg;
@@ -57,11 +59,6 @@ namespace Ogre
         datablockImpl->mNormalMapWeight = mNormalMapWeight;
         datablockImpl->mCubemapProbe = mCubemapProbe;
         datablockImpl->mBrdf = mBrdf;
-
-        for( size_t i=0; i<mBakedTextures.size(); ++i )
-        {
-            datablockImpl->mBakedTextures.push_back( mBakedTextures[i] );
-        }
 
         for( size_t i=0; i<3; ++i )
         {
@@ -107,23 +104,6 @@ namespace Ogre
         for( size_t i=0; i<14; ++i )
         {
             datablockImpl->mUvSource[i] = mUvSource[i];
-        }
-
-        for( size_t i=0; i<15; ++i )
-        {
-            datablockImpl->mTexIndices[i] = mTexIndices[i];
-        }
-
-        for( size_t i=0; i<15; ++i )
-        {
-            datablockImpl->mTexToBakedTextureIdx[i] = mTexToBakedTextureIdx[i];
-        }
-
-        for( size_t i=0; i<15; ++i )
-        {
-            datablockImpl->mSamplerblocks[i] = mSamplerblocks[i];
-            if( datablockImpl->mSamplerblocks[i] )
-                mCreator->getHlmsManager()->addReference( datablockImpl->mSamplerblocks[i] );
         }
     }
 }

@@ -30,7 +30,6 @@ THE SOFTWARE.
 
 #include "OgreHlmsManager.h"
 #include "OgreHlms.h"
-#include "OgreHlmsTextureManager.h"
 #include "OgreRenderSystem.h"
 #include "OgreHlmsCompute.h"
 #include "OgreLogManager.h"
@@ -44,7 +43,6 @@ namespace Ogre
         mComputeHlms( 0 ),
         mRenderSystem( 0 ),
         mShadowMappingUseBackFaces( true ),
-        mTextureManager( 0 ),
         mDefaultHlmsType( HLMS_PBS )
   #if !OGRE_NO_JSON
     ,   mJsonListener( 0 )
@@ -56,8 +54,6 @@ namespace Ogre
 
         mMacroblocks.reserve( OGRE_HLMS_MAX_LIFETIME_MACROBLOCKS );
         mBlendblocks.reserve( OGRE_HLMS_MAX_LIFETIME_BLENDBLOCKS );
-
-        mTextureManager = OGRE_NEW HlmsTextureManager();
 
         mActiveBlocks[BLOCK_MACRO].reserve( OGRE_HLMS_NUM_MACROBLOCKS );
         mFreeBlockIds[BLOCK_MACRO].reserve( OGRE_HLMS_NUM_MACROBLOCKS );
@@ -91,9 +87,6 @@ namespace Ogre
         ResourceGroupManager::getSingleton()._unregisterScriptLoader(this);
 #endif
         renderSystemDestroyAllBlocks();
-
-        OGRE_DELETE mTextureManager;
-        mTextureManager = 0;
 
         for( size_t i=0; i<HLMS_MAX; ++i )
         {
@@ -255,12 +248,14 @@ namespace Ogre
 
         if( !retVal->mRefCount )
         {
-            retVal->mIsTransparent =
-                    !( baseParams.mDestBlendFactor == SBF_ZERO &&
-                       baseParams.mSourceBlendFactor != SBF_DEST_COLOUR &&
-                       baseParams.mSourceBlendFactor != SBF_ONE_MINUS_DEST_COLOUR &&
-                       baseParams.mSourceBlendFactor != SBF_DEST_ALPHA &&
-                       baseParams.mSourceBlendFactor != SBF_ONE_MINUS_DEST_ALPHA );
+            if( !( baseParams.mDestBlendFactor == SBF_ZERO &&
+                   baseParams.mSourceBlendFactor != SBF_DEST_COLOUR &&
+                   baseParams.mSourceBlendFactor != SBF_ONE_MINUS_DEST_COLOUR &&
+                   baseParams.mSourceBlendFactor != SBF_DEST_ALPHA &&
+                   baseParams.mSourceBlendFactor != SBF_ONE_MINUS_DEST_ALPHA ) )
+            {
+                retVal->mIsTransparent |= 1u;
+            }
             mRenderSystem->_hlmsBlendblockCreated( retVal );
         }
 
@@ -367,6 +362,164 @@ namespace Ogre
             mRenderSystem->_hlmsSamplerblockDestroyed( &mSamplerblocks[samplerblock->mId] );
             destroyBasicBlock( &mSamplerblocks[samplerblock->mId] );
         }
+    }
+    //-----------------------------------------------------------------------------------
+    void createDescriptorSetTextureImpl( RenderSystem *renderSystem, DescriptorSetTexture *desc )
+    {
+        renderSystem->_descriptorSetTextureCreated( desc );
+    }
+    void destroyDescriptorSetTextureImpl( RenderSystem *renderSystem, DescriptorSetTexture *desc )
+    {
+        renderSystem->_descriptorSetTextureDestroyed( desc );
+    }
+    void createDescriptorSetTexture2Impl( RenderSystem *renderSystem, DescriptorSetTexture2 *desc )
+    {
+        renderSystem->_descriptorSetTexture2Created( desc );
+    }
+    void destroyDescriptorSetTexture2Impl( RenderSystem *renderSystem, DescriptorSetTexture2 *desc )
+    {
+        renderSystem->_descriptorSetTexture2Destroyed( desc );
+    }
+    void createDescriptorSetSamplerImpl( RenderSystem *renderSystem, DescriptorSetSampler *desc )
+    {
+        renderSystem->_descriptorSetSamplerCreated( desc );
+    }
+    void destroyDescriptorSetSamplerImpl( RenderSystem *renderSystem, DescriptorSetSampler *desc )
+    {
+        renderSystem->_descriptorSetSamplerDestroyed( desc );
+    }
+    void createDescriptorSetUavImpl( RenderSystem *renderSystem, DescriptorSetUav *desc )
+    {
+        renderSystem->_descriptorSetUavCreated( desc );
+    }
+    void destroyDescriptorSetUavImpl( RenderSystem *renderSystem, DescriptorSetUav *desc )
+    {
+        renderSystem->_descriptorSetUavDestroyed( desc );
+    }
+    template <typename T>
+    const T* HlmsManager::getDescriptorSet( typename set<T>::type &container, const T &baseParams,
+                                            void (*renderSysFunc)(RenderSystem*, T*) )
+    {
+        typename set<T>::type::iterator itor = container.find( baseParams );
+
+        if( itor == container.end() )
+        {
+            T newDescSet = baseParams;
+            newDescSet.mRefCount = 0;
+            (*renderSysFunc)( mRenderSystem, &newDescSet );
+            std::pair<typename set<T>::type::iterator, bool> entry =
+                    container.insert( newDescSet );
+            itor = entry.first;
+        }
+
+        //std::set cannot be modified because the value is the key. However we use
+        //a custom comparison operator in which mRefCount is not included.
+        T *retVal = const_cast<T*>( &(*itor) );
+        ++retVal->mRefCount;
+        return retVal;
+    }
+    template <typename T>
+    //-----------------------------------------------------------------------------------
+    void HlmsManager::destroyDescriptorSet( typename set<T>::type &container, const T *descSet,
+                                            void (*renderSysFunc)( RenderSystem*, T*) )
+    {
+        typename set<T>::type::iterator itor = container.find( *descSet );
+
+        if( itor == container.end() || &(*itor) != descSet )
+        {
+            OGRE_EXCEPT( Exception::ERR_ITEM_NOT_FOUND,
+                         "The DescriptorSet wasn't created with this manager!",
+                         "HlmsManager::destroyDescriptorSet" );
+        }
+
+        //We have to const_cast because std::set protects programmers from altering the
+        //order. However we will only be touching mRefCount & mRsData elements, which
+        //are not used by our sorting operators.
+        T *descSetPtr = const_cast<T*>( &(*itor) );
+
+        --descSetPtr->mRefCount;
+
+        if( !descSetPtr->mRefCount )
+        {
+            (*renderSysFunc)( mRenderSystem, descSetPtr );
+            container.erase( itor );
+        }
+    }
+    //-----------------------------------------------------------------------------------
+    const DescriptorSetTexture* HlmsManager::getDescriptorSetTexture(
+            const DescriptorSetTexture &baseParams )
+    {
+        assert( mRenderSystem && "A render system must be selected first!" );
+
+        baseParams.checkValidity();
+
+        assert( baseParams.mTextures.size() < OGRE_MAX_TEXTURE_LAYERS &&
+                "Recompile Ogre w/ a different OGRE_MAX_TEXTURE_LAYERS value if you "
+                "want to bind more textures (API/HW restrictions may also apply)" );
+
+        const DescriptorSetTexture *retVal = getDescriptorSet( mDescriptorSetTextures, baseParams,
+                                                               createDescriptorSetTextureImpl );
+        return retVal;
+    }
+    //-----------------------------------------------------------------------------------
+    void HlmsManager::destroyDescriptorSetTexture( const DescriptorSetTexture *descSet )
+    {
+        destroyDescriptorSet( mDescriptorSetTextures, descSet, destroyDescriptorSetTextureImpl );
+    }
+    //-----------------------------------------------------------------------------------
+    const DescriptorSetTexture2* HlmsManager::getDescriptorSetTexture2(
+            const DescriptorSetTexture2 &baseParams )
+    {
+        assert( mRenderSystem && "A render system must be selected first!" );
+
+        baseParams.checkValidity();
+
+        assert( baseParams.mTextures.size() < OGRE_MAX_TEXTURE_LAYERS &&
+                "Recompile Ogre w/ a different OGRE_MAX_TEXTURE_LAYERS value if you "
+                "want to bind more textures (API/HW restrictions may also apply)" );
+
+        const DescriptorSetTexture2 *retVal = getDescriptorSet( mDescriptorSetTextures2, baseParams,
+                                                                createDescriptorSetTexture2Impl );
+        return retVal;
+    }
+    //-----------------------------------------------------------------------------------
+    void HlmsManager::destroyDescriptorSetTexture2( const DescriptorSetTexture2 *descSet )
+    {
+        destroyDescriptorSet( mDescriptorSetTextures2, descSet, destroyDescriptorSetTexture2Impl );
+    }
+    //-----------------------------------------------------------------------------------
+    const DescriptorSetSampler* HlmsManager::getDescriptorSetSampler(
+            const DescriptorSetSampler &baseParams )
+    {
+        assert( mRenderSystem && "A render system must be selected first!" );
+
+        baseParams.checkValidity();
+
+        const DescriptorSetSampler *retVal = getDescriptorSet( mDescriptorSetSamplers, baseParams,
+                                                               createDescriptorSetSamplerImpl );
+        return retVal;
+    }
+    //-----------------------------------------------------------------------------------
+    void HlmsManager::destroyDescriptorSetSampler( const DescriptorSetSampler *descSet )
+    {
+        destroyDescriptorSet( mDescriptorSetSamplers, descSet, destroyDescriptorSetSamplerImpl );
+    }
+    //-----------------------------------------------------------------------------------
+    const DescriptorSetUav* HlmsManager::getDescriptorSetUav(
+            const DescriptorSetUav &baseParams )
+    {
+        assert( mRenderSystem && "A render system must be selected first!" );
+
+        baseParams.checkValidity();
+
+        const DescriptorSetUav *retVal = getDescriptorSet( mDescriptorSetUavs, baseParams,
+                                                           createDescriptorSetUavImpl );
+        return retVal;
+    }
+    //-----------------------------------------------------------------------------------
+    void HlmsManager::destroyDescriptorSetUav( const DescriptorSetUav *descSet )
+    {
+        destroyDescriptorSet( mDescriptorSetUavs, descSet, destroyDescriptorSetUavImpl );
     }
     //-----------------------------------------------------------------------------------
     uint16 HlmsManager::_getInputLayoutId( const VertexElement2VecVec &vertexElements,
@@ -532,28 +685,64 @@ namespace Ogre
                     mRegisteredHlms[i]->_clearShaderCache();
             }
 
-            BlockIdxVec::const_iterator itor = mActiveBlocks[BLOCK_MACRO].begin();
-            BlockIdxVec::const_iterator end  = mActiveBlocks[BLOCK_MACRO].end();
-            while( itor != end )
             {
-                HlmsMacroblock *block = static_cast<HlmsMacroblock*>( mBlocks[BLOCK_MACRO][*itor] );
-                mRenderSystem->_hlmsMacroblockDestroyed( block );
-                ++itor;
+                BlockIdxVec::const_iterator itor = mActiveBlocks[BLOCK_MACRO].begin();
+                BlockIdxVec::const_iterator end  = mActiveBlocks[BLOCK_MACRO].end();
+                while( itor != end )
+                {
+                    HlmsMacroblock *block = static_cast<HlmsMacroblock*>( mBlocks[BLOCK_MACRO][*itor] );
+                    mRenderSystem->_hlmsMacroblockDestroyed( block );
+                    ++itor;
+                }
+
+                itor = mActiveBlocks[BLOCK_BLEND].begin();
+                end  = mActiveBlocks[BLOCK_BLEND].end();
+                while( itor != end )
+                {
+                    HlmsBlendblock *block = static_cast<HlmsBlendblock*>( mBlocks[BLOCK_BLEND][*itor] );
+                    mRenderSystem->_hlmsBlendblockDestroyed( block );
+                    ++itor;
+                }
+
+                itor = mActiveBlocks[BLOCK_SAMPLER].begin();
+                end  = mActiveBlocks[BLOCK_SAMPLER].end();
+                while( itor != end )
+                    mRenderSystem->_hlmsSamplerblockDestroyed( &mSamplerblocks[*itor++] );
             }
 
-            itor = mActiveBlocks[BLOCK_BLEND].begin();
-            end  = mActiveBlocks[BLOCK_BLEND].end();
-            while( itor != end )
             {
-                HlmsBlendblock *block = static_cast<HlmsBlendblock*>( mBlocks[BLOCK_BLEND][*itor] );
-                mRenderSystem->_hlmsBlendblockDestroyed( block );
-                ++itor;
+                DescriptorSetTextureSet::iterator itor = mDescriptorSetTextures.begin();
+                DescriptorSetTextureSet::iterator end  = mDescriptorSetTextures.end();
+                while( itor != end )
+                {
+                    //const_cast see HlmsManager::destroyDescriptorSetTexture comments
+                    DescriptorSetTexture *descSetPtr = const_cast<DescriptorSetTexture*>( &(*itor) );
+                    mRenderSystem->_descriptorSetTextureDestroyed( descSetPtr );
+                    ++itor;
+                }
             }
-
-            itor = mActiveBlocks[BLOCK_SAMPLER].begin();
-            end  = mActiveBlocks[BLOCK_SAMPLER].end();
-            while( itor != end )
-                mRenderSystem->_hlmsSamplerblockDestroyed( &mSamplerblocks[*itor++] );
+            {
+                DescriptorSetTexture2Set::iterator itor = mDescriptorSetTextures2.begin();
+                DescriptorSetTexture2Set::iterator end  = mDescriptorSetTextures2.end();
+                while( itor != end )
+                {
+                    //const_cast see HlmsManager::destroyDescriptorSetTexture comments
+                    DescriptorSetTexture2 *descSetPtr = const_cast<DescriptorSetTexture2*>( &(*itor) );
+                    mRenderSystem->_descriptorSetTexture2Destroyed( descSetPtr );
+                    ++itor;
+                }
+            }
+            {
+                DescriptorSetSamplerSet::iterator itor = mDescriptorSetSamplers.begin();
+                DescriptorSetSamplerSet::iterator end  = mDescriptorSetSamplers.end();
+                while( itor != end )
+                {
+                    //const_cast see HlmsManager::destroyDescriptorSetTexture comments
+                    DescriptorSetSampler *descSetPtr = const_cast<DescriptorSetSampler*>( &(*itor) );
+                    mRenderSystem->_descriptorSetSamplerDestroyed( descSetPtr );
+                    ++itor;
+                }
+            }
         }
     }
     //-----------------------------------------------------------------------------------
@@ -564,32 +753,66 @@ namespace Ogre
 
         if( mRenderSystem )
         {
-            BlockIdxVec::const_iterator itor = mActiveBlocks[BLOCK_MACRO].begin();
-            BlockIdxVec::const_iterator end  = mActiveBlocks[BLOCK_MACRO].end();
-            while( itor != end )
             {
-                HlmsMacroblock *block = static_cast<HlmsMacroblock*>( mBlocks[BLOCK_MACRO][*itor] );
-                mRenderSystem->_hlmsMacroblockCreated( block );
-                ++itor;
+                BlockIdxVec::const_iterator itor = mActiveBlocks[BLOCK_MACRO].begin();
+                BlockIdxVec::const_iterator end  = mActiveBlocks[BLOCK_MACRO].end();
+                while( itor != end )
+                {
+                    HlmsMacroblock *block = static_cast<HlmsMacroblock*>( mBlocks[BLOCK_MACRO][*itor] );
+                    mRenderSystem->_hlmsMacroblockCreated( block );
+                    ++itor;
+                }
+
+                itor = mActiveBlocks[BLOCK_BLEND].begin();
+                end  = mActiveBlocks[BLOCK_BLEND].end();
+                while( itor != end )
+                {
+                    HlmsBlendblock *block = static_cast<HlmsBlendblock*>( mBlocks[BLOCK_BLEND][*itor] );
+                    mRenderSystem->_hlmsBlendblockCreated( block );
+                    ++itor;
+                }
+
+
+                itor = mActiveBlocks[BLOCK_SAMPLER].begin();
+                end  = mActiveBlocks[BLOCK_SAMPLER].end();
+                while( itor != end )
+                    mRenderSystem->_hlmsSamplerblockCreated( &mSamplerblocks[*itor++] );
             }
 
-            itor = mActiveBlocks[BLOCK_BLEND].begin();
-            end  = mActiveBlocks[BLOCK_BLEND].end();
-            while( itor != end )
             {
-                HlmsBlendblock *block = static_cast<HlmsBlendblock*>( mBlocks[BLOCK_BLEND][*itor] );
-                mRenderSystem->_hlmsBlendblockCreated( block );
-                ++itor;
+                DescriptorSetTextureSet::iterator itor = mDescriptorSetTextures.begin();
+                DescriptorSetTextureSet::iterator end  = mDescriptorSetTextures.end();
+                while( itor != end )
+                {
+                    //const_cast see HlmsManager::destroyDescriptorSetTexture comments
+                    DescriptorSetTexture *descSetPtr = const_cast<DescriptorSetTexture*>( &(*itor) );
+                    mRenderSystem->_descriptorSetTextureCreated( descSetPtr );
+                    ++itor;
+                }
             }
-
-
-            itor = mActiveBlocks[BLOCK_SAMPLER].begin();
-            end  = mActiveBlocks[BLOCK_SAMPLER].end();
-            while( itor != end )
-                mRenderSystem->_hlmsSamplerblockCreated( &mSamplerblocks[*itor++] );
+            {
+                DescriptorSetTexture2Set::iterator itor = mDescriptorSetTextures2.begin();
+                DescriptorSetTexture2Set::iterator end  = mDescriptorSetTextures2.end();
+                while( itor != end )
+                {
+                    //const_cast see HlmsManager::destroyDescriptorSetTexture comments
+                    DescriptorSetTexture2 *descSetPtr = const_cast<DescriptorSetTexture2*>( &(*itor) );
+                    mRenderSystem->_descriptorSetTexture2Created( descSetPtr );
+                    ++itor;
+                }
+            }
+            {
+                DescriptorSetSamplerSet::iterator itor = mDescriptorSetSamplers.begin();
+                DescriptorSetSamplerSet::iterator end  = mDescriptorSetSamplers.end();
+                while( itor != end )
+                {
+                    //const_cast see HlmsManager::destroyDescriptorSetSampler comments
+                    DescriptorSetSampler *descSetPtr = const_cast<DescriptorSetSampler*>( &(*itor) );
+                    mRenderSystem->_descriptorSetSamplerCreated( descSetPtr );
+                    ++itor;
+                }
+            }
         }
-
-        mTextureManager->_changeRenderSystem( newRs );
 
         for( size_t i=0; i<HLMS_MAX; ++i )
         {

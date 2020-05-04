@@ -30,7 +30,6 @@ THE SOFTWARE.
 
 #include "OgreForward3D.h"
 #include "OgreSceneManager.h"
-#include "OgreRenderTarget.h"
 #include "OgreViewport.h"
 #include "OgreCamera.h"
 
@@ -49,7 +48,7 @@ namespace Ogre
                           uint32 numSlices, uint32 lightsPerCell,
                           float minDistance, float maxDistance,
                           SceneManager *sceneManager ) :
-        ForwardPlusBase( sceneManager, false ),
+        ForwardPlusBase( sceneManager, false, false ),
         mWidth( width ),
         mHeight( height ),
         mNumSlices( numSlices ),
@@ -188,12 +187,13 @@ namespace Ogre
         if( !gridBuffers.gridBuffer )
         {
             const size_t p = -((1 - (1 << (mNumSlices << 1))) / 3);
-            gridBuffers.gridBuffer = mVaoManager->createTexBuffer( PF_R16_UINT,
+            gridBuffers.gridBuffer = mVaoManager->createTexBuffer( PFG_R16_UINT,
                                                                    p * mTableSize * sizeof(uint16),
                                                                    BT_DYNAMIC_PERSISTENT, 0, false );
         }
 
-        const size_t bufferBytesNeeded = calculateBytesNeeded( std::max<size_t>( numLights, 96u ), 0u );
+        const size_t bufferBytesNeeded = calculateBytesNeeded( std::max<size_t>( numLights, 96u ),
+                                                               0u, 0u );
 
         if( !gridBuffers.globalLightListBuffer ||
             gridBuffers.globalLightListBuffer->getNumElements() < bufferBytesNeeded )
@@ -206,7 +206,7 @@ namespace Ogre
             }
 
             gridBuffers.globalLightListBuffer = mVaoManager->createTexBuffer(
-                                                                    PF_FLOAT32_RGBA,
+                                                                    PFG_RGBA32_FLOAT,
                                                                     bufferBytesNeeded,
                                                                     BT_DYNAMIC_PERSISTENT, 0, false );
         }
@@ -417,8 +417,8 @@ namespace Ogre
         return (2 + mNumSlices) * 4 * 4;
     }
     //-----------------------------------------------------------------------------------
-    void Forward3D::fillConstBufferData( Viewport *viewport, RenderTarget* renderTarget,
-                                         IdString shaderSyntax,
+    void Forward3D::fillConstBufferData( Viewport *viewport, TextureGpu *renderTarget,
+                                         IdString shaderSyntax, bool instancedStereo,
                                          float * RESTRICT_ALIAS passBufferPtr ) const
     {
         //vec4 f3dData;
@@ -430,17 +430,21 @@ namespace Ogre
 
         const float fLightsPerCell = static_cast<float>( mLightsPerCell );
 
-        const float viewportWidth = static_cast<float>( viewport->getActualWidth() );
-        const float viewportHeight = static_cast<float>( viewport->getActualHeight() );
-        const float viewportWidthOffset = static_cast<float>( viewport->getActualLeft() );
-        float viewportHeightOffset = static_cast<float>( viewport->getActualTop() );
+        const float viewportWidth =
+                instancedStereo ? 1.0f : static_cast<float>( viewport->getActualWidth());
+        const float viewportHeight =
+                instancedStereo ? 1.0f : static_cast<float>( viewport->getActualHeight() );
+        const float viewportWidthOffset =
+                instancedStereo ? 0.0f : static_cast<float>( viewport->getActualLeft() );
+        float viewportHeightOffset =
+                instancedStereo ? 0.0f : static_cast<float>( viewport->getActualTop() );
 
         //The way ogre represents viewports is top = 0 bottom = 1. As a result if 'texture flipping'
         //is required then all is ok. However if it is not required then viewport offsets are
         //actually represented from the bottom up.
         //As a result we need convert our viewport height offsets to work bottom up instead of top down;
         //This is compounded by OpenGL standard being different to DirectX and Metal
-        if( !renderTarget->requiresTextureFlipping() && shaderSyntax == "glsl" )
+        if( !renderTarget->requiresTextureFlipping() && shaderSyntax == "glsl" && !instancedStereo )
         {
             viewportHeightOffset =
                     static_cast<float>( (1.0 - (viewport->getTop() + viewport->getHeight())) *

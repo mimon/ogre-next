@@ -1,19 +1,18 @@
 
 #include "Terra/TerraShadowMapper.h"
 
-#include "OgreTextureManager.h"
-#include "OgreHardwarePixelBuffer.h"
+#include "OgreTextureGpuManager.h"
 
 #include "OgreSceneManager.h"
 #include "Compositor/OgreCompositorManager2.h"
 #include "Compositor/OgreCompositorWorkspace.h"
 #include "Compositor/OgreCompositorChannel.h"
-#include "OgreRenderTexture.h"
 
 #include "OgreHlmsManager.h"
 #include "OgreHlmsCompute.h"
 #include "OgreHlmsComputeJob.h"
 #include "Vao/OgreConstBufferPacked.h"
+#include "Vao/OgreVaoManager.h"
 #include "OgreRoot.h"
 
 #include "OgreLwString.h"
@@ -24,6 +23,7 @@ namespace Ogre
         m_shadowStarts( 0 ),
         m_shadowPerGroupData( 0 ),
         m_shadowWorkspace( 0 ),
+        m_shadowMapTex( 0 ),
         m_shadowJob( 0 ),
         m_jobParamDelta( 0 ),
         m_jobParamXYStep( 0 ),
@@ -39,7 +39,7 @@ namespace Ogre
         destroyShadowMap();
     }
     //-----------------------------------------------------------------------------------
-    void ShadowMapper::createShadowMap( IdType id, TexturePtr &heightMapTex )
+    void ShadowMapper::createShadowMap( IdType id, TextureGpu *heightMapTex )
     {
         destroyShadowMap();
 
@@ -63,15 +63,19 @@ namespace Ogre
         m_shadowJob = hlmsCompute->findComputeJob( "Terra/ShadowGenerator" );
 
         //TODO: Mipmaps
-        m_shadowMapTex = TextureManager::getSingleton().createManual(
-                    "ShadowMap" + StringConverter::toString( id ),
-                    Ogre::ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME,
-                    TEX_TYPE_2D, m_heightMapTex->getWidth(), m_heightMapTex->getHeight(), 0,
-                    PF_A2B10G10R10, TU_RENDERTARGET | TU_UAV );
+        TextureGpuManager *textureManager =
+                m_sceneManager->getDestinationRenderSystem()->getTextureGpuManager();
+        m_shadowMapTex = textureManager->createTexture(
+                             "ShadowMap" + StringConverter::toString( id ),
+                             GpuPageOutStrategy::SaveToSystemRam,
+                             TextureFlags::Uav,
+                             TextureTypes::Type2D );
+        m_shadowMapTex->setResolution( m_heightMapTex->getWidth(), m_heightMapTex->getHeight() );
+        m_shadowMapTex->setPixelFormat( PFG_R10G10B10A2_UNORM );
+        m_shadowMapTex->scheduleTransitionTo( GpuResidency::Resident );
 
         CompositorChannelVec finalTarget( 1, CompositorChannel() );
-        finalTarget[0].target = m_shadowMapTex->getBuffer(0)->getRenderTarget();
-        finalTarget[0].textures.push_back( m_shadowMapTex );
+        finalTarget[0] = m_shadowMapTex;
         m_shadowWorkspace = m_compositorManager->addWorkspace( m_sceneManager, finalTarget, 0,
                                                                "Terra/ShadowGeneratorWorkspace", false );
 
@@ -86,7 +90,7 @@ namespace Ogre
     //-----------------------------------------------------------------------------------
     void ShadowMapper::destroyShadowMap(void)
     {
-        m_heightMapTex.setNull();
+        m_heightMapTex = 0;
 
         VaoManager *vaoManager = m_sceneManager->getDestinationRenderSystem()->getVaoManager();
 
@@ -112,11 +116,12 @@ namespace Ogre
             m_shadowWorkspace = 0;
         }
 
-        if( !m_shadowMapTex.isNull() )
+        if( m_shadowMapTex )
         {
-            ResourcePtr resPtr = m_shadowMapTex;
-            TextureManager::getSingleton().remove( resPtr );
-            m_shadowMapTex.setNull();
+            TextureGpuManager *textureManager =
+                    m_sceneManager->getDestinationRenderSystem()->getTextureGpuManager();
+            textureManager->destroyTexture( m_shadowMapTex );
+            m_shadowMapTex = 0;
         }
     }
     //-----------------------------------------------------------------------------------
@@ -320,7 +325,9 @@ namespace Ogre
         //Re-Set them every frame (they may have changed if we have multiple Terra instances)
         m_shadowJob->setConstBuffer( 0, m_shadowStarts );
         m_shadowJob->setConstBuffer( 1, m_shadowPerGroupData );
-        m_shadowJob->setTexture( 0, m_heightMapTex );
+        DescriptorSetTexture2::TextureSlot texSlot( DescriptorSetTexture2::TextureSlot::makeEmpty() );
+        texSlot.texture = m_heightMapTex;
+        m_shadowJob->setTexture( 0, texSlot );
 
         m_shadowJob->setNumThreadGroups( totalThreadGroups, 1u, 1u );
 
@@ -330,12 +337,11 @@ namespace Ogre
         m_shadowWorkspace->_update();
     }
     //-----------------------------------------------------------------------------------
-    void ShadowMapper::fillUavDataForCompositorChannel( CompositorChannel &outChannel,
+    void ShadowMapper::fillUavDataForCompositorChannel( TextureGpu **outChannel,
                                                         ResourceLayoutMap &outInitialLayouts,
                                                         ResourceAccessMap &outInitialUavAccess ) const
     {
-        outChannel.target = m_shadowMapTex->getBuffer(0)->getRenderTarget();
-        outChannel.textures.push_back( m_shadowMapTex );
+        *outChannel = m_shadowMapTex;
         outInitialLayouts.insert( m_shadowWorkspace->getResourcesLayout().begin(),
                                   m_shadowWorkspace->getResourcesLayout().end() );
         outInitialUavAccess.insert( m_shadowWorkspace->getUavsAccess().begin(),
@@ -409,6 +415,8 @@ namespace Ogre
             }
         }
 
+        const bool bIsHlsl = job->getCreator()->getShaderProfile() == "hlsl";
+
         //Set the shader constants, 16 at a time (since that's the limit of what ManualParam can hold)
         char tmp[32];
         LwString weightsString( LwString::FromEmptyPointer( tmp, sizeof(tmp) ) );
@@ -416,7 +424,10 @@ namespace Ogre
         for( uint32 i=0; i<kernelRadius + 1u; i += floatsPerParam )
         {
             weightsString.clear();
-            weightsString.a( "c_weights[", i, "]" );
+            if( !bIsHlsl )
+                weightsString.a( "c_weights[", i, "]" );
+            else
+                weightsString.a( "c_weights[", ( i >> 2u ), "]" );
 
             ShaderParams::Param p;
             p.isAutomatic   = false;

@@ -67,9 +67,6 @@ namespace Ogre {
             FilterOptions mMinFilter;
             FilterOptions mMipFilter;
 
-            /// What texture coord set each texture unit is using
-            size_t mTextureCoordIndex[OGRE_MAX_TEXTURE_LAYERS];
-
             /// Holds texture type settings for every stage
             GLenum mTextureTypes[OGRE_MAX_TEXTURE_LAYERS];
 
@@ -295,10 +292,6 @@ namespace Ogre {
             /** See
              RenderSystem
              */
-            void _setTextureCoordSet(size_t stage, size_t index);
-            /** See
-             RenderSystem
-             */
             void _setTextureCoordCalculation(size_t stage, TexCoordCalcMethod m,
                     const Frustum* frustum = 0) { };   // Not supported
             /** See
@@ -365,8 +358,11 @@ namespace Ogre {
             /** See
              RenderSystem
              */
-            void _convertProjectionMatrix(const Matrix4& matrix,
-                    Matrix4& dest, bool forGpuProgram = false);
+            void _setDepthBufferCheckEnabled(bool enabled = true);
+            /** See
+             RenderSystem
+             */
+            void _setDepthBufferWriteEnabled(bool enabled = true);
             /** See
              RenderSystem
              */

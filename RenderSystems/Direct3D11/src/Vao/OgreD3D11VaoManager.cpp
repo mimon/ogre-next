@@ -51,17 +51,39 @@ THE SOFTWARE.
 
 #include "OgreTimer.h"
 #include "OgreStringConverter.h"
+#include "OgreLwString.h"
 #include "OgreLogManager.h"
 #include "OgreProfiler.h"
 
 namespace Ogre
 {
+    static const char *c_vboTypes[3][3] =
+    {
+        {
+            "VERTEX_IMMUTABLE",
+            "VERTEX_DEFAULT",
+            "VERTEX_DYNAMIC",
+        },
+        {
+            "INDEX_IMMUTABLE",
+            "INDEX_DEFAULT",
+            "INDEX_DYNAMIC",
+        },
+        {
+            "SHADER_IMMUTABLE",
+            "SHADER_DEFAULT",
+            "SHADER_DYNAMIC",
+        }
+    };
 
     D3D11VaoManager::D3D11VaoManager( bool _supportsIndirectBuffers, D3D11Device &device,
-                                      D3D11RenderSystem *renderSystem ) :
+                                      D3D11RenderSystem *renderSystem,
+                                      const NameValuePairList *params ) :
+        VaoManager( params ),
         mVaoNames( 1 ),
         mDevice( device ),
         mDrawId( 0 ),
+        mSplicingHelperBuffer( 0 ),
         mD3D11RenderSystem( renderSystem )
     {
         mDefaultPoolSize[VERTEX_BUFFER][BT_IMMUTABLE]   = 64 * 1024 * 1024;
@@ -75,6 +97,24 @@ namespace Ogre
         mDefaultPoolSize[VERTEX_BUFFER][BT_DYNAMIC_DEFAULT] = 16 * 1024 * 1024;
         mDefaultPoolSize[INDEX_BUFFER][BT_DYNAMIC_DEFAULT]  = 16 * 1024 * 1024;
         mDefaultPoolSize[SHADER_BUFFER][BT_DYNAMIC_DEFAULT] = 16 * 1024 * 1024;
+
+        if( params )
+        {
+            for( size_t i=0; i<NumInternalBufferTypes; ++i )
+            {
+                for( size_t j=BT_IMMUTABLE; j<=BT_DYNAMIC_DEFAULT; ++j )
+                {
+                    NameValuePairList::const_iterator itor =
+                            params->find( String( "VaoManager::" ) + c_vboTypes[i][j] );
+                    if( itor != params->end() )
+                    {
+                        mDefaultPoolSize[i][j] =
+                                StringConverter::parseUnsignedLong( itor->second,
+                                                                    mDefaultPoolSize[i][j] );
+                    }
+                }
+            }
+        }
 
         mFrameSyncVec.resize( mDynamicBufferMultiplier, 0 );
 
@@ -92,13 +132,19 @@ namespace Ogre
         mSupportsPersistentMapping  = false;
         mSupportsIndirectBuffers    = _supportsIndirectBuffers;
 
+        //4096u is a sensible default because most Hlms implementations need 16 bytes per
+        //instance in a const buffer. HlmsBufferManager::mapNextConstBuffer purposedly clamps
+        //its const buffers to 64kb, so that 64kb / 16 = 4096 and thus it can never exceed
+        //4096 instances.
+        //However due to instanced stereo, we need twice that
+        const uint32 maxNumInstances = 4096u * 2u;
         VertexElement2Vec vertexElements;
         vertexElements.push_back( VertexElement2( VET_UINT1, VES_COUNT ) );
-        uint32 *drawIdPtr = static_cast<uint32*>( OGRE_MALLOC_SIMD( 4096 * sizeof(uint32),
+        uint32 *drawIdPtr = static_cast<uint32*>( OGRE_MALLOC_SIMD( maxNumInstances * sizeof(uint32),
                                                                     MEMCATEGORY_GEOMETRY ) );
-        for( uint32 i=0; i<4096; ++i )
+        for( uint32 i=0; i<maxNumInstances; ++i )
             drawIdPtr[i] = i;
-        mDrawId = createVertexBuffer( vertexElements, 4096, BT_IMMUTABLE, drawIdPtr, true );
+        mDrawId = createVertexBuffer( vertexElements, maxNumInstances, BT_IMMUTABLE, drawIdPtr, true );
         createDelayedImmutableBuffers(); //Ensure mDrawId gets allocated before we continue
     }
     //-----------------------------------------------------------------------------------
@@ -114,6 +160,12 @@ namespace Ogre
 
         destroyAllVertexArrayObjects();
         deleteAllBuffers();
+
+        if( mSplicingHelperBuffer )
+        {
+            mSplicingHelperBuffer->Release();
+            mSplicingHelperBuffer = 0;
+        }
 
         for( size_t i=0; i<2; ++i )
         {
@@ -163,6 +215,160 @@ namespace Ogre
             if( *itor )
                 (*itor)->Release();
             ++itor;
+        }
+    }
+    //-----------------------------------------------------------------------------------
+    void D3D11VaoManager::getMemoryStats( const Block &block, uint32 vboIdx0, uint32 vboIdx1,
+                                          size_t poolCapacity, LwString &text,
+                                          MemoryStatsEntryVec &outStats,
+                                          Log *log ) const
+    {
+        if( log )
+        {
+            text.clear();
+            text.a( c_vboTypes[vboIdx0][vboIdx1], ";",
+                    (uint64)block.offset, ";",
+                    (uint64)block.size, ";",
+                    (uint64)poolCapacity );
+            log->logMessage( text.c_str(), LML_CRITICAL );
+        }
+
+        const uint32 vboIdx = (vboIdx0 << 16u) | (vboIdx1 & 0xFFFF);
+        MemoryStatsEntry entry( vboIdx, block.offset, block.size, poolCapacity );
+        outStats.push_back( entry );
+    }
+    //-----------------------------------------------------------------------------------
+    void D3D11VaoManager::getMemoryStats( MemoryStatsEntryVec &outStats, size_t &outCapacityBytes,
+                                          size_t &outFreeBytes, Log *log ) const
+    {
+        size_t capacityBytes = 0;
+        size_t freeBytes = 0;
+        MemoryStatsEntryVec statsVec;
+        statsVec.swap( outStats );
+
+        vector<char>::type tmpBuffer;
+        tmpBuffer.resize( 512 * 1024 ); //512kb per line should be way more than enough
+        LwString text( LwString::FromEmptyPointer( &tmpBuffer[0], tmpBuffer.size() ) );
+
+        if( log )
+            log->logMessage( "Pool Type;Offset;Bytes;Pool Capacity", LML_CRITICAL );
+
+        for( uint32 idx0=0; idx0<NumInternalBufferTypes; ++idx0 )
+        {
+            for( uint32 idx1=0; idx1<BT_DYNAMIC_DEFAULT+1; ++idx1 )
+            {
+                VboVec::const_iterator itor = mVbos[idx0][idx1].begin();
+                VboVec::const_iterator end  = mVbos[idx0][idx1].end();
+
+                while( itor != end )
+                {
+                    const Vbo &vbo = *itor;
+                    capacityBytes += vbo.sizeBytes;
+
+                    Block usedBlock( 0, 0 );
+
+                    BlockVec freeBlocks = vbo.freeBlocks;
+                    while( !freeBlocks.empty() )
+                    {
+                        //Find the free block that comes next
+                        BlockVec::iterator nextBlock;
+                        {
+                            BlockVec::iterator itBlock = freeBlocks.begin();
+                            BlockVec::iterator enBlock = freeBlocks.end();
+
+                            nextBlock = itBlock;
+
+                            while( itBlock != enBlock )
+                            {
+                                if( nextBlock->offset < itBlock->offset )
+                                    nextBlock = itBlock;
+                                ++itBlock;
+                            }
+                        }
+
+                        freeBytes += nextBlock->size;
+                        usedBlock.size = nextBlock->offset;
+
+                        //usedBlock.size could be 0 if:
+                        //  1. All of memory is free
+                        //  2. There's two contiguous free blocks, which should not happen
+                        //     due to mergeContiguousBlocks
+                        if( usedBlock.size > 0u )
+                            getMemoryStats( usedBlock, idx0, idx1, vbo.sizeBytes, text, statsVec, log );
+
+                        usedBlock.offset += usedBlock.size;
+                        usedBlock.size = 0;
+                        efficientVectorRemove( freeBlocks, nextBlock );
+                    }
+
+                    if( usedBlock.size > 0u || (usedBlock.offset == 0 && usedBlock.size == 0) )
+                        getMemoryStats( usedBlock, idx0, idx1, vbo.sizeBytes, text, statsVec, log );
+
+                    ++itor;
+                }
+            }
+        }
+
+        outCapacityBytes = capacityBytes;
+        outFreeBytes = freeBytes;
+        statsVec.swap( outStats );
+    }
+    //-----------------------------------------------------------------------------------
+    void D3D11VaoManager::switchVboPoolIndexImpl( size_t oldPoolIdx, size_t newPoolIdx,
+                                                  BufferPacked *buffer )
+    {
+        const BufferPackedTypes bufferPackedType = buffer->getBufferPackedType();
+        if( (mSupportsIndirectBuffers || bufferPackedType != BP_TYPE_INDIRECT) &&
+            (mD3D11RenderSystem->_getFeatureLevel() > D3D_FEATURE_LEVEL_11_0 ||
+             bufferPackedType != BP_TYPE_TEX) &&
+            bufferPackedType != BP_TYPE_CONST &&
+            bufferPackedType != BP_TYPE_UAV )
+        {
+            OGRE_ASSERT_HIGH( dynamic_cast<D3D11BufferInterface*>( buffer->getBufferInterface() ) );
+            D3D11BufferInterface *bufferInterface = static_cast<D3D11BufferInterface*>(
+                                                        buffer->getBufferInterface() );
+            if( bufferInterface->_getInitialData() == 0 )
+            {
+                if( bufferInterface->getVboPoolIndex() == oldPoolIdx )
+                    bufferInterface->_setVboPoolIndex( newPoolIdx );
+            }
+        }
+    }
+    //-----------------------------------------------------------------------------------
+    void D3D11VaoManager::cleanupEmptyPools(void)
+    {
+        for( uint32 idx0=0; idx0<NumInternalBufferTypes; ++idx0 )
+        {
+            for( uint32 idx1=0; idx1<BT_DYNAMIC_DEFAULT+1; ++idx1 )
+            {
+                VboVec::iterator itor = mVbos[idx0][idx1].begin();
+                VboVec::iterator end  = mVbos[idx0][idx1].end();
+
+                while( itor != end )
+                {
+                    Vbo &vbo = *itor;
+                    if( vbo.freeBlocks.size() == 1u &&
+                        vbo.sizeBytes == vbo.freeBlocks.back().size )
+                    {
+                        if( vbo.vboName )
+                            vbo.vboName->Release();
+                        delete vbo.dynamicBuffer;
+                        vbo.dynamicBuffer = 0;
+
+                        //There's (unrelated) live buffers whose vboIdx will now point out of bounds.
+                        //We need to update them so they don't crash deallocateVbo later.
+                        switchVboPoolIndex( (size_t)(mVbos[idx0][idx1].size() - 1u),
+                                            (size_t)(itor - mVbos[idx0][idx1].begin()) );
+
+                        itor = efficientVectorRemove( mVbos[idx0][idx1], itor );
+                        end  = mVbos[idx0][idx1].end();
+                    }
+                    else
+                    {
+                        ++itor;
+                    }
+                }
+            }
         }
     }
     //-----------------------------------------------------------------------------------
@@ -335,6 +541,7 @@ namespace Ogre
             //Immutable buffer is empty. It can't be filled again. Release the GPU memory.
             //The vbo is not removed from mVbos since that would alter the index of other
             //buffers (except if this is the last one).
+            //We can call switchVboPoolIndex, but that has unknown run time
             vbo.vboName->Release();
             vbo.vboName = 0;
 
@@ -524,6 +731,32 @@ namespace Ogre
                 ++itor;
             }
         }
+    }
+    //-----------------------------------------------------------------------------------
+    void D3D11VaoManager::_forceCreateDelayedImmutableBuffers(void)
+    {
+        bool delayedBuffersPending = false;
+        for( size_t i=0; i<NumInternalBufferTypes; ++i )
+        {
+            delayedBuffersPending |= !mDelayedBuffers[i].empty() &&
+                                     mDefaultPoolSize[i][BT_IMMUTABLE] > 0u;
+        }
+
+        if( delayedBuffersPending )
+        {
+            LogManager::getSingleton().logMessage(
+                        "PERFORMANCE WARNING D3D11: Calling createAsyncTicket when there are "
+                        "pending immutable buffers to be created. This will force Ogre to "
+                        "create them immediately; which diminish our ability to batch meshes "
+                        "toghether & could affect performance during rendering.\n"
+                        "You should call createAsyncTicket after all immutable meshes have "
+                        "been loaded to ensure they get batched together. If you're already "
+                        "doing this, you can ignore this warning.\n"
+                        "If you're not going to render (i.e. this is a mesh export tool) "
+                        "you can also ignore this warning." );
+        }
+
+        createDelayedImmutableBuffers();
     }
     //-----------------------------------------------------------------------------------
     void D3D11VaoManager::createDelayedImmutableBuffers(void)
@@ -871,7 +1104,7 @@ namespace Ogre
         bufferInterface->getVboName()->Release();
     }
     //-----------------------------------------------------------------------------------
-    TexBufferPacked* D3D11VaoManager::createTexBufferImpl( PixelFormat pixelFormat, size_t sizeBytes,
+    TexBufferPacked* D3D11VaoManager::createTexBufferImpl( PixelFormatGpu pixelFormat, size_t sizeBytes,
                                                            BufferType bufferType,
                                                            void *initialData, bool keepAsShadow )
     {
@@ -925,7 +1158,8 @@ namespace Ogre
                                                         bufferOffset, numElements, bytesPerElement,
                                                         (sizeBytes - requestedSize) / bytesPerElement,
                                                         bufferType, initialData, keepAsShadow,
-                                                        this, bufferInterface, pixelFormat, mDevice );
+                                                        this, bufferInterface,
+                                                        pixelFormat, false, mDevice );
 
         if( mD3D11RenderSystem->_getFeatureLevel() > D3D_FEATURE_LEVEL_11_0 )
         {
@@ -1381,27 +1615,7 @@ namespace Ogre
                                                        size_t elementStart, size_t elementCount )
     {
         if( creator->getBufferType() == BT_IMMUTABLE )
-        {
-            bool delayedBuffersPending = false;
-            for( size_t i=0; i<NumInternalBufferTypes; ++i )
-                delayedBuffersPending |= !mDelayedBuffers[i].empty();
-
-            if( delayedBuffersPending )
-            {
-                LogManager::getSingleton().logMessage(
-                            "PERFORMANCE WARNING D3D11: Calling createAsyncTicket when there are "
-                            "pending immutable buffers to be created. This will force Ogre to "
-                            "create them immediately; which diminish our ability to batch meshes "
-                            "toghether & could affect performance during rendering.\n"
-                            "You should call createAsyncTicket after all immutable meshes have "
-                            "been loaded to ensure they get batched together. If you're already "
-                            "doing this, you can ignore this warning.\n"
-                            "If you're not going to render (i.e. this is a mesh export tool) "
-                            "you can also ignore this warning." );
-            }
-
-            createDelayedImmutableBuffers();
-        }
+            _forceCreateDelayedImmutableBuffers();
 
         return AsyncTicketPtr( OGRE_NEW D3D11AsyncTicket( creator, stagingBuffer,
                                                           elementStart, elementCount,
@@ -1466,6 +1680,8 @@ namespace Ogre
 
         VaoManager::_update();
 
+        waitForTailFrameToFinish();
+
         if( mFrameSyncVec[mDynamicBufferCurrentFrame] )
         {
             mFrameSyncVec[mDynamicBufferCurrentFrame]->Release();
@@ -1474,6 +1690,29 @@ namespace Ogre
 
         mFrameSyncVec[mDynamicBufferCurrentFrame] = createFence();
         mDynamicBufferCurrentFrame = (mDynamicBufferCurrentFrame + 1) % mDynamicBufferMultiplier;
+    }
+    //-----------------------------------------------------------------------------------
+    ID3D11Buffer* D3D11VaoManager::getSplicingHelperBuffer(void)
+    {
+        if( !mSplicingHelperBuffer )
+        {
+            D3D11_BUFFER_DESC desc;
+            ZeroMemory( &desc, sizeof(desc) );
+
+            desc.BindFlags	= 0;
+            desc.ByteWidth	= 2048u;
+            desc.CPUAccessFlags = 0;
+            desc.Usage          = D3D11_USAGE_DEFAULT;
+
+            HRESULT hr = mDevice.get()->CreateBuffer( &desc, 0, &mSplicingHelperBuffer );
+            if( FAILED( hr ) )
+            {
+                OGRE_EXCEPT_EX( Exception::ERR_RENDERINGAPI_ERROR, hr,
+                                "Failed to create helper buffer!",
+                                "D3D11VaoManager::getSplicingHelperBuffer" );
+            }
+        }
+        return mSplicingHelperBuffer;
     }
     //-----------------------------------------------------------------------------------
     ID3D11Query* D3D11VaoManager::createFence( D3D11Device &device )
@@ -1527,6 +1766,23 @@ namespace Ogre
             waitFor( fence );
             fence->Release();
             fence = 0;
+
+            //All of the other per-frame fences are not needed anymore.
+            D3D11SyncVec::iterator itor = mFrameSyncVec.begin();
+            D3D11SyncVec::iterator end  = mFrameSyncVec.end();
+
+            while( itor != end )
+            {
+                if( *itor )
+                {
+                    (*itor)->Release();
+                    *itor = 0;
+                }
+                ++itor;
+            }
+
+            _destroyAllDelayedBuffers();
+            mFrameCount += mDynamicBufferMultiplier;
         }
         else if( mFrameCount - frameCount <= mDynamicBufferMultiplier )
         {
@@ -1562,11 +1818,11 @@ namespace Ogre
     //-----------------------------------------------------------------------------------
     bool D3D11VaoManager::isFrameFinished( uint32 frameCount )
     {
-        bool retVal = true;
+        bool retVal = false;
         if( frameCount == mFrameCount )
         {
             //Full stall
-            //retVal = true;
+            //retVal = false;
         }
         else if( mFrameCount - frameCount <= mDynamicBufferMultiplier )
         {
@@ -1610,13 +1866,13 @@ namespace Ogre
             }
             else
             {
-                retVal = false;
+                retVal = true;
             }
         }
         else
         {
             //No stall
-            retVal = false;
+            retVal = true;
         }
 
         return retVal;
@@ -1641,8 +1897,11 @@ namespace Ogre
                 return fenceName;
             }
 
-            //Give HyperThreading threads a breath on this spinlock.
-            YieldProcessor();
+            if( hr == S_FALSE )
+            {
+                //Give HyperThreading threads a breath on this spinlock.
+                YieldProcessor();
+            }
         } // spin until event is finished
 
         return fenceName;
@@ -1651,5 +1910,28 @@ namespace Ogre
     ID3D11Query* D3D11VaoManager::waitFor( ID3D11Query *fenceName )
     {
         return waitFor( fenceName, mDevice.GetImmediateContext() );
+    }
+    //-----------------------------------------------------------------------------------
+    bool D3D11VaoManager::queryIsDone( ID3D11Query *fenceName, ID3D11DeviceContextN *deviceContext )
+    {
+        HRESULT hr = deviceContext->GetData( fenceName, NULL, 0, 0 );
+
+        if( FAILED( hr ) )
+        {
+            OGRE_EXCEPT( Exception::ERR_RENDERINGAPI_ERROR,
+                         "Failure while waiting for a D3D11 Fence. Could be out of GPU memory. "
+                         "Update your video card drivers. If that doesn't help, "
+                         "contact the developers.",
+                         "D3D11VaoManager::queryFor" );
+
+            return true;
+        }
+
+        return hr != S_FALSE;
+    }
+    //-----------------------------------------------------------------------------------
+    bool D3D11VaoManager::queryIsDone( ID3D11Query *fenceName )
+    {
+        return queryIsDone( fenceName, mDevice.GetImmediateContext() );
     }
 }

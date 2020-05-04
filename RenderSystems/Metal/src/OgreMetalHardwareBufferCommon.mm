@@ -30,6 +30,7 @@ THE SOFTWARE.
 #include "OgreMetalDevice.h"
 #include "OgreMetalDiscardBufferManager.h"
 #include "Vao/OgreMetalStagingBuffer.h"
+#include "OgreStringConverter.h"
 
 #import <Metal/MTLDevice.h>
 #import <Metal/MTLBlitCommandEncoder.h>
@@ -68,8 +69,16 @@ namespace v1
 
         if( !(usage & HardwareBuffer::HBU_DISCARDABLE) )
         {
-            mBuffer = [mDevice->mDevice newBufferWithLength:alignToNextMultiple( sizeBytes, 4u )
+            const size_t sizeBytesAligned = alignToNextMultiple( sizeBytes, 4u );
+            mBuffer = [mDevice->mDevice newBufferWithLength:sizeBytesAligned
                                                     options:resourceOptions];
+            if( !mBuffer )
+            {
+                OGRE_EXCEPT( Exception::ERR_RENDERINGAPI_ERROR,
+                             "Out of GPU memory or driver refused.\n"
+                             "Requested: " + StringConverter::toString( sizeBytesAligned ) + " bytes.",
+                             "MetalHardwareBufferCommon::MetalHardwareBufferCommon" );
+            }
         }
         else
         {
@@ -180,7 +189,7 @@ namespace v1
                 //If we're here, the buffer was created with HBU_WRITE_ONLY, but not discardable.
                 //Write to a staging buffer to avoid blocking. We don't have to care about
                 //reading access.
-                assert( (options != HardwareBuffer::HBL_NORMAL ||
+                assert( (options != HardwareBuffer::HBL_NORMAL &&
                         options != HardwareBuffer::HBL_READ_ONLY) &&
                         "Reading from a write-only buffer! Create "
                         "the buffer without HBL_WRITE_ONLY bit (or use readData)" );
@@ -248,7 +257,10 @@ namespace v1
         memcpy( pDest, srcData, length );
 
         if( stagingBuffer )
+        {
+            stagingBuffer->unmap( 0, 0 );
             stagingBuffer->removeReferenceCount();
+        }
     }
     //-----------------------------------------------------------------------------------
     void MetalHardwareBufferCommon::writeData( size_t offset, size_t length,

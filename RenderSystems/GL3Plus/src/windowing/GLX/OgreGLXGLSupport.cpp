@@ -36,12 +36,17 @@
 #include "OgreGLXUtils.h"
 #include "OgreGLXWindow.h"
 
+#include "OgreImage2.h"
+#include "OgreTextureBox.h"
+
 #ifndef Status
 #define Status int
 #endif
 
 #include <X11/Xlib.h>
 #include <X11/extensions/Xrandr.h>
+
+#include <sstream>
 
 static bool ctxErrorOccurred = false;
 static int ctxErrorHandler( Display *dpy, XErrorEvent *ev )
@@ -240,7 +245,7 @@ namespace Ogre
         optSRGB.possibleValues.push_back("No");
         optSRGB.possibleValues.push_back("Yes");
 
-        optSRGB.currentValue = optSRGB.possibleValues[0];
+        optSRGB.currentValue = optSRGB.possibleValues[1];
 
 #if OGRE_NO_QUAD_BUFFER_STEREO == 0
 		optStereoMode.name = "Stereo Mode";
@@ -340,9 +345,10 @@ namespace Ogre
     }
 
     //-------------------------------------------------------------------------------------------------//
-    RenderWindow* GLXGLSupport::createWindow(bool autoCreateWindow, GL3PlusRenderSystem* renderSystem, const String& windowTitle)
+    Window* GLXGLSupport::createWindow( bool autoCreateWindow, GL3PlusRenderSystem* renderSystem,
+                                        const String& windowTitle )
     {
-        RenderWindow *window = 0;
+        Window *window = 0;
 
         if (autoCreateWindow)
         {
@@ -387,22 +393,20 @@ namespace Ogre
 			miscParams["stereoMode"] = opt->second.currentValue;			
 #endif
 
-            window = renderSystem->_createRenderWindow(windowTitle, w, h, fullscreen, &miscParams);
+            window = renderSystem->_createRenderWindow( windowTitle, w, h, fullscreen, &miscParams );
         }
 
         return window;
     }
 
     //-------------------------------------------------------------------------------------------------//
-    RenderWindow* GLXGLSupport::newWindow(const String &name, unsigned int width, unsigned int height, bool fullScreen, const NameValuePairList *miscParams)
+    Window* GLXGLSupport::newWindow( const String &name, uint32 width, uint32 height,
+                                     bool fullscreen, const NameValuePairList *miscParams )
     {
-        GLXWindow* window = new GLXWindow(this);
-
-        window->create(name, width, height, fullScreen, miscParams);
-
+        GLXWindow* window = new GLXWindow( name, width, height, fullscreen,
+                                           PFG_UNKNOWN, miscParams, this );
         return window;
     }
-
     //-------------------------------------------------------------------------------------------------//
     void GLXGLSupport::start()
     {
@@ -438,7 +442,7 @@ namespace Ogre
         // This is more realistic than using glXGetClientString:
         extensionsString = glXQueryExtensionsString(mGLDisplay, DefaultScreen(mGLDisplay));
 
-        LogManager::getSingleton().stream() << "Supported GLX extensions: " << extensionsString;
+        *LogManager::getSingleton().stream().raw() << "Supported GLX extensions: " << extensionsString;
 
         StringStream ext;
         String instr;
@@ -683,19 +687,22 @@ namespace Ogre
     //-------------------------------------------------------------------------------------------------//
     bool GLXGLSupport::loadIcon(const String &name, Pixmap *pixmap, Pixmap *bitmap)
     {
-        Image image;
+        Image2 image;
         int width, height;
         char* imageData;
 
-        if (! Ogre::ResourceGroupManager::getSingleton().resourceExists(ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME, name))
+        if( !Ogre::ResourceGroupManager::getSingleton().resourceExists(
+                ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME, name ) )
+        {
             return false;
+        }
 
         try
         {
             // Try to load image
             image.load(name, ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME);
 
-            if(image.getFormat() != PF_A8R8G8B8)
+            if(image.getPixelFormat() != PFG_RGBA8_UNORM)
             {
                 // Image format must be RGBA
                 return false;
@@ -703,7 +710,7 @@ namespace Ogre
 
             width  = image.getWidth();
             height = image.getHeight();
-            imageData = (char*)image.getData();
+            imageData = (char*)image.getData( 0 ).data;
         }
         catch(Exception &e)
         {
@@ -838,7 +845,7 @@ namespace Ogre
         int context_attribs[] =
             {
                 GLX_CONTEXT_MAJOR_VERSION_ARB, 4,
-                GLX_CONTEXT_MINOR_VERSION_ARB, 3,
+                GLX_CONTEXT_MINOR_VERSION_ARB, 5,
                 GLX_CONTEXT_PROFILE_MASK_ARB, GLX_CONTEXT_CORE_PROFILE_BIT_ARB,
 #if OGRE_DEBUG_MODE
                 GLX_CONTEXT_FLAGS_ARB, GLX_CONTEXT_DEBUG_BIT_ARB,
@@ -909,7 +916,7 @@ namespace Ogre
     }
 
     //-------------------------------------------------------------------------------------------------//
-    void GLXGLSupport::switchMode(uint& width, uint& height, short& frequency)
+    void GLXGLSupport::switchMode( uint32 width, uint32 height, short frequency )
     {
         int size = 0;
         int newSize = -1;

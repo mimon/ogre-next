@@ -95,6 +95,11 @@ namespace Ogre
         {
         }
 
+        inline explicit Vector4( const Vector3& rhs, float fW )
+            : x(rhs.x), y(rhs.y), z(rhs.z), w(fW)
+        {
+        }
+
         /** Swizzle-like narrowing operations
         */
         inline Vector3 xyz() const
@@ -412,12 +417,7 @@ namespace Ogre
         }
         /** Function for writing to a stream.
         */
-        inline _OgreExport friend std::ostream& operator <<
-            ( std::ostream& o, const Vector4& v )
-        {
-            o << "Vector4(" << v.x << ", " << v.y << ", " << v.z << ", " << v.w << ")";
-            return o;
-        }
+        _OgreExport friend std::ostream &operator<<( std::ostream &o, const Vector4 &v );
         // special
         static const Vector4 ZERO;
     };

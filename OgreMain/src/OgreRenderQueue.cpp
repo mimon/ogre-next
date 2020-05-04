@@ -40,6 +40,7 @@ THE SOFTWARE.
 #include "OgreHlmsDatablock.h"
 #include "OgreHlmsManager.h"
 #include "OgreHlms.h"
+#include "OgreRoot.h"
 
 #include "Vao/OgreVaoManager.h"
 #include "Vao/OgreVertexArrayObject.h"
@@ -87,12 +88,14 @@ namespace Ogre
         mHlmsManager( hlmsManager ),
         mSceneManager( sceneManager ),
         mVaoManager( vaoManager ),
+        mRoot( Root::getSingletonPtr() ),
         mLastWasCasterPass( false ),
         mLastVaoName( 0 ),
         mLastVertexData( 0 ),
         mLastIndexData( 0 ),
         mLastTextureHash( 0 ),
-        mCommandBuffer( 0 )
+        mCommandBuffer( 0 ),
+        mRenderingStarted( 0u )
     {
         mCommandBuffer = new CommandBuffer();
 
@@ -223,7 +226,7 @@ namespace Ogre
         uint32 hlmsHash = casterPass ? pRend->getHlmsCasterHash() : pRend->getHlmsHash();
         const HlmsDatablock *datablock = pRend->getDatablock();
 
-        bool transparent = datablock->mBlendblock[casterPass]->mIsTransparent;
+        const bool transparent = datablock->mBlendblock[casterPass]->mIsTransparent != 0u;
 
         uint16 macroblock = datablock->mMacroblockHash[casterPass];
         uint16 texturehash= datablock->mTextureHash;
@@ -297,6 +300,24 @@ namespace Ogre
                     QueuedRenderable( hash, pRend, pMovableObject ) );
     }
     //-----------------------------------------------------------------------
+    void RenderQueue::renderPassPrepare( bool casterPass, bool dualParaboloid )
+    {
+        OgreProfileGroup( "Hlms Pass preparation", OGREPROF_RENDERING );
+
+        ++mRenderingStarted;
+        mRoot->_notifyRenderingFrameStarted();
+
+        for( size_t i=0; i<HLMS_MAX; ++i )
+        {
+            Hlms *hlms = mHlmsManager->getHlms( static_cast<HlmsTypes>( i ) );
+            if( hlms )
+            {
+                mPassCache[i] = hlms->preparePassHash( mSceneManager->getCurrentShadowNode(), casterPass,
+                                                       dualParaboloid, mSceneManager );
+            }
+        }
+    }
+    //-----------------------------------------------------------------------
     void RenderQueue::render( RenderSystem *rs, uint8 firstRq, uint8 lastRq,
                               bool casterPass, bool dualParaboloid )
     {
@@ -325,18 +346,6 @@ namespace Ogre
                     numNeededDraws += itor->q.size();
                     ++itor;
                 }
-            }
-        }
-
-        HlmsCache passCache[HLMS_MAX];
-
-        for( size_t i=0; i<HLMS_MAX; ++i )
-        {
-            Hlms *hlms = mHlmsManager->getHlms( static_cast<HlmsTypes>( i ) );
-            if( hlms )
-            {
-                passCache[i] = hlms->preparePassHash( mSceneManager->getCurrentShadowNode(), casterPass,
-                                                      dualParaboloid, mSceneManager );
             }
         }
 
@@ -422,7 +431,7 @@ namespace Ogre
                     rs->_startLegacyV1Rendering();
                     mLastVaoName = 0;
                 }
-                renderES2( rs, casterPass, dualParaboloid, passCache, mRenderQueues[i] );
+                renderES2( rs, casterPass, dualParaboloid, mPassCache, mRenderQueues[i] );
             }
             else if( mRenderQueues[i].mMode == V1_FAST )
             {
@@ -432,11 +441,11 @@ namespace Ogre
                                                                     v1::CbStartV1LegacyRendering();
                     mLastVaoName = 0;
                 }
-                renderGL3V1( casterPass, dualParaboloid, passCache, mRenderQueues[i] );
+                renderGL3V1( casterPass, dualParaboloid, mPassCache, mRenderQueues[i] );
             }
             else if( numNeededDraws > 0 /*&& mRenderQueues[i].mMode == FAST*/ )
             {
-                indirectDraw = renderGL3( casterPass, dualParaboloid, passCache, mRenderQueues[i],
+                indirectDraw = renderGL3( casterPass, dualParaboloid, mPassCache, mRenderQueues[i],
                                           indirectBuffer, indirectDraw, startIndirectDraw );
             }
         }
@@ -464,6 +473,8 @@ namespace Ogre
             if( hlms )
                 hlms->postCommandBufferExecution( mCommandBuffer );
         }
+
+        --mRenderingStarted;
 
         OgreProfileGpuEnd( "Command Execution" );
         OgreProfileEndGroup( "Command Execution", OGREPROF_RENDERING );
@@ -549,7 +560,10 @@ namespace Ogre
         else if( mVaoManager->supportsBaseInstance() )
             baseInstanceAndIndirectBuffers = 1;
 
-        uint32 instanceCount = 1;
+        const bool isUsingInstancedStereo = mSceneManager->isUsingInstancedStereo();
+        const uint32 instancesPerDraw = isUsingInstancedStereo ? 2u : 1u;
+        const uint32 baseInstanceShift = isUsingInstancedStereo ? 1u : 0u;
+        uint32 instanceCount = instancesPerDraw;
 
         CbDrawCall *drawCmd = 0;
         CbSharedDraw    *drawCountPtr = 0;
@@ -634,13 +648,13 @@ namespace Ogre
 
                     drawCountPtr = drawIndexedPtr;
                     drawIndexedPtr->primCount       = vao->mPrimCount;
-                    drawIndexedPtr->instanceCount   = 1;
+                    drawIndexedPtr->instanceCount   = instancesPerDraw;
                     drawIndexedPtr->firstVertexIndex= vao->mIndexBuffer->_getFinalBufferStart() +
                                                                                     vao->mPrimStart;
                     drawIndexedPtr->baseVertex      = vao->mBaseVertexBuffer->_getFinalBufferStart();
-                    drawIndexedPtr->baseInstance    = baseInstance;
+                    drawIndexedPtr->baseInstance    = baseInstance << baseInstanceShift;
 
-                    instanceCount = 1;
+                    instanceCount = instancesPerDraw;
                 }
                 else
                 {
@@ -649,12 +663,12 @@ namespace Ogre
 
                     drawCountPtr = drawStripPtr;
                     drawStripPtr->primCount         = vao->mPrimCount;
-                    drawStripPtr->instanceCount     = 1;
+                    drawStripPtr->instanceCount     = instancesPerDraw;
                     drawStripPtr->firstVertexIndex  = vao->mBaseVertexBuffer->_getFinalBufferStart() +
                                                                                         vao->mPrimStart;
-                    drawStripPtr->baseInstance      = baseInstance;
+                    drawStripPtr->baseInstance      = baseInstance << baseInstanceShift;
 
-                    instanceCount = 1;
+                    instanceCount = instancesPerDraw;
                 }
 
                 lastVao = vao;
@@ -663,7 +677,8 @@ namespace Ogre
             {
                 //Same mesh. Just go with instancing. Keep the counter in
                 //an external variable, as the region can be write-combined
-                drawCountPtr->instanceCount = ++instanceCount;
+                instanceCount += instancesPerDraw;
+                drawCountPtr->instanceCount = instanceCount;
             }
 
             ++itor;
@@ -687,7 +702,11 @@ namespace Ogre
 
         const bool supportsBaseInstance = mVaoManager->supportsBaseInstance();
 
-        uint32 instanceCount = 1;
+        const bool isUsingInstancedStereo = mSceneManager->isUsingInstancedStereo();
+        const uint32 instancesPerDraw = isUsingInstancedStereo ? 2u : 1u;
+        const uint32 baseInstanceShift = isUsingInstancedStereo ? 1u : 0u;
+
+        uint32 instanceCount = instancesPerDraw;
 
         v1::CbDrawCall *drawCmd = 0;
 
@@ -754,11 +773,11 @@ namespace Ogre
                     /*drawCall->useGlobalInstancingVertexBufferIsAvailable =
                             renderOp.useGlobalInstancingVertexBufferIsAvailable;*/
                     drawCall->primCount         = renderOp.indexData->indexCount;
-                    drawCall->instanceCount     = renderOp.numberOfInstances;
+                    drawCall->instanceCount     = instancesPerDraw;
                     drawCall->firstVertexIndex  = renderOp.indexData->indexStart;
-                    drawCall->baseInstance      = baseInstance;
+                    drawCall->baseInstance      = baseInstance << baseInstanceShift;
 
-                    instanceCount = renderOp.numberOfInstances;
+                    instanceCount = instancesPerDraw;
 
                     drawCmd = drawCall;
                 }
@@ -773,9 +792,9 @@ namespace Ogre
                     drawCall->primCount         = renderOp.vertexData->vertexCount;
                     drawCall->instanceCount     = renderOp.numberOfInstances;
                     drawCall->firstVertexIndex  = renderOp.vertexData->vertexStart;
-                    drawCall->baseInstance      = baseInstance;
+                    drawCall->baseInstance      = baseInstance << baseInstanceShift;
 
-                    instanceCount = renderOp.numberOfInstances;
+                    instanceCount = instancesPerDraw;
 
                     drawCmd = drawCall;
                 }
@@ -784,7 +803,8 @@ namespace Ogre
             {
                 //Same mesh. Just go with instancing. Keep the counter in
                 //an external variable, as the region can be write-combined
-                drawCmd->instanceCount = ++instanceCount;
+                instanceCount += instancesPerDraw;
+                drawCmd->instanceCount = instanceCount;
             }
 
             ++itor;
@@ -812,6 +832,9 @@ namespace Ogre
         }
 
         const HlmsDatablock *datablock = pRend->getDatablock();
+
+        ++mRenderingStarted;
+        mRoot->_notifyRenderingFrameStarted();
 
         Hlms *hlms = datablock->getCreator();
         HlmsCache passCache = hlms->preparePassHash( mSceneManager->getCurrentShadowNode(), casterPass,
@@ -846,14 +869,24 @@ namespace Ogre
         rs->_render( op );
 
         mLastVaoName        = 0;
+        --mRenderingStarted;
     }
     //-----------------------------------------------------------------------
     void RenderQueue::frameEnded(void)
     {
+        OGRE_ASSERT_LOW(
+            mRenderingStarted == 0u &&
+            "Called RenderQueue::frameEnded mid-render. This may happen if VaoManager::_update got "
+            "called after RenderQueue::renderPassPrepare but before RenderQueue::render returns. Please "
+            "move that VaoManager::_update call outside, otherwise we cannot guarantee rendering will "
+            "be glitch-free, as the BufferPacked buffers from Hlms may be bound at the wrong offset. "
+            "For more info see https://github.com/OGRECave/ogre-next/issues/33 and "
+            "https://forums.ogre3d.org/viewtopic.php?f=25&t=95092#p545907" );
+
         mFreeIndirectBuffers.insert( mFreeIndirectBuffers.end(),
                                      mUsedIndirectBuffers.begin(),
                                      mUsedIndirectBuffers.end() );
-        mUsedIndirectBuffers.clear();        
+        mUsedIndirectBuffers.clear();
     }
     //-----------------------------------------------------------------------
     void RenderQueue::setRenderQueueMode( uint8 rqId, Modes newMode )

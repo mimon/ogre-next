@@ -109,7 +109,7 @@ namespace Ogre
                 (*itor)->mAssignedSlot  = 0;
                 (*itor)->mAssignedPool  = 0;
                 (*itor)->mGlobalIndex   = -1;
-                (*itor)->mDirty         = false;
+                (*itor)->mDirtyFlags    = DirtyNone;
                 ++itor;
             }
 
@@ -119,41 +119,53 @@ namespace Ogre
     //-----------------------------------------------------------------------------------
     void ConstBufferPool::uploadDirtyDatablocks(void)
     {
-        if( mDirtyUsers.empty() )
-            return;
+        while( !mDirtyUsers.empty() )
+        {
+            //While inside ConstBufferPool::uploadToConstBuffer, the pool user may tag
+            //itself dirty again, in which case we need to loop again. Move users
+            //to a temporary array to avoid iterator invalidation from screwing us.
+            mDirtyUsersTmp.swap( mDirtyUsers );
+            uploadDirtyDatablocksImpl();
+        }
+    }
+    //-----------------------------------------------------------------------------------
+    void ConstBufferPool::uploadDirtyDatablocksImpl(void)
+    {
+        assert( !mDirtyUsersTmp.empty() );
 
         OgreProfileExhaustive( "ConstBufferPool::uploadDirtyDatablocks" );
 
         const size_t materialSizeInGpu = mBytesPerSlot;
         const size_t extraBufferSizeInGpu = mExtraBufferParams.bytesPerSlot;
 
-        std::sort( mDirtyUsers.begin(), mDirtyUsers.end(), OrderConstBufferPoolUserByPoolThenSlot );
+        std::sort( mDirtyUsersTmp.begin(), mDirtyUsersTmp.end(),
+                   OrderConstBufferPoolUserByPoolThenSlot );
 
-        const size_t uploadSize = (materialSizeInGpu + extraBufferSizeInGpu) * mDirtyUsers.size();
+        const size_t uploadSize = (materialSizeInGpu + extraBufferSizeInGpu) * mDirtyUsersTmp.size();
         StagingBuffer *stagingBuffer = _mVaoManager->getStagingBuffer( uploadSize, true );
 
         StagingBuffer::DestinationVec destinations;
         StagingBuffer::DestinationVec extraDestinations;
 
-        destinations.reserve( mDirtyUsers.size() );
-        extraDestinations.reserve( mDirtyUsers.size() );
+        destinations.reserve( mDirtyUsersTmp.size() );
+        extraDestinations.reserve( mDirtyUsersTmp.size() );
 
-        ConstBufferPoolUserVec::const_iterator itor = mDirtyUsers.begin();
-        ConstBufferPoolUserVec::const_iterator end  = mDirtyUsers.end();
+        ConstBufferPoolUserVec::const_iterator itor = mDirtyUsersTmp.begin();
+        ConstBufferPoolUserVec::const_iterator end  = mDirtyUsersTmp.end();
 
         char *bufferStart = reinterpret_cast<char*>( stagingBuffer->map( uploadSize ) );
         char *data      = bufferStart;
-        char *extraData = bufferStart + materialSizeInGpu * mDirtyUsers.size();
+        char *extraData = bufferStart + materialSizeInGpu * mDirtyUsersTmp.size();
 
         while( itor != end )
         {
             const size_t srcOffset = static_cast<size_t>( data - bufferStart );
             const size_t dstOffset = (*itor)->getAssignedSlot() * materialSizeInGpu;
 
-            (*itor)->uploadToConstBuffer( data );
+            uint8 dirtyFlags = (*itor)->mDirtyFlags;
+            (*itor)->mDirtyFlags = DirtyNone;
+            (*itor)->uploadToConstBuffer( data, dirtyFlags );
             data += materialSizeInGpu;
-
-            (*itor)->mDirty = false;
 
             const BufferPool *usersPool = (*itor)->getAssignedPool();
 
@@ -219,13 +231,17 @@ namespace Ogre
         stagingBuffer->unmap( destinations );
         stagingBuffer->removeReferenceCount();
 
-        mDirtyUsers.clear();
+        mDirtyUsersTmp.clear();
     }
     //-----------------------------------------------------------------------------------
     void ConstBufferPool::requestSlot( uint32 hash, ConstBufferPoolUser *user, bool wantsExtraBuffer )
     {
+        uint8 oldDirtyFlags = 0;
         if( user->mAssignedPool )
+        {
+            oldDirtyFlags = user->mDirtyFlags;
             releaseSlot( user );
+        }
 
         BufferPoolVecMap::iterator it = mPools.find( hash );
 
@@ -253,7 +269,7 @@ namespace Ogre
             {
                 if( mExtraBufferParams.useTextureBuffers )
                 {
-                    extraBuffer = _mVaoManager->createTexBuffer( PF_FLOAT32_RGBA,
+                    extraBuffer = _mVaoManager->createTexBuffer( PFG_RGBA32_FLOAT,
                                                                  mExtraBufferParams.bytesPerSlot *
                                                                                     mSlotsPerPool,
                                                                  mExtraBufferParams.bufferType,
@@ -289,14 +305,14 @@ namespace Ogre
 
         pool->freeSlots.pop_back();
 
-        scheduleForUpdate( user );
+        scheduleForUpdate( user, DirtyConstBuffer|oldDirtyFlags );
     }
     //-----------------------------------------------------------------------------------
     void ConstBufferPool::releaseSlot( ConstBufferPoolUser *user )
     {
         BufferPool *pool = user->mAssignedPool;
 
-        if( user->mDirty )
+        if( user->mDirtyFlags != DirtyNone )
         {
             ConstBufferPoolUserVec::iterator it = std::find( mDirtyUsers.begin(),
                                                              mDirtyUsers.end(), user );
@@ -314,7 +330,7 @@ namespace Ogre
         user->mAssignedSlot = 0;
         user->mAssignedPool = 0;
         //user->mPoolOwner    = 0;
-        user->mDirty        = false;
+        user->mDirtyFlags   = DirtyNone;
 
         assert( user->mGlobalIndex < mUsers.size() && user == *(mUsers.begin() + user->mGlobalIndex) &&
                 "mGlobalIndex out of date or argument doesn't belong to this pool manager" );
@@ -326,13 +342,13 @@ namespace Ogre
             (*itor)->mGlobalIndex = itor - mUsers.begin();
     }
     //-----------------------------------------------------------------------------------
-    void ConstBufferPool::scheduleForUpdate( ConstBufferPoolUser *dirtyUser )
+    void ConstBufferPool::scheduleForUpdate( ConstBufferPoolUser *dirtyUser, uint8 dirtyFlags )
     {
-        if( !dirtyUser->mDirty )
-        {
+        assert( dirtyFlags != DirtyNone );
+
+        if( dirtyUser->mDirtyFlags == DirtyNone )
             mDirtyUsers.push_back( dirtyUser );
-            dirtyUser->mDirty = true;
-        }
+        dirtyUser->mDirtyFlags |= dirtyFlags;
     }
     //-----------------------------------------------------------------------------------
     size_t ConstBufferPool::getPoolIndex( ConstBufferPoolUser *user ) const
@@ -467,7 +483,7 @@ namespace Ogre
         mAssignedPool( 0 ),
         //mPoolOwner( 0 ),
         mGlobalIndex( -1 ),
-        mDirty( false )
+        mDirtyFlags( ConstBufferPool::DirtyNone )
     {
     }
 }

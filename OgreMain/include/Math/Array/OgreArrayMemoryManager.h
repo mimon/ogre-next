@@ -30,6 +30,8 @@ THE SOFTWARE.
 
 #include "OgrePrerequisites.h"
 
+#include "ogrestd/vector.h"
+
 #include <stddef.h>
 
 namespace Ogre
@@ -220,6 +222,18 @@ namespace Ogre
             on shutdown)
         */
         void destroy();
+
+        /// Triggers on demand a defragmentation of the pools, so that all slots
+        /// become contiguous in memory.
+        ///
+        /// ArrayMemoryManager::destroySlot already does this when the number
+        /// of fragmented slots reaches mCleanupThreshold
+        void defragment(void);
+
+        /// Defragments memory, then reallocates a smaller pool that tightly fits
+        /// the current number of objects. Useful when you know you won't be creating
+        /// more slots and you need to reclaim memory.
+        void shrinkToFit(void);
 
         /// Returns mUsedMemory. When ARRAY_PACKED_REALS = 4, and 4 objects have been
         /// created but the 2nd one has been deleted, getNumUsedSlotsIncludingFragmented

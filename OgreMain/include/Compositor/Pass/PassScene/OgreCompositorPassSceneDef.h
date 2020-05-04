@@ -88,15 +88,21 @@ namespace Ogre
         IdString                mCullCameraName;
 
         /// Only used if mPrePassMode == PrePassUse
-        IdString        mPrePassTexture;
+        IdStringVec     mPrePassTexture;
         IdString        mPrePassDepthTexture;
         IdString        mPrePassSsrTexture;
+
+        IdString        mDepthTextureNoMsaa;
+        IdString        mRefractionsTexture;
 
         /// This is a depth pre-pass. Note: Implementations may write
         /// to colour too for hybrid deferred & forward rendering.
         /// If you modify this, you probably want to modify
         /// mReadOnlyDepth & mReadOnlyStencil too
         PrePassMode     mPrePassMode;
+        /// Generate Normals for a GBuffer in RTV output 1,
+        /// This flag is ignored mPrePassMode if mPrePassMode != PrePassNone
+        bool            mGenNormalsGBuf;
 
         /// First Render Queue ID to render. Inclusive
         uint8           mFirstRQ;
@@ -124,18 +130,62 @@ namespace Ogre
 
         /** Multiplier to the Lod value. What it means depends on the technique.
             You'll probably want to avoid setting it directly and rather use
-            @LodStrategy::transformBias
+            LodStrategy::transformBias
+
+            @see    LodStrategy::transformBias
         */
         Real            mLodBias;
 
-        /** When true, the frustum culling is skipped in this pass. To cull objects, data from
-            the most recent frustum culling execution are used.
-        */
+        /// When true, will render in instanced stereo mode, thus outputting left & right eyes
+        /// at the same time
+        bool            mInstancedStereo;
+
+        /// When true, the frustum culling is skipped in this pass. To cull objects, data from
+        /// the most recent frustum culling execution are used.
         bool            mReuseCullData;
 
-        /** The material scheme used for this pass. If no material scheme is set then
-            it will use the default scheme
-        */
+        /// Same as CompositorPassDef::mFlushCommandBuffers, but executed after the shadow node
+        /// Note you may end up flushing twice if the shadow node also has flushing of its own
+        ///
+        /// Does not do anything if mShadowNodeRecalculation is set to SHADOW_NODE_REUSE
+        /// (whether explicitly or automatically determined)
+        bool            mFlushCommandBuffersAfterShadowNode;
+
+        /// Used for baking lightmaps and similar stuff.
+        /// When set to 0xFF it is disabled.
+        /// Otherwise, the selected UV set will be used to bake the texture with the render results.
+        /// If the mesh doesn't have such UV, then the max UV will be used.
+        /// If the mesh doesn't have UVs, it is up to the Hlms implementation
+        /// what to do (probably raise an exception)
+        uint8           mUvBakingSet;
+
+        /// When mUvBakingSet is set, tells whether we should bake the whole render
+        /// result or just the lighting intensity, in order to create a lightmap.
+        ///
+        /// Typically, when baking with this setting, it's because you're going
+        /// to use this texture with HlmsPbsDatablock as an emissive map and calling
+        /// HlmsPbsDatablock::setUseEmissiveAsLightmap with true.
+        bool            mBakeLightingOnly;
+
+        /// When mUvBakingSet is enabled, this defines the UV offset (in pixels).
+        /// Without conservative rasterization, the baking won't render on pixels that
+        /// are being partially touched by the triangle.
+        ///
+        /// This causes severe artifacts when the baked result is used
+        /// (background colour of the texture leaks into the triangle).
+        ///
+        /// Without conservative rasterization, a sound solution is to render multiple times
+        /// with pixel (or subpixel) offsets in order to add some padding around the borders
+        /// of each triangle in the lightmap.
+        ///
+        /// MSAA can also be used instead, but certain types of baking (e.g. GBuffer baking)
+        /// don't work well because the MSAA sample locations are not in the center.
+        ///
+        /// See https://ndotl.wordpress.com/2018/08/29/baking-artifact-free-lightmaps/
+        Vector2         mUvBakingOffset;
+
+        /// The material scheme used for this pass. If no material scheme is set then
+        /// it will use the default scheme
         String          mMaterialScheme;
 
         CompositorPassSceneDef( CompositorTargetDef *parentTargetDef ) :
@@ -144,13 +194,19 @@ namespace Ogre
             mLightVisibilityMask( VisibilityFlags::RESERVED_VISIBILITY_FLAGS ),
             mShadowNodeRecalculation( SHADOW_NODE_FIRST_ONLY ),
             mPrePassMode( PrePassNone ),
+            mGenNormalsGBuf( false ),
             mFirstRQ( 0 ),
-            mLastRQ( -1 ),
+            mLastRQ( (uint8)-1 ),
             mEnableForwardPlus( true ),
             mCameraCubemapReorient( false ),
             mUpdateLodLists( true ),
             mLodBias( 1.0f ),
+            mInstancedStereo( false ),
             mReuseCullData( false ),
+            mFlushCommandBuffersAfterShadowNode( false ),
+            mUvBakingSet( 0xFF ),
+            mBakeLightingOnly( false ),
+            mUvBakingOffset( Vector2::ZERO ),
             mMaterialScheme(MaterialManager::DEFAULT_SCHEME_NAME)
         {
             //Change base defaults
@@ -170,13 +226,27 @@ namespace Ogre
             mLightVisibilityMask = visibilityMask & VisibilityFlags::RESERVED_VISIBILITY_FLAGS;
         }
 
-        void setUseDepthPrePass( IdString textureName, IdString depthTextureName, IdString ssrTexture )
+        void setUseDepthPrePass( const IdStringVec &textureName, IdString depthTextureName,
+                                 IdString ssrTexture )
         {
             mPrePassMode = PrePassUse;
             mPrePassTexture = textureName;
+            mExposedTextures.insert( mExposedTextures.end(), textureName.begin(), textureName.end() );
             mPrePassDepthTexture = depthTextureName;
+            mExposedTextures.push_back( depthTextureName );
             mPrePassSsrTexture = ssrTexture;
-            mExposedTextures.push_back( textureName );
+            mExposedTextures.push_back( ssrTexture );
+
+            mReadOnlyDepth = true;
+            mReadOnlyStencil = true;
+        }
+
+        void setUseRefractions( IdString depthTextureName, IdString refractionsTexture )
+        {
+            mDepthTextureNoMsaa = depthTextureName;
+            mExposedTextures.push_back( depthTextureName );
+            mRefractionsTexture = refractionsTexture;
+            mExposedTextures.push_back( refractionsTexture );
 
             mReadOnlyDepth = true;
             mReadOnlyStencil = true;

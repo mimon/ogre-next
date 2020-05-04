@@ -812,23 +812,23 @@ namespace Ogre
 
                 switch (pTex->getTextureType())
                 {
-                case TEX_TYPE_1D:
+                case TextureTypes::Type1D:
                     writeValue("1d");
                     break;
-                case TEX_TYPE_2D:
+                case TextureTypes::Type2D:
                     // nothing, this is the default
                     break;
-                case TEX_TYPE_3D:
+                case TextureTypes::Type3D:
                     writeValue("3d");
                     break;
-                case TEX_TYPE_CUBE_MAP:
+                case TextureTypes::TypeCube:
                     // nothing, deal with this as cubic_texture since it copes with all variants
                     break;
                 default:
                     break;
                 };
 
-                if (pTex->getNumMipmaps() != MIP_DEFAULT)
+                if (pTex->getNumMipmaps() != 1u)
                 {
                     writeValue(StringConverter::toString(pTex->getNumMipmaps()));
                 }
@@ -836,11 +836,6 @@ namespace Ogre
                 if (pTex->getIsAlpha())
                 {
                     writeValue("alpha");
-                }
-
-                if (pTex->getDesiredFormat() != PF_UNKNOWN)
-                {
-                    writeValue(PixelUtil::getFormatName(pTex->getDesiredFormat()));
                 }
             }
 
@@ -861,7 +856,7 @@ namespace Ogre
                     writeValue(quoteWord(pTex->getFrameTextureName(n)));
 
                 //combinedUVW/separateUW
-                if (pTex->getTextureType() == TEX_TYPE_CUBE_MAP)
+                if (pTex->getTextureType() == TextureTypes::TypeCube)
                     writeValue("combinedUVW");
                 else
                     writeValue("separateUV");
@@ -1103,7 +1098,6 @@ namespace Ogre
                 case TextureUnitState::CONTENT_COMPOSITOR:
                     writeValue("compositor");
                     writeValue(quoteWord(pTex->getTextureName()));
-                    writeValue(StringConverter::toString(pTex->getReferencedMRTIndex()));
                     break;
                 };
             }
@@ -1498,9 +1492,9 @@ namespace Ogre
                 constIt.getNext();
 
             // get any auto-link
-            const GpuProgramParameters::AutoConstantEntry* autoEntry = 
+            const GpuProgramParameters_AutoConstantEntry* autoEntry =
                 params->findAutoConstantEntry(paramName);
-            const GpuProgramParameters::AutoConstantEntry* defaultAutoEntry = 0;
+            const GpuProgramParameters_AutoConstantEntry* defaultAutoEntry = 0;
             if (defaultParams)
             {
                 defaultAutoEntry = 
@@ -1536,9 +1530,9 @@ namespace Ogre
                 size_t logicalIndex = i->first;
                 const GpuLogicalIndexUse& logicalUse = i->second;
 
-                const GpuProgramParameters::AutoConstantEntry* autoEntry = 
+                const GpuProgramParameters_AutoConstantEntry* autoEntry =
                     params->findFloatAutoConstantEntry(logicalIndex);
-                const GpuProgramParameters::AutoConstantEntry* defaultAutoEntry = 0;
+                const GpuProgramParameters_AutoConstantEntry* defaultAutoEntry = 0;
                 if (defaultParams)
                 {
                     defaultAutoEntry = defaultParams->findFloatAutoConstantEntry(logicalIndex);
@@ -1564,9 +1558,9 @@ namespace Ogre
                 size_t logicalIndex = i->first;
                 const GpuLogicalIndexUse& logicalUse = i->second;
 
-                const GpuProgramParameters::AutoConstantEntry* autoEntry =
+                const GpuProgramParameters_AutoConstantEntry* autoEntry =
                     params->findDoubleAutoConstantEntry(logicalIndex);
-                const GpuProgramParameters::AutoConstantEntry* defaultAutoEntry = 0;
+                const GpuProgramParameters_AutoConstantEntry* defaultAutoEntry = 0;
                 if (defaultParams)
                 {
                     defaultAutoEntry = defaultParams->findDoubleAutoConstantEntry(logicalIndex);
@@ -1592,9 +1586,9 @@ namespace Ogre
                 size_t logicalIndex = i->first;
                 const GpuLogicalIndexUse& logicalUse = i->second;
 
-                const GpuProgramParameters::AutoConstantEntry* autoEntry = 
+                const GpuProgramParameters_AutoConstantEntry* autoEntry =
                     params->findIntAutoConstantEntry(logicalIndex);
-                const GpuProgramParameters::AutoConstantEntry* defaultAutoEntry = 0;
+                const GpuProgramParameters_AutoConstantEntry* defaultAutoEntry = 0;
                 if (defaultParams)
                 {
                     defaultAutoEntry = defaultParams->findIntAutoConstantEntry(logicalIndex);
@@ -1621,9 +1615,9 @@ namespace Ogre
                 size_t logicalIndex = i->first;
                 const GpuLogicalIndexUse& logicalUse = i->second;
 
-                const GpuProgramParameters::AutoConstantEntry* autoEntry = 
+                const GpuProgramParameters_AutoConstantEntry* autoEntry =
                     params->findUnsignedIntAutoConstantEntry(logicalIndex);
-                const GpuProgramParameters::AutoConstantEntry* defaultAutoEntry = 0;
+                const GpuProgramParameters_AutoConstantEntry* defaultAutoEntry = 0;
                 if (defaultParams)
                 {
                     defaultAutoEntry = defaultParams->findUnsignedIntAutoConstantEntry(logicalIndex);
@@ -1650,9 +1644,9 @@ namespace Ogre
         //         size_t logicalIndex = i->first;
         //         const GpuLogicalIndexUse& logicalUse = i->second;
 
-        //         const GpuProgramParameters::AutoConstantEntry* autoEntry = 
+        //         const GpuProgramParameters_AutoConstantEntry* autoEntry =
         //             params->findBoolAutoConstantEntry(logicalIndex);
-        //         const GpuProgramParameters::AutoConstantEntry* defaultAutoEntry = 0;
+        //         const GpuProgramParameters_AutoConstantEntry* defaultAutoEntry = 0;
         //         if (defaultParams)
         //         {
         //             defaultAutoEntry = defaultParams->findBoolAutoConstantEntry(logicalIndex);
@@ -1671,8 +1665,8 @@ namespace Ogre
     //-----------------------------------------------------------------------
     void MaterialSerializer::writeGpuProgramParameter(
         const String& commandName, const String& identifier, 
-        const GpuProgramParameters::AutoConstantEntry* autoEntry, 
-        const GpuProgramParameters::AutoConstantEntry* defaultAutoEntry, 
+        const GpuProgramParameters_AutoConstantEntry* autoEntry,
+        const GpuProgramParameters_AutoConstantEntry* defaultAutoEntry,
         bool isFloat, bool isDouble, bool isInt, bool isUnsignedInt,
         size_t physicalIndex, size_t physicalSize,
         const GpuProgramParametersSharedPtr& params, GpuProgramParameters* defaultParams,

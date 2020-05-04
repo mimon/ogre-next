@@ -16,8 +16,7 @@ struct PS_INPUT
 
 @property( !hlms_shadowcaster )
 
-@padd( numSamplerStates, num_array_textures, num_textures )
-@pset( samplerStateBind, 2 )
+@pset( samplerStateBind, sampler_unit_slot_start )
 
 @property( diffuse )@piece( MultiplyDiffuseConst )* material.diffuse@end @end
 
@@ -41,7 +40,7 @@ fragment @insertpiece( output_type ) main_metal
 		, texture2d_array<float> textureMapsArray@n [[texture(@value(array_texture_bind@n))]]@end
 	@foreach( num_textures, n )
 		, texture2d<float> textureMaps@n [[texture(@value(texture_bind@n))]]@end
-	@foreach( numSamplerStates, n )
+	@foreach( num_samplers, n )
 		, sampler samplerState@n [[sampler(@counter(samplerStateBind))]]@end
 )
 {

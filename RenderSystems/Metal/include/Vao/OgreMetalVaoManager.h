@@ -34,6 +34,8 @@ THE SOFTWARE.
 
 #import <dispatch/dispatch.h>
 
+@protocol MTLComputePipelineState;
+
 namespace Ogre
 {
     class _OgreMetalExport MetalVaoManager : public VaoManager
@@ -122,12 +124,14 @@ namespace Ogre
             VertexBindingVec    vertexBuffers;
             __unsafe_unretained id<MTLBuffer> indexBufferVbo;
             IndexBufferPacked::IndexType indexType;
-            //uint32              refCount;
+            uint32              refCount;
         };
 
         typedef vector<Vbo>::type VboVec;
         typedef vector<Vao>::type VaoVec;
         typedef map<VertexElement2Vec, Vbo>::type VboMap;
+        typedef vector<dispatch_semaphore_t>::type DispatchSemaphoreVec;
+        typedef vector<uint8>::type DispatchSemaphoreAlreadyWaitedVec;
 
         VboVec  mVbos[MAX_VBO_FLAG];
         size_t  mDefaultPoolSize[MAX_VBO_FLAG];
@@ -135,15 +139,25 @@ namespace Ogre
         VaoVec  mVaos;
         uint32  mVaoNames;
 
+        bool mSemaphoreFlushed;
+        DispatchSemaphoreAlreadyWaitedVec mAlreadyWaitedForSemaphore;
+        DispatchSemaphoreVec mFrameSyncVec;
+
         MetalDevice *mDevice;
 
 #if OGRE_PLATFORM == OGRE_PLATFORM_APPLE_IOS
         ConstBufferPacked   *mDrawId;
 #else
         VertexBufferPacked  *mDrawId;
+
+        id<MTLComputePipelineState> mUnalignedCopyPso;
 #endif
 
         static const uint32 VERTEX_ATTRIBUTE_INDEX[VES_COUNT];
+
+#if OGRE_PLATFORM != OGRE_PLATFORM_APPLE_IOS
+        void createUnalignedCopyShader(void);
+#endif
 
         /** Asks for allocating buffer space in a VBO (Vertex Buffer Object).
             If the VBO doesn't exist, all VBOs are full or can't fit this request,
@@ -211,7 +225,7 @@ namespace Ogre
                                                           void *initialData, bool keepAsShadow );
         virtual void destroyConstBufferImpl( ConstBufferPacked *constBuffer );
 
-        virtual TexBufferPacked* createTexBufferImpl( PixelFormat pixelFormat, size_t sizeBytes,
+        virtual TexBufferPacked* createTexBufferImpl( PixelFormatGpu pixelFormat, size_t sizeBytes,
                                                       BufferType bufferType,
                                                       void *initialData, bool keepAsShadow );
         virtual void destroyTexBufferImpl( TexBufferPacked *texBuffer );
@@ -243,9 +257,22 @@ namespace Ogre
 
         static VboFlag bufferTypeToVboFlag( BufferType bufferType );
 
+        inline void getMemoryStats( const Block &block,
+                                    size_t vboIdx, size_t poolCapacity, LwString &text,
+                                    MemoryStatsEntryVec &outStats, Log *log ) const;
+
+        virtual void switchVboPoolIndexImpl( size_t oldPoolIdx, size_t newPoolIdx,
+                                             BufferPacked *buffer );
+
     public:
-        MetalVaoManager( uint8 dynamicBufferMultiplier, MetalDevice *device );
+        MetalVaoManager( uint8 dynamicBufferMultiplier, MetalDevice *device,
+                         const NameValuePairList *params );
         virtual ~MetalVaoManager();
+
+        virtual void getMemoryStats( MemoryStatsEntryVec &outStats, size_t &outCapacityBytes,
+                                     size_t &outFreeBytes, Log *log ) const;
+
+        virtual void cleanupEmptyPools(void);
 
         /// Binds the Draw ID to the current RenderEncoder. (Assumed to be active!)
         void bindDrawId(void);
@@ -260,7 +287,18 @@ namespace Ogre
         virtual AsyncTicketPtr createAsyncTicket( BufferPacked *creator, StagingBuffer *stagingBuffer,
                                                   size_t elementStart, size_t elementCount );
 
+        MetalDevice* getDevice(void)        { return mDevice; }
+
+#if OGRE_PLATFORM != OGRE_PLATFORM_APPLE_IOS
+        /// In macOS before Catalina (i.e. <= Mojave), MTLBlitCommandEncoder copyFromBuffer
+        /// must be aligned to 4 bytes. When that's not possible, we have to workaround
+        /// this limitation with a compute shader
+        void unalignedCopy( id<MTLBuffer> dstBuffer, size_t dstOffsetBytes,
+                            id<MTLBuffer> srcBuffer, size_t srcOffsetBytes, size_t sizeBytes );
+#endif
+
         virtual void _update(void);
+        void _notifyNewCommandBuffer(void);
         void _notifyDeviceStalled(void);
 
         /// @see VaoManager::waitForTailFrameToFinish

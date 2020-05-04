@@ -46,7 +46,8 @@ namespace Ogre
 
     class _OgreHlmsPbsExport HlmsJsonPbs
     {
-        HlmsManager *mHlmsManager;
+        HlmsManager         *mHlmsManager;
+        TextureGpuManager   *mTextureManager;
         HlmsJsonListener *mListener;
         String mAdditionalExtension;
 
@@ -65,7 +66,7 @@ namespace Ogre
 
         void loadTexture( const rapidjson::Value &json, const HlmsJson::NamedBlocks &blocks,
                           PbsTextureTypes textureType, HlmsPbsDatablock *datablock,
-                          PackedTexture textures[NUM_PBSM_TEXTURE_TYPES] );
+                          const String &resourceGroup );
 
         static void toQuotedStr( HlmsPbsDatablock::Workflows value, String &outString );
         static void toQuotedStr( uint32 value, String &outString );
@@ -92,11 +93,11 @@ namespace Ogre
                           const HlmsPbsDatablock *datablock, String &outString );
 
     public:
-        HlmsJsonPbs( HlmsManager *hlmsManager, HlmsJsonListener *listener,
-                     const String &additionalExtension );
+        HlmsJsonPbs( HlmsManager *hlmsManager, TextureGpuManager *textureManager,
+                     HlmsJsonListener *listener, const String &additionalExtension );
 
         void loadMaterial( const rapidjson::Value &json, const HlmsJson::NamedBlocks &blocks,
-                           HlmsDatablock *datablock );
+                           HlmsDatablock *datablock, const String &resourceGroup );
         void saveMaterial( const HlmsDatablock *datablock, String &outString );
 
         static void collectSamplerblocks( const HlmsDatablock *datablock,

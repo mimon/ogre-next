@@ -7,7 +7,6 @@
 #include "OgreItem.h"
 
 #include "OgreCamera.h"
-#include "OgreRenderWindow.h"
 #include "OgreRoot.h"
 
 #include "OgreHlmsUnlit.h"
@@ -25,10 +24,6 @@ namespace Demo
     //-----------------------------------------------------------------------------------
     void StencilTestGameState::createScene01(void)
     {
-        //We MUST do this so the renderWindowDepthBuffer & rt_renderwindow can share
-        //the same depth buffer.
-        mGraphicsSystem->getRenderWindow()->setPreferDepthTexture( true );
-
         Ogre::SceneManager *sceneManager = mGraphicsSystem->getSceneManager();
 
         //Make sure both RQs 0 & 1 are able to hold Items.

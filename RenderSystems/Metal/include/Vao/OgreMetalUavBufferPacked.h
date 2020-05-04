@@ -41,7 +41,7 @@ namespace Ogre
         MetalDevice *mDevice;
 
     protected:
-        virtual TexBufferPacked* getAsTexBufferImpl( PixelFormat pixelFormat );
+        virtual TexBufferPacked* getAsTexBufferImpl( PixelFormatGpu pixelFormat );
 
     public:
         MetalUavBufferPacked( size_t internalBufStartBytes, size_t numElements, uint32 bytesPerElement,
@@ -57,6 +57,9 @@ namespace Ogre
 //        virtual void bindBufferDS( uint16 slot, size_t offset=0, size_t sizeBytes=0 ) {}
 //        virtual void bindBufferHS( uint16 slot, size_t offset=0, size_t sizeBytes=0 ) {}
         virtual void bindBufferCS( uint16 slot, size_t offset=0, size_t sizeBytes=0 );
+
+        void bindBufferForDescriptor( __unsafe_unretained id <MTLBuffer> *buffers,
+                                      NSUInteger *offsets, size_t offset );
     };
 }
 

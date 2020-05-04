@@ -33,7 +33,7 @@ THE SOFTWARE.
 #include "OgreD3D11Device.h"
 #include "OgreD3D11DeviceResource.h"
 #include "OgreD3D11Driver.h"
-#include "OgreD3D11Mappings.h"
+#include "OgreD3D11RenderPassDescriptor.h"
 #include "OgreD3D11PixelFormatToShaderType.h"
 
 namespace Ogre 
@@ -62,6 +62,8 @@ namespace Ogre
 
         /// Direct3D rendering device
         D3D11Device     mDevice;
+
+        D3D11VendorExtension *mVendorExtension;
         
         // Stored options
         ConfigOptionMap mOptions;
@@ -74,18 +76,20 @@ namespace Ogre
         bool mUseNVPerfHUD;
 		int mSwitchingFullscreenCounter;	// Are we switching from windowed to fullscreen 
 
-        static ID3D11DeviceN* createD3D11Device(D3D11Driver* d3dDriver, D3D_DRIVER_TYPE driverType,
-                         D3D_FEATURE_LEVEL minFL, D3D_FEATURE_LEVEL maxFL, D3D_FEATURE_LEVEL* pFeatureLevel);
+        static void createD3D11Device( D3D11VendorExtension *vendorExtension,
+                                       const String &appName,
+                                       D3D11Driver* d3dDriver, D3D_DRIVER_TYPE driverType,
+                                       D3D_FEATURE_LEVEL minFL, D3D_FEATURE_LEVEL maxFL,
+                                       D3D_FEATURE_LEVEL* pFeatureLevel,
+                                       ID3D11Device **outDevice );
 
         D3D11DriverList* getDirect3DDrivers(bool refreshList = false);
         void refreshD3DSettings(void);
         void refreshFSAAOptions(void);
 
         void freeDevice(void);
-        void createDevice();
-#if OGRE_PLATFORM != OGRE_PLATFORM_WINRT
-            bool isWindows8OrGreater();
-#endif
+        void createDevice( const String &windowTitle );
+
         v1::D3D11HardwareBufferManager* mHardwareBufferManager;
         D3D11GpuProgramManager* mGpuProgramManager;
         D3D11HLSLProgramFactory* mHLSLProgramFactory;
@@ -93,7 +97,7 @@ namespace Ogre
         /// Internal method for populating the capabilities structure
         RenderSystemCapabilities* createRenderSystemCapabilities() const;
         /** See RenderSystem definition */
-        void initialiseFromRenderSystemCapabilities(RenderSystemCapabilities* caps, RenderTarget* primary);
+        void initialiseFromRenderSystemCapabilities(RenderSystemCapabilities* caps, Window* primary);
 
         void convertVertexShaderCaps(RenderSystemCapabilities* rsc) const;
         void convertPixelShaderCaps(RenderSystemCapabilities* rsc) const;
@@ -103,10 +107,6 @@ namespace Ogre
         void convertComputeShaderCaps(RenderSystemCapabilities* rsc) const;
 
         bool checkVertexTextureFormats(void);
-        void detachRenderTargetImpl(const String& name);
-        
-        //TODO: Looks like dead code or useless now
-        bool mReadBackAsTexture;
 
         ID3D11Buffer    *mBoundIndirectBuffer;
         unsigned char   *mSwIndirectBufferPtr;
@@ -117,18 +117,6 @@ namespace Ogre
         uint            mNumberOfViews;
         ID3D11RenderTargetView *mRenderTargetViews[OGRE_MAX_MULTIPLE_RENDER_TARGETS];
         ID3D11DepthStencilView *mDepthStencilView;
-
-        TexturePtr                  mUavTexPtr[64];
-        UavBufferPacked             *mUavBuffers[64];
-        ID3D11UnorderedAccessView   *mUavs[64];
-
-        /// In range [0; 64]; note that a user may use
-        /// mUavs[0] & mUavs[2] leaving mUavs[1] empty.
-        /// and still mMaxUavIndexPlusOne = 3.
-        uint8   mMaxModifiedUavPlusOne;
-        bool    mUavsDirty;
-
-        bool    mMapL8toRGB8;
 
         /// For rendering legacy objects.
         v1::VertexData  *mCurrentVertexBuffer;
@@ -152,34 +140,28 @@ namespace Ogre
         typedef std::map<String, ID3D11ClassInstance*>::iterator ClassInstanceIterator;
         ClassInstanceMap mInstanceMap;
 
-        /// structure holding texture unit settings for every stage
-        struct sD3DTextureStageDesc
-        {
-            /// the type of the texture
-            TextureType type;
-            /// which texCoordIndex to use
-            size_t coordIndex;
-
-            /// texture 
-            ID3D11ShaderResourceView  *pTex;
-            bool used;
-        } mTexStageDesc[OGRE_MAX_TEXTURE_LAYERS];
-
         size_t     mLastTextureUnitState;
 		bool       mSamplerStatesChanged;
 
+        D3D11FrameBufferDescMap mFrameBufferDescMap;
 
 
         /// Primary window, the one used to create the device
-        D3D11RenderWindowBase* mPrimaryWindow;
+        D3D11Window* mPrimaryWindow;
 
-        typedef vector<D3D11RenderWindowBase*>::type SecondaryWindowList;
+        typedef vector<D3D11Window*>::type SecondaryWindowList;
         // List of additional windows after the first (swap chains)
         SecondaryWindowList mSecondaryWindows;
 
         bool mRenderSystemWasInited;
 
         D3D11PixelFormatToShaderType mD3D11PixelFormatToShaderType;
+
+        ID3D11ShaderResourceView *mNullViews[D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT];
+        uint32 mMaxSrvCount[NumShaderTypes];
+        uint32 mMaxComputeShaderSrvCount;
+
+        String mLastWindowTitlePassedToExtensions;
 		
 #if OGRE_NO_QUAD_BUFFER_STEREO == 0
 		D3D11StereoDriverBridge* mStereoDriver;
@@ -193,12 +175,6 @@ namespace Ogre
 
         void setClipPlanesImpl(const PlaneList& clipPlanes);
 
-        /**
-         * With DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL flag render target views are unbound
-         * from us each Present(), and we need the way to reestablish connection.
-         */
-        void _setRenderTargetViews( uint8 viewportRenderTargetFlags );
-
     public:
         // constructor
         D3D11RenderSystem( );
@@ -208,37 +184,44 @@ namespace Ogre
 		
 		
 		int getSwitchingFullscreenCounter() const					{ return mSwitchingFullscreenCounter; }
-		void addToSwitchingFullscreenCounter()					{ mSwitchingFullscreenCounter++; }
+        void addToSwitchingFullscreenCounter()                      { ++mSwitchingFullscreenCounter; }
 		
         void initRenderSystem();
 
-        virtual void initConfigOptions(void);
+        void initConfigOptions(void);
 
         // Overridden RenderSystem functions
         ConfigOptionMap& getConfigOptions(void);
         String validateConfigOptions(void);
-        RenderWindow* _initialise( bool autoCreateWindow, const String& windowTitle = "OGRE Render Window"  );
+        Window* _initialise( bool autoCreateWindow, const String& windowTitle = "OGRE Render Window"  );
         /// @copydoc RenderSystem::_createRenderWindow
-        RenderWindow* _createRenderWindow(const String &name, unsigned int width, unsigned int height, 
-            bool fullScreen, const NameValuePairList *miscParams = 0);
+        Window* _createRenderWindow( const String &name, uint32 width, uint32 height,
+                                     bool fullScreen, const NameValuePairList *miscParams = 0 );
+        void _notifyWindowDestroyed( Window *window );
 
         /// @copydoc RenderSystem::fireDeviceEvent
-        void fireDeviceEvent( D3D11Device* device, const String & name, D3D11RenderWindowBase* sendingWindow = NULL);
+        void fireDeviceEvent( D3D11Device* device, const String & name,
+                              D3D11Window *sendingWindow );
+#if !TODO_OGRE_2_2
+        void fireDeviceEvent( D3D11Device* device, const String & name,
+                              D3D11RenderWindowBase *sendingWindow = NULL ) {}
+#endif
 
-        /// @copydoc RenderSystem::createRenderTexture
-        RenderTexture * createRenderTexture( const String & name, unsigned int width, unsigned int height,
-            TextureType texType = TEX_TYPE_2D, PixelFormat internalFormat = PF_X8R8G8B8, 
-            const NameValuePairList *miscParams = 0 ); 
+        virtual void _setCurrentDeviceFromTexture( TextureGpu *texture ) {}
 
-        /// @copydoc RenderSystem::createMultiRenderTarget
-        virtual MultiRenderTarget * createMultiRenderTarget(const String & name);
+        virtual D3D11FrameBufferDescMap& _getFrameBufferDescMap(void)   { return mFrameBufferDescMap; }
+        virtual RenderPassDescriptor* createRenderPassDescriptor(void);
+        virtual void beginRenderPassDescriptor( RenderPassDescriptor *desc,
+                                                TextureGpu *anyTarget, uint8 mipLevel,
+                                                const Vector4 *viewportSizes,
+                                                const Vector4 *scissors,
+                                                uint32 numViewports,
+                                                bool overlaysEnabled,
+                                                bool warnIfRtvWasFlushed );
+        virtual void endRenderPassDescriptor(void);
 
-        virtual DepthBuffer* _createDepthBufferFor( RenderTarget *renderTarget, bool exactMatchFormat );
-
-        /// Reverts _addManualDepthBuffer actions
-        void _removeManualDepthBuffer(DepthBuffer *depthBuffer);
-        /// @copydoc RenderSystem::detachRenderTarget
-        virtual RenderTarget * detachRenderTarget(const String &name);
+        TextureGpu* createDepthBufferFor( TextureGpu *colourTexture, bool preferDepthTexture,
+                                          PixelFormatGpu depthBufferFormat );
 
         const String& getName(void) const;
 		
@@ -253,7 +236,6 @@ namespace Ogre
         void handleDeviceLost();
         void setShadingType( ShadeOptions so );
         void setLightingEnabled( bool enabled );
-        void destroyRenderTarget(const String& name);
         VertexElementType getColourVertexElementType(void) const;
         virtual void setStencilBufferParams( uint32 refValue, const StencilParams &stencilParams );
         void setNormaliseNormals(bool normalise);
@@ -270,37 +252,25 @@ namespace Ogre
         void _setPointSpritesEnabled(bool enabled);
         void _setPointParameters(Real size, bool attenuationEnabled, 
             Real constant, Real linear, Real quadratic, Real minSize, Real maxSize);
-        void _setTexture(size_t unit, bool enabled, Texture *texPtr);
+        virtual void _setTexture( size_t unit, TextureGpu *texPtr );
+        virtual void _setTextures( uint32 slotStart, const DescriptorSetTexture *set,
+                                   uint32 hazardousTexIdx );
+        virtual void _setTextures( uint32 slotStart, const DescriptorSetTexture2 *set );
+        virtual void _setSamplers( uint32 slotStart, const DescriptorSetSampler *set );
+        virtual void _setTexturesCS( uint32 slotStart, const DescriptorSetTexture *set );
+        virtual void _setTexturesCS( uint32 slotStart, const DescriptorSetTexture2 *set );
+        virtual void _setSamplersCS( uint32 slotStart, const DescriptorSetSampler *set );
+        virtual void _setUavCS( uint32 slotStart, const DescriptorSetUav *set );
         void _setBindingType(TextureUnitState::BindingType bindingType);
-        void _setVertexTexture(size_t unit, const TexturePtr& tex);
-        void _setGeometryTexture(size_t unit, const TexturePtr& tex);
-        void _setTessellationHullTexture(size_t unit, const TexturePtr& tex);
-        void _setTessellationDomainTexture(size_t unit, const TexturePtr& tex);
-        void _disableTextureUnit(size_t texUnit);
-        void _setTextureCoordSet( size_t unit, size_t index );
+        void _setVertexTexture(size_t unit, TextureGpu *tex);
+        void _setGeometryTexture(size_t unit, TextureGpu *tex);
+        void _setTessellationHullTexture(size_t unit, TextureGpu *tex);
+        void _setTessellationDomainTexture(size_t unit, TextureGpu *tex);
         void _setTextureCoordCalculation(size_t unit, TexCoordCalcMethod m, const Frustum* frustum = 0);
         void _setTextureBlendMode( size_t unit, const LayerBlendModeEx& bm );
         void _setTextureMatrix( size_t unit, const Matrix4 &xform );
-        void _setViewport( Viewport *vp );
 
-        virtual void queueBindUAV( uint32 slot, TexturePtr texture,
-                                   ResourceAccess::ResourceAccess access = ResourceAccess::ReadWrite,
-                                   int32 mipmapLevel = 0, int32 textureArrayIndex = 0,
-                                   PixelFormat pixelFormat = PF_UNKNOWN );
-        virtual void queueBindUAV( uint32 slot, UavBufferPacked *buffer,
-                                   ResourceAccess::ResourceAccess access = ResourceAccess::ReadWrite,
-                                   size_t offset = 0, size_t sizeBytes = 0 );
-
-        virtual void clearUAVs(void);
-
-        virtual void flushUAVs(void);
-
-        virtual void _bindTextureUavCS( uint32 slot, Texture *texture,
-                                        ResourceAccess::ResourceAccess access,
-                                        int32 mipmapLevel, int32 textureArrayIndex,
-                                        PixelFormat pixelFormat );
-        virtual void _setTextureCS( uint32 slot, bool enabled, Texture *texPtr );
-        virtual void _setHlmsSamplerblockCS( uint8 texUnit, const HlmsSamplerblock *samplerblock );
+        virtual void flushUAVs(void) {}
 
         virtual void _hlmsPipelineStateObjectCreated( HlmsPso *newPso );
         virtual void _hlmsPipelineStateObjectDestroyed( HlmsPso *pso );
@@ -310,6 +280,12 @@ namespace Ogre
         virtual void _hlmsBlendblockDestroyed( HlmsBlendblock *block );
         virtual void _hlmsSamplerblockCreated( HlmsSamplerblock *newBlock );
         virtual void _hlmsSamplerblockDestroyed( HlmsSamplerblock *block );
+        virtual void _descriptorSetTextureCreated( DescriptorSetTexture *newSet );
+        virtual void _descriptorSetTextureDestroyed( DescriptorSetTexture *set );
+        virtual void _descriptorSetTexture2Created( DescriptorSetTexture2 *newSet );
+        virtual void _descriptorSetTexture2Destroyed( DescriptorSetTexture2 *set );
+        virtual void _descriptorSetUavCreated( DescriptorSetUav *newSet );
+        virtual void _descriptorSetUavDestroyed( DescriptorSetUav *set );
         void _setHlmsMacroblock( const HlmsMacroblock *macroblock );
         void _setHlmsBlendblock( const HlmsBlendblock *blendblock );
         virtual void _setHlmsSamplerblock( uint8 texUnit, const HlmsSamplerblock *samplerblock );
@@ -324,16 +300,6 @@ namespace Ogre
         void _beginFrame(void);
         void _endFrame(void);
         void _setFog( FogMode mode = FOG_NONE, const ColourValue& colour = ColourValue::White, Real expDensity = 1.0, Real linearStart = 0.0, Real linearEnd = 1.0 );
-		void _convertProjectionMatrix(const Matrix4& matrix, Matrix4& dest, bool forGpuProgram = false);
-        virtual Real getRSDepthRange(void) const;
-        void _makeProjectionMatrix(const Radian& fovy, Real aspect, Real nearPlane, Real farPlane, 
-            Matrix4& dest, bool forGpuProgram = false);
-        void _makeProjectionMatrix(Real left, Real right, Real bottom, Real top, Real nearPlane, 
-            Real farPlane, Matrix4& dest, bool forGpuProgram = false);
-        void _makeOrthoMatrix(const Radian& fovy, Real aspect, Real nearPlane, Real farPlane, 
-            Matrix4& dest, bool forGpuProgram = false);
-        void _applyObliqueDepthProjection(Matrix4& matrix, const Plane& plane, bool forGpuProgram);
-        void _renderUsingReadBackAsTexture(unsigned int passNr, Ogre::String variableName,unsigned int StartSlot);
         void _render(const v1::RenderOperation& op);
 
         virtual void _dispatch( const HlmsComputePso &pso );
@@ -356,10 +322,8 @@ namespace Ogre
          */
         void bindGpuProgramPassIterationParameters(GpuProgramType gptype);
 
-        void clearFrameBuffer(unsigned int buffers, 
-            const ColourValue& colour = ColourValue::Black, 
-            Real depth = 1.0f, unsigned short stencil = 0);
-        void discardFrameBuffer( unsigned int buffers );
+        virtual void clearFrameBuffer( RenderPassDescriptor *renderPassDesc,
+                                       TextureGpu *anyTarget, uint8 mipLevel );
         void setClipPlane (ushort index, Real A, Real B, Real C, Real D);
         void enableClipPlane (ushort index, bool enable);
         HardwareOcclusionQuery* createHardwareOcclusionQuery(void);
@@ -372,20 +336,8 @@ namespace Ogre
         void preExtraThreadsStarted();
         void postExtraThreadsStarted();
 
-        void setMapL8toRGB8( bool bMap );
-        bool getMapL8toRGB8(void) const;
-
-        /**
-         * Set current render target to target, enabling its GL context if needed
-         */
-        virtual void _setRenderTarget( RenderTarget *target, uint8 viewportRenderTargetFlags );
-
-        /** Check whether or not filtering is supported for the precise texture format requested
-        with the given usage options.
-        */
-        bool _checkTextureFilteringSupported(TextureType ttype, PixelFormat format, int usage);
-
-        void determineFSAASettings(uint fsaa, const String& fsaaHint, DXGI_FORMAT format, DXGI_SAMPLE_DESC* outFSAASettings);
+        virtual SampleDescription validateSampleDescription( const SampleDescription &sampleDesc,
+                                                             PixelFormatGpu format );
 
         /// @copydoc RenderSystem::getDisplayMonitorCount
         unsigned int getDisplayMonitorCount() const;
@@ -424,7 +376,8 @@ namespace Ogre
         /// @copydoc RenderSystem::getPixelFormatToShaderType
         virtual const PixelFormatToShaderType* getPixelFormatToShaderType(void) const;
 
-        void _clearStateAndFlushCommandBuffer(void);
+        virtual void _clearStateAndFlushCommandBuffer(void);
+        virtual void flushCommands(void);
     };
 }
 #endif

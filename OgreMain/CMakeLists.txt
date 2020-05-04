@@ -54,16 +54,19 @@ add_filtered_std("Compositor/Pass")
 add_filtered_std("Compositor/Pass/PassClear")
 add_filtered_std("Compositor/Pass/PassCompute")
 add_filtered_std("Compositor/Pass/PassDepthCopy")
+add_filtered_std("Compositor/Pass/PassIblSpecular")
 add_filtered_std("Compositor/Pass/PassMipmap")
 add_filtered_std("Compositor/Pass/PassQuad")
 add_filtered_std("Compositor/Pass/PassScene")
 add_filtered_std("Compositor/Pass/PassStencil")
 add_filtered_std("Compositor/Pass/PassUav")
+add_filtered_std("Compute")
 add_filtered_std("debugbreak")
 add_filtered_std("Hash")
 add_filtered_std("Math/Array")
 add_filtered_std("Math/Simple")
 add_filtered_std("Math/Simple/C")
+add_filtered_std("ogrestd")
 add_filtered_std("Vao")
 
 list(APPEND HEADER_FILES ${OGRE_BINARY_DIR}/include/OgreBuildSettings.h
@@ -75,8 +78,8 @@ add_filter_only( "Header Files\\Threading" "${CMAKE_CURRENT_SOURCE_DIR}/include/
 add_filter_only( "Source Files\\Threading" "${CMAKE_CURRENT_SOURCE_DIR}/src/Threading/*.cpp" )
 
 # Remove optional header files
-list(REMOVE_ITEM HEADER_FILES "${CMAKE_CURRENT_SOURCE_DIR}/include/OgreFreeImageCodec.h"
-    "${CMAKE_CURRENT_SOURCE_DIR}/include/OgreDDSCodec.h"
+list(REMOVE_ITEM HEADER_FILES "${CMAKE_CURRENT_SOURCE_DIR}/include/OgreFreeImageCodec2.h"
+	"${CMAKE_CURRENT_SOURCE_DIR}/include/OgreDDSCodec2.h"
     "${CMAKE_CURRENT_SOURCE_DIR}/include/OgrePVRTCCodec.h"
     "${CMAKE_CURRENT_SOURCE_DIR}/include/OgreETCCodec.h"
     "${CMAKE_CURRENT_SOURCE_DIR}/include/OgreZip.h"
@@ -85,8 +88,8 @@ list(REMOVE_ITEM HEADER_FILES "${CMAKE_CURRENT_SOURCE_DIR}/include/OgreFreeImage
 )
 
 # Remove optional source files
-list(REMOVE_ITEM SOURCE_FILES "${CMAKE_CURRENT_SOURCE_DIR}/src/OgreFreeImageCodec.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/OgreDDSCodec.cpp"
+list(REMOVE_ITEM SOURCE_FILES "${CMAKE_CURRENT_SOURCE_DIR}/src/OgreFreeImageCodec2.cpp"
+	"${CMAKE_CURRENT_SOURCE_DIR}/src/OgreDDSCodec2.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/OgrePVRTCCodec.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/OgreETCCodec.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/OgreZip.cpp"
@@ -235,7 +238,7 @@ elseif (UNIX)
   file(GLOB PLATFORM_SOURCE_FILES "${CMAKE_CURRENT_SOURCE_DIR}/src/GLX/*.cpp"
       src/OgreSearchOps.cpp)
 
-  set(PLATFORM_LIBS ${X11_LIBRARIES} ${X11_Xt_LIB} ${XAW_LIBRARY} pthread)
+  set(PLATFORM_LIBS ${X11_LIBRARIES} ${X11_Xt_LIB} ${XAW_LIBRARY} ${X11_Xrandr_LIB} pthread)
   set(PLATFORM_HEADER_INSTALL "GLX")
   # some platforms require explicit linking to libdl, see if it's available
   find_library(DL_LIBRARY NAMES dl dlsym)
@@ -253,6 +256,10 @@ if (NOT WIN32)
   )
 endif()
 
+list( APPEND THREAD_SOURCE_FILES
+	src/Threading/OgreWaitableEvent.cpp
+)
+
 
 # Configure threading files
 set(THREAD_HEADER_FILES
@@ -263,6 +270,7 @@ set(THREAD_HEADER_FILES
 	include/Threading/OgreThreads.h
 	include/Threading/OgreDefaultWorkQueue.h
 	include/Threading/OgreUniformScalableTask.h
+	include/Threading/OgreWaitableEvent.h
 )
 if (OGRE_THREAD_PROVIDER EQUAL 0)
 	list(APPEND THREAD_HEADER_FILES
@@ -328,8 +336,8 @@ if (OGRE_PROFILING_PROVIDER STREQUAL "remotery")
 endif ()
 
 if (OGRE_CONFIG_ENABLE_FREEIMAGE)
-  list(APPEND HEADER_FILES include/OgreFreeImageCodec.h)
-  list(APPEND SOURCE_FILES src/OgreFreeImageCodec.cpp)
+  list(APPEND HEADER_FILES include/OgreFreeImageCodec2.h)
+  list(APPEND SOURCE_FILES src/OgreFreeImageCodec2.cpp)
   list(APPEND LIBRARIES    "${FreeImage_LIBRARIES}")
 endif()
 
@@ -339,8 +347,8 @@ if (OGRE_CONFIG_ENABLE_STBI)
 endif ()
 
 if (OGRE_CONFIG_ENABLE_DDS)
-  list(APPEND HEADER_FILES include/OgreDDSCodec.h)
-  list(APPEND SOURCE_FILES src/OgreDDSCodec.cpp)
+  list(APPEND HEADER_FILES include/OgreDDSCodec2.h)
+  list(APPEND SOURCE_FILES src/OgreDDSCodec2.cpp)
 endif ()
 
 if (OGRE_CONFIG_ENABLE_PVRTC)
@@ -384,7 +392,6 @@ set (TARGET_LINK_FLAGS "")
 if (WINDOWS_STORE OR WINDOWS_PHONE)
 	# exclude OgreTimer.cpp from unity builds; causes problem
 	ogre_add_library(OgreMain ${OGRE_LIB_TYPE} ${PREC_HEADER} ${HEADER_FILES} ${SOURCE_FILES} ${PLATFORM_HEADERS} ${PLATFORM_SOURCE_FILES} ${THREAD_HEADER_FILES} ${THREAD_SOURCE_FILES} SEPARATE "src/WIN32/OgreTimer.cpp")
-	set_target_properties(OgreMain PROPERTIES VS_WINRT_COMPONENT "true")
 else ()
 	# exclude OgreAlignedAllocator.cpp from unity builds; causes problems on Linux
 	ogre_add_library(OgreMain ${OGRE_LIB_TYPE} ${PREC_HEADER} ${HEADER_FILES} ${SOURCE_FILES} ${PLATFORM_HEADERS} ${PLATFORM_SOURCE_FILES} ${THREAD_HEADER_FILES} ${THREAD_SOURCE_FILES} SEPARATE "src/OgreAlignedAllocator.cpp")
@@ -400,7 +407,11 @@ else()
 endif()
 
 if(OGRE_GCC_VERSION VERSION_EQUAL 4.8 OR OGRE_GCC_VERSION VERSION_GREATER 4.8)
-  list(APPEND LIBRARIES "-latomic")
+  if(CMAKE_SYSTEM_NAME STREQUAL "FreeBSD")
+    list(APPEND LIBRARIES "-latomic_ops")
+  else()
+    list(APPEND LIBRARIES "-latomic")
+  endif()
 endif()
 
 if (APPLE)
@@ -478,4 +489,27 @@ install(FILES ${PLATFORM_HEADERS}
 )
 install(FILES ${THREAD_HEADER_FILES}
 	DESTINATION include/OGRE/Threading
+)
+
+set( DEPRECATED_HEADER_FILES
+	include/Deprecated/OgreDDSCodec.h
+	include/Deprecated/OgreDepthBuffer.h
+	include/Deprecated/OgreFreeImageCodec.h
+	include/Deprecated/OgreHardwarePixelBuffer.h
+	include/Deprecated/OgreImageCodec.h
+	include/Deprecated/OgreImage.h
+	include/Deprecated/OgrePixelBox.h
+	include/Deprecated/OgrePixelFormatDescriptions.h
+	include/Deprecated/OgrePixelFormat.h
+	include/Deprecated/OgreRenderTarget.h
+	include/Deprecated/OgreRenderTargetListener.h
+	include/Deprecated/OgreRenderTexture.h
+	include/Deprecated/OgreRenderToVertexBuffer.h
+	include/Deprecated/OgreRenderWindow.h
+	include/Deprecated/OgreTexture.h
+	include/Deprecated/OgreTextureManager.h
+)
+
+install(FILES ${DEPRECATED_HEADER_FILES}
+  DESTINATION include/OGRE/Deprecated
 )

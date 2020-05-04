@@ -54,7 +54,7 @@ THE SOFTWARE.
 #define OGRE_METAL_PARAMETER_SLOT       23u
 #define OGRE_METAL_UAV_SLOT_START       28u
 
-#define OGRE_METAL_CS_PARAMETER_SLOT    8u
+#define OGRE_METAL_CS_PARAMETER_SLOT    7u
 #define OGRE_METAL_CS_CONST_SLOT_START  0u
 #define OGRE_METAL_CS_UAV_SLOT_START    8u
 #define OGRE_METAL_CS_TEX_SLOT_START    16u
@@ -62,7 +62,7 @@ THE SOFTWARE.
 namespace Ogre
 {
     // Forward declarations
-    class MetalDepthBuffer;
+    struct MetalDescriptorSetTexture;
     struct MetalDevice;
     class MetalDiscardBuffer;
     class MetalDiscardBufferManager;
@@ -75,6 +75,11 @@ namespace Ogre
     class MetalRenderSystem;
     class MetalRenderTargetCommon;
     class MetalVaoManager;
+    class MetalWindow;
+
+#ifdef OGRE_DEPRECATED_2_2
+    class MetalDepthBuffer;
+#endif
 
     namespace v1
     {

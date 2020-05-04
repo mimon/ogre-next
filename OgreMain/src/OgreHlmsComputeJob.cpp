@@ -37,13 +37,26 @@ THE SOFTWARE.
 #include "Vao/OgreTexBufferPacked.h"
 #include "Vao/OgreUavBufferPacked.h"
 
-#include "OgreTexture.h"
+#include "OgreTextureGpu.h"
+#include "OgrePixelFormatGpuUtils.h"
 #include "OgreLwString.h"
 
 #include "OgreLogManager.h"
 
 namespace Ogre
 {
+    static const IdString c_textureTypesProps[8] =
+    {
+        "TextureTypes_Unknown",
+        "TextureTypes_Type1D",
+        "TextureTypes_Type1DArray",
+        "TextureTypes_Type2D",
+        "TextureTypes_Type2DArray",
+        "TextureTypes_TypeCube",
+        "TextureTypes_TypeCubeArray",
+        "TextureTypes_Type3D"
+    };
+
     //-----------------------------------------------------------------------------------
     HlmsComputeJob::HlmsComputeJob( IdString name, Hlms *creator,
                                     const String &sourceFilename,
@@ -54,6 +67,9 @@ namespace Ogre
         mIncludedPieceFiles( includedPieceFiles ),
         mThreadGroupsBasedOnTexture( ThreadGroupsBasedOnNothing ),
         mThreadGroupsBasedOnTexSlot( 0 ),
+        mTexturesDescSet( 0 ),
+        mSamplersDescSet( 0 ),
+        mUavsDescSet( 0 ),
         mInformHlmsOfTextureData( false ),
         mMaxTexUnitReached( 0 ),
         mMaxUavUnitReached( 0 ),
@@ -69,36 +85,150 @@ namespace Ogre
     //-----------------------------------------------------------------------------------
     HlmsComputeJob::~HlmsComputeJob()
     {
+        destroyDescriptorSamplers();
+        destroyDescriptorTextures();
+        destroyDescriptorUavs();
+
+        removeListenerFromTextures( mUavSlots, 0, mUavSlots.size() );
+        removeListenerFromTextures( mTexSlots, 0, mTexSlots.size() );
+
         HlmsManager *hlmsManager = mCreator->getHlmsManager();
-        TextureSlotVec::iterator itor = mTextureSlots.begin();
-        TextureSlotVec::iterator end  = mTextureSlots.end();
+        FastArray<const HlmsSamplerblock*>::const_iterator itor = mSamplerSlots.begin();
+        FastArray<const HlmsSamplerblock*>::const_iterator end  = mSamplerSlots.end();
 
         while( itor != end )
         {
-            if( itor->samplerblock )
-            {
-                hlmsManager->destroySamplerblock( itor->samplerblock );
-                itor->samplerblock = 0;
-            }
+            if( *itor )
+                hlmsManager->destroySamplerblock( *itor );
+            ++itor;
+        }
+
+        mSamplerSlots.clear();
+    }
+    //-----------------------------------------------------------------------------------
+    template <typename T>
+    void HlmsComputeJob::removeListenerFromTextures( T &container, size_t first, size_t lastPlusOne )
+    {
+        typename T::const_iterator itor = container.begin() + first;
+        typename T::const_iterator end  = container.begin() + lastPlusOne;
+        while( itor != end )
+        {
+            if( itor->isTexture() && itor->getTexture().texture )
+                itor->getTexture().texture->removeListener( this );
             ++itor;
         }
     }
     //-----------------------------------------------------------------------------------
-    void HlmsComputeJob::updateAutoProperties( const TextureSlotVec &textureSlots,
-                                               uint8 &outMaxTexUnitReached,
-                                               const char *propTexture,
-                                               const IdString &propNumTextureSlots,
-                                               const IdString &propMaxTextureSlot )
+    void HlmsComputeJob::destroyDescriptorSamplers(void)
+    {
+        if( mSamplersDescSet )
+        {
+            HlmsManager *hlmsManager = mCreator->getHlmsManager();
+            hlmsManager->destroyDescriptorSetSampler( mSamplersDescSet );
+            mSamplersDescSet = 0;
+        }
+    }
+    //-----------------------------------------------------------------------------------
+    void HlmsComputeJob::destroyDescriptorTextures(void)
+    {
+        if( mTexturesDescSet )
+        {
+            HlmsManager *hlmsManager = mCreator->getHlmsManager();
+            hlmsManager->destroyDescriptorSetTexture2( mTexturesDescSet );
+            mTexturesDescSet = 0;
+        }
+    }
+    //-----------------------------------------------------------------------------------
+    void HlmsComputeJob::destroyDescriptorUavs(void)
+    {
+        if( mUavsDescSet )
+        {
+            HlmsManager *hlmsManager = mCreator->getHlmsManager();
+            hlmsManager->destroyDescriptorSetUav( mUavsDescSet );
+            mUavsDescSet = 0;
+        }
+    }
+    //-----------------------------------------------------------------------------------
+    void HlmsComputeJob::setTextureProperties( const TextureGpu *texture, PixelFormatGpu pixelFormat,
+                                               ResourceAccess::ResourceAccess access,
+                                               LwString &propName,
+                                               const PixelFormatToShaderType *toShaderType )
+    {
+        if( pixelFormat == PFG_UNKNOWN )
+            pixelFormat = texture->getPixelFormat();
+
+        const size_t texturePropSize = propName.size();
+
+        propName.a( "_width" );                 //texture0_width
+        setProperty( propName.c_str(), texture->getWidth() );
+        propName.resize( texturePropSize );
+
+        propName.a( "_height" );                //texture0_height
+        setProperty( propName.c_str(), texture->getHeight() );
+        propName.resize( texturePropSize );
+
+        propName.a( "_depth" );                 //texture0_depth
+        setProperty( propName.c_str(), texture->getDepthOrSlices() );
+        propName.resize( texturePropSize );
+
+        propName.a( "_mipmaps" );               //texture0_mipmaps
+        setProperty( propName.c_str(), texture->getNumMipmaps() );
+        propName.resize( texturePropSize );
+
+        propName.a( "_msaa" );                  //texture0_msaa
+        setProperty( propName.c_str(), texture->isMultisample() ? 1 : 0 );
+        propName.resize( texturePropSize );
+
+        propName.a( "_msaa_samples" );          //texture0_msaa_samples
+        setProperty( propName.c_str(), texture->getSampleDescription().getColourSamples() );
+        propName.resize( texturePropSize );
+
+        propName.a( "_texture_type" );          //_texture_type
+        setProperty( propName.c_str(),
+                     c_textureTypesProps[texture->getInternalTextureType()].mHash );
+        propName.resize( texturePropSize );
+
+        propName.a( "_pf_type" );               //uav0_pf_type
+        const char *typeName = toShaderType->getPixelFormatType( pixelFormat );
+        if( typeName )
+            setPiece( propName.c_str(), typeName );
+        propName.resize( texturePropSize );
+
+        propName.a( "_orig_pf_srgb" );  // uav0_orig_pf_srgb
+        setProperty( propName.c_str(), PixelFormatGpuUtils::isSRgb( texture->getPixelFormat() ) );
+        propName.resize( texturePropSize );
+
+        propName.a( "_data_type" );             //uav0_data_type
+        const char *dataType = toShaderType->getDataType( pixelFormat,
+                                                          texture->getInternalTextureType(),
+                                                          texture->isMultisample(),
+                                                          access );
+        if( typeName )
+            setPiece( propName.c_str(), dataType );
+        propName.resize( texturePropSize );
+
+        if( PixelFormatGpuUtils::isInteger( pixelFormat ) )
+        {
+            propName.a( "_is_integer" );        //uav0_is_integer
+            setProperty( propName.c_str(), 1 );
+            propName.resize( texturePropSize );
+        }
+        if( PixelFormatGpuUtils::isSigned( pixelFormat ) )
+        {
+            propName.a( "_is_signed" );         //uav0_is_signed
+            setProperty( propName.c_str(), 1 );
+            propName.resize( texturePropSize );
+        }
+    }
+    //-----------------------------------------------------------------------------------
+    void HlmsComputeJob::clearAutoProperties( const char *propTexture, uint8 maxTexUnitReached )
     {
         assert( propTexture == ComputeProperty::Texture || propTexture == ComputeProperty::Uav );
-
         char tmpData[64];
         LwString propName = LwString::FromEmptyPointer( tmpData, sizeof(tmpData) );
-
         propName = propTexture; //It's either ComputeProperty::Texture or ComputeProperty::Uav
-        const size_t texturePropNameSize = propName.size();
 
-        uint8 maxTexUnitReached = outMaxTexUnitReached;
+        const size_t texturePropNameSize = propName.size();
 
         //Remove everything from any previous run.
         for( uint8 i=0; i<maxTexUnitReached; ++i )
@@ -132,23 +262,7 @@ namespace Ogre
             removeProperty( propName.c_str() );
             propName.resize( texturePropSize );
 
-            propName.a( "_is_1d" );                 //texture0_is_1d
-            removeProperty( propName.c_str() );
-            propName.resize( texturePropSize );
-
-            propName.a( "_is_2d" );                 //texture0_is_2d
-            removeProperty( propName.c_str() );
-            propName.resize( texturePropSize );
-
-            propName.a( "_is_3d" );                 //texture0_is_3d
-            removeProperty( propName.c_str() );
-            propName.resize( texturePropSize );
-
-            propName.a( "_is_cubemap" );            //texture0_is_cubemap
-            removeProperty( propName.c_str() );
-            propName.resize( texturePropSize );
-
-            propName.a( "_is_2d_array" );           //texture0_is_2d_array
+            propName.a( "_texture_type" );          //texture0_texture_type
             removeProperty( propName.c_str() );
             propName.resize( texturePropSize );
 
@@ -156,7 +270,7 @@ namespace Ogre
             removeProperty( propName.c_str() );
             propName.resize( texturePropSize );
 
-            propName.a( "_pf_type" );               //uav0_pf_type
+            propName.a( "_pf_type" );           //uav0_pf_type
             removePiece( propName.c_str() );
             propName.resize( texturePropSize );
 
@@ -164,124 +278,40 @@ namespace Ogre
             if( propTexture == ComputeProperty::Uav )
             {
                 propName.a( "_width_with_lod" );    //uav0_width_with_lod
-                removePiece( propName.c_str() );
+                removeProperty( propName.c_str() );
                 propName.resize( texturePropSize );
 
                 propName.a( "_height_with_lod" );   //uav0_height_with_lod
+                removeProperty( propName.c_str() );
+                propName.resize( texturePropSize );
+
+                propName.a( "_is_integer" );        //uav0_is_integer
+                removeProperty( propName.c_str() );
+                propName.resize( texturePropSize );
+
+                propName.a( "_is_signed" );         //uav0_is_signed
+                removeProperty( propName.c_str() );
+                propName.resize( texturePropSize );
+
+                propName.a( "_data_type" );         //uav0_data_type
                 removePiece( propName.c_str() );
                 propName.resize( texturePropSize );
             }
         }
+    }
+    //-----------------------------------------------------------------------------------
+    String HlmsComputeJob::getNameStr(void) const
+    {
+        String retVal;
+        HlmsCompute *compute = static_cast<HlmsCompute*>( mCreator );
+        const String *nameStr = compute->getJobNameStr( mName );
 
-        //Set the new value.
-        maxTexUnitReached = static_cast<uint8>( textureSlots.size() );
+        if( nameStr )
+            retVal = *nameStr;
+        else
+            retVal = mName.getFriendlyText();
 
-        if( mInformHlmsOfTextureData )
-        {
-            setProperty( propNumTextureSlots, static_cast<int32>( textureSlots.size() ) );
-
-            RenderSystem *renderSystem = mCreator->getRenderSystem();
-            const PixelFormatToShaderType *toShaderType = renderSystem->getPixelFormatToShaderType();
-
-            TextureSlotVec::const_iterator begin= textureSlots.begin();
-            TextureSlotVec::const_iterator itor = textureSlots.begin();
-            TextureSlotVec::const_iterator end  = textureSlots.end();
-
-            while( itor != end )
-            {
-                const size_t slotIdx = itor - begin;
-                propName.resize( texturePropNameSize );
-                propName.a( static_cast<uint32>(slotIdx) ); //texture0 or uav0
-                const size_t texturePropSize = propName.size();
-                setProperty( propName.c_str(), 1 );
-
-                if( !itor->texture.isNull() )
-                {
-                    const TexturePtr &texture = itor->texture;
-
-                    propName.a( "_width" );                 //texture0_width
-                    setProperty( propName.c_str(), texture->getWidth() );
-                    propName.resize( texturePropSize );
-
-                    propName.a( "_height" );                //texture0_height
-                    setProperty( propName.c_str(), texture->getHeight() );
-                    propName.resize( texturePropSize );
-
-                    propName.a( "_depth" );                 //texture0_depth
-                    setProperty( propName.c_str(), std::max<uint32>( texture->getDepth(),
-                                                                     texture->getNumFaces() ) );
-                    propName.resize( texturePropSize );
-
-                    propName.a( "_mipmaps" );               //texture0_mipmaps
-                    setProperty( propName.c_str(), texture->getNumMipmaps() + 1 );
-                    propName.resize( texturePropSize );
-
-                    propName.a( "_msaa" );                  //texture0_msaa
-                    setProperty( propName.c_str(), texture->getFSAA() > 1 ? 1 : 0 );
-                    propName.resize( texturePropSize );
-
-                    propName.a( "_msaa_samples" );          //texture0_msaa_samples
-                    setProperty( propName.c_str(), texture->getFSAA() );
-                    propName.resize( texturePropSize );
-
-                    propName.a( "_is_1d" );                 //texture0_is_1d
-                    setProperty( propName.c_str(), texture->getTextureType() == TEX_TYPE_1D );
-                    propName.resize( texturePropSize );
-
-                    propName.a( "_is_2d" );                 //texture0_is_2d
-                    setProperty( propName.c_str(), texture->getTextureType() == TEX_TYPE_2D );
-                    propName.resize( texturePropSize );
-
-                    propName.a( "_is_3d" );                 //texture0_is_3d
-                    setProperty( propName.c_str(), texture->getTextureType() == TEX_TYPE_3D );
-                    propName.resize( texturePropSize );
-
-                    propName.a( "_is_cubemap" );            //texture0_is_cubemap
-                    setProperty( propName.c_str(), texture->getTextureType() == TEX_TYPE_CUBE_MAP );
-                    propName.resize( texturePropSize );
-
-                    propName.a( "_is_2d_array" );           //texture0_is_2d_array
-                    setProperty( propName.c_str(), texture->getTextureType() == TEX_TYPE_2D_ARRAY );
-                    propName.resize( texturePropSize );
-
-                    propName.a( "_pf_type" );           //uav0_pf_type
-                    const char *typeName = toShaderType->getPixelFormatType( texture->getFormat() );
-                    if( typeName )
-                        setPiece( propName.c_str(), typeName );
-                    propName.resize( texturePropSize );
-
-                    //Note we're comparing pointers, not string comparison!
-                    if( propTexture == ComputeProperty::Uav )
-                    {
-                        uint32 mipLevel = std::min<uint32>( itor->mipmapLevel,
-                                                            texture->getNumMipmaps() );
-
-                        propName.a( "_width_with_lod" );    //uav0_width_with_lod
-                        setProperty( propName.c_str(), std::max( texture->getWidth() >>
-                                                                 (uint32)mipLevel, 1u ) );
-                        propName.resize( texturePropSize );
-
-                        propName.a( "_height_with_lod" );   //uav0_height_with_lod
-                        setProperty( propName.c_str(), std::max( texture->getHeight() >>
-                                                                 (uint32)mipLevel, 1u ) );
-                        propName.resize( texturePropSize );
-                    }
-                }
-                else if( itor->buffer )
-                {
-                    propName.a( "_is_buffer" );             //texture0_is_buffer
-                    setProperty( propName.c_str(), 1 );
-                    propName.resize( texturePropSize );
-                }
-
-                ++itor;
-            }
-
-            ++maxTexUnitReached;
-            setProperty( propMaxTextureSlot, maxTexUnitReached );
-        }
-
-        outMaxTexUnitReached = maxTexUnitReached;
+        return retVal;
     }
     //-----------------------------------------------------------------------------------
     void HlmsComputeJob::_updateAutoProperties(void)
@@ -293,20 +323,136 @@ namespace Ogre
         setProperty( ComputeProperty::NumThreadGroupsY, mNumThreadGroups[1] );
         setProperty( ComputeProperty::NumThreadGroupsZ, mNumThreadGroups[2] );
 
+        RenderSystem *renderSystem = mCreator->getRenderSystem();
+        const bool typedUavs = renderSystem->getCapabilities()->hasCapability( RSC_TYPED_UAV_LOADS );
+        setProperty( ComputeProperty::TypedUavLoad, typedUavs ? 1 : 0 );
+
         removeProperty( ComputeProperty::NumTextureSlots );
         removeProperty( ComputeProperty::MaxTextureSlot );
         removeProperty( ComputeProperty::NumUavSlots );
         removeProperty( ComputeProperty::MaxUavSlot );
 
-        updateAutoProperties( mTextureSlots, mMaxTexUnitReached,
-                              ComputeProperty::Texture,
-                              ComputeProperty::NumTextureSlots,
-                              ComputeProperty::MaxTextureSlot );
+        for( size_t i=0; i<sizeof(c_textureTypesProps) / sizeof(c_textureTypesProps[0]); ++i )
+            removeProperty( c_textureTypesProps[i] );
 
-        updateAutoProperties( mUavSlots, mMaxUavUnitReached,
-                              ComputeProperty::Uav,
-                              ComputeProperty::NumUavSlots,
-                              ComputeProperty::MaxUavSlot );
+        clearAutoProperties( ComputeProperty::Texture, mMaxTexUnitReached );
+        clearAutoProperties( ComputeProperty::Uav, mMaxUavUnitReached );
+
+        mMaxTexUnitReached = 0;
+        mMaxUavUnitReached = 0;
+
+        if( mInformHlmsOfTextureData )
+        {
+            for( size_t i=0; i<sizeof(c_textureTypesProps) / sizeof(c_textureTypesProps[0]); ++i )
+                setProperty( c_textureTypesProps[i], c_textureTypesProps[i].mHash );
+
+            const PixelFormatToShaderType *toShaderType = renderSystem->getPixelFormatToShaderType();
+
+            char tmpData[64];
+            LwString propName = LwString::FromEmptyPointer( tmpData, sizeof(tmpData) );
+
+            //Deal with textures
+            {
+                //Inform number of UAVs
+                setProperty( ComputeProperty::NumTextureSlots,
+                             static_cast<int32>( mTexSlots.size() ) );
+
+                propName = ComputeProperty::Texture;
+                const size_t texturePropNameSize = propName.size();
+
+                DescriptorSetTexSlotArray::const_iterator begin= mTexSlots.begin();
+                DescriptorSetTexSlotArray::const_iterator itor = mTexSlots.begin();
+                DescriptorSetTexSlotArray::const_iterator end  = mTexSlots.end();
+
+                while( itor != end )
+                {
+                    const size_t slotIdx = itor - begin;
+                    propName.resize( texturePropNameSize );
+                    propName.a( static_cast<uint32>(slotIdx) ); //texture0
+                    const size_t texturePropSize = propName.size();
+
+                    if( !itor->empty() )
+                    {
+                        setProperty( propName.c_str(), 1 );
+
+                        if( itor->isTexture() )
+                        {
+                            setTextureProperties( itor->getTexture().texture,
+                                                  itor->getTexture().pixelFormat,
+                                                  ResourceAccess::Undefined,
+                                                  propName, toShaderType );
+                        }
+                        else if( itor->isBuffer() )
+                        {
+                            propName.a( "_is_buffer" );             //texture0_is_buffer
+                            setProperty( propName.c_str(), 1 );
+                            propName.resize( texturePropSize );
+                        }
+                    }
+
+                    ++itor;
+                }
+
+                mMaxTexUnitReached = mTexSlots.size();
+            }
+
+            //Deal with UAVs
+            {
+                //Inform number of UAVs
+                setProperty( ComputeProperty::NumUavSlots,
+                             static_cast<int32>( mUavSlots.size() ) );
+
+                propName = ComputeProperty::Uav;
+                const size_t texturePropNameSize = propName.size();
+
+                DescriptorSetUavSlotArray::const_iterator begin= mUavSlots.begin();
+                DescriptorSetUavSlotArray::const_iterator itor = mUavSlots.begin();
+                DescriptorSetUavSlotArray::const_iterator end  = mUavSlots.end();
+
+                while( itor != end )
+                {
+                    const size_t slotIdx = itor - begin;
+                    propName.resize( texturePropNameSize );
+                    propName.a( static_cast<uint32>(slotIdx) ); //uav0
+                    const size_t texturePropSize = propName.size();
+
+                    if( !itor->empty() )
+                        setProperty( propName.c_str(), 1 );
+
+                    if( itor->isTexture() && itor->getTexture().texture )
+                    {
+                        const DescriptorSetUav::TextureSlot &texSlot = itor->getTexture();
+                        setTextureProperties( texSlot.texture, texSlot.pixelFormat, texSlot.access,
+                                              propName, toShaderType );
+
+                        const TextureGpu *texture = texSlot.texture;
+
+                        uint32 mipLevel = std::min<uint32>( texSlot.mipmapLevel,
+                                                            texture->getNumMipmaps() - 1u );
+
+                        propName.a( "_width_with_lod" );    //uav0_width_with_lod
+                        setProperty( propName.c_str(), std::max( texture->getWidth() >>
+                                                                 (uint32)mipLevel, 1u ) );
+                        propName.resize( texturePropSize );
+
+                        propName.a( "_height_with_lod" );   //uav0_height_with_lod
+                        setProperty( propName.c_str(), std::max( texture->getHeight() >>
+                                                                 (uint32)mipLevel, 1u ) );
+                        propName.resize( texturePropSize );
+                    }
+                    else if( itor->isBuffer() && itor->getBuffer().buffer )
+                    {
+                        propName.a( "_is_buffer" );             //uav0_is_buffer
+                        setProperty( propName.c_str(), 1 );
+                        propName.resize( texturePropSize );
+                    }
+
+                    ++itor;
+                }
+
+                mMaxUavUnitReached = mUavSlots.size();
+            }
+        }
     }
     //-----------------------------------------------------------------------------------
     void HlmsComputeJob::setInformHlmsOfTextureData( bool bInformHlms )
@@ -358,21 +504,33 @@ namespace Ogre
 
         if( mThreadGroupsBasedOnTexture != ThreadGroupsBasedOnNothing )
         {
-            const TextureSlotVec &texSlots = mThreadGroupsBasedOnTexture == ThreadGroupsBasedOnTexture ?
-                        mTextureSlots : mUavSlots;
-
-            if( mThreadGroupsBasedOnTexSlot < texSlots.size() &&
-                !texSlots[mThreadGroupsBasedOnTexSlot].texture.isNull() )
+            const size_t maxSlots = mThreadGroupsBasedOnTexture == ThreadGroupsBasedOnTexture ?
+                                        mTexSlots.size() : mUavSlots.size();
+            TextureGpu const *tex = 0;
+            uint8 mipLevel = 0;
+            if( mThreadGroupsBasedOnTexSlot < maxSlots )
             {
-                const TexturePtr &tex = texSlots[mThreadGroupsBasedOnTexSlot].texture;
+                if( mThreadGroupsBasedOnTexture == ThreadGroupsBasedOnTexture )
+                {
+                    tex = mTexSlots[mThreadGroupsBasedOnTexSlot].getTexture().texture;
+                    mipLevel = mTexSlots[mThreadGroupsBasedOnTexSlot].getTexture().mipmapLevel;
+                }
+                else if( mUavSlots[mThreadGroupsBasedOnTexSlot].isTexture() )
+                {
+                    tex = mUavSlots[mThreadGroupsBasedOnTexSlot].getTexture().texture;
+                    mipLevel = mUavSlots[mThreadGroupsBasedOnTexSlot].getTexture().mipmapLevel;
+                }
+            }
 
+            if( tex )
+            {
                 uint32 resolution[3];
-                resolution[0] = tex->getWidth();
-                resolution[1] = tex->getHeight();
-                resolution[2] = tex->getDepth();
-
-                if( tex->getTextureType() == TEX_TYPE_CUBE_MAP )
-                    resolution[2] = tex->getNumFaces();
+                resolution[0] = std::max( tex->getWidth() >> mipLevel, 1u );
+                resolution[1] = std::max( tex->getHeight() >> mipLevel, 1u );
+                if( tex->getInternalTextureType() == TextureTypes::Type3D )
+                    resolution[2] = std::max( tex->getDepthOrSlices() >> mipLevel, 1u );
+                else
+                    resolution[2] = std::max( tex->getDepthOrSlices(), 1u );
 
                 for( int i=0; i<3; ++i )
                 {
@@ -399,6 +557,38 @@ namespace Ogre
 
         if( hasChanged )
             mPsoCacheHash = -1;
+
+        if( !mUavsDescSet && !mUavSlots.empty() )
+        {
+            //UAV desc set is dirty. Time to calculate it again.
+            HlmsManager *hlmsManager = mCreator->getHlmsManager();
+
+            DescriptorSetUav baseParams;
+            baseParams.mUavs = mUavSlots;
+            mUavsDescSet = hlmsManager->getDescriptorSetUav( baseParams );
+        }
+
+        if( !mTexturesDescSet && !mTexSlots.empty() )
+        {
+            //Texture desc set is dirty. Time to calculate it again.
+            HlmsManager *hlmsManager = mCreator->getHlmsManager();
+
+            DescriptorSetTexture2 baseParams;
+            baseParams.mTextures = mTexSlots;
+            baseParams.mShaderTypeTexCount[0] = mTexSlots.size();
+            mTexturesDescSet = hlmsManager->getDescriptorSetTexture2( baseParams );
+        }
+
+        if( !mSamplersDescSet && !mSamplerSlots.empty() )
+        {
+            //Sampler desc set is dirty. Time to calculate it again.
+            HlmsManager *hlmsManager = mCreator->getHlmsManager();
+
+            DescriptorSetSampler baseParams;
+            baseParams.mSamplers = mSamplerSlots;
+            baseParams.mShaderTypeSamplerCount[0] = mSamplerSlots.size();
+            mSamplersDescSet = hlmsManager->getDescriptorSetSampler( baseParams );
+        }
     }
     //-----------------------------------------------------------------------------------
     void HlmsComputeJob::setProperty( IdString key, int32 value )
@@ -508,54 +698,68 @@ namespace Ogre
         return retVal;
     }
     //-----------------------------------------------------------------------------------
-    void HlmsComputeJob::setBuffer( uint8 slotIdx, BufferPacked *buffer,
-                                    size_t offset, size_t sizeBytes,
-                                    ResourceAccess::ResourceAccess access,
-                                    TextureSlotVec &container )
-    {
-        assert( slotIdx < container.size() );
-
-        TextureSlot &texSlot = container[slotIdx];
-
-        texSlot.buffer      = buffer;
-        texSlot.offset      = offset;
-        texSlot.sizeBytes   = sizeBytes;
-        texSlot.access      = access;
-
-        if( mInformHlmsOfTextureData && !texSlot.texture.isNull() )
-            mPsoCacheHash = -1;
-
-        texSlot.texture.setNull();
-
-        if( texSlot.samplerblock )
-        {
-            HlmsManager *hlmsManager = mCreator->getHlmsManager();
-            hlmsManager->destroySamplerblock( texSlot.samplerblock );
-            texSlot.samplerblock = 0;
-        }
-    }
-    //-----------------------------------------------------------------------------------
     void HlmsComputeJob::setNumTexUnits( uint8 numSlots )
     {
-        mTextureSlots.resize( numSlots );
+        destroyDescriptorSamplers();
+        destroyDescriptorTextures();
+
+        if( numSlots < mSamplerSlots.size() )
+        {
+            HlmsManager *hlmsManager = mCreator->getHlmsManager();
+            FastArray<const HlmsSamplerblock*>::const_iterator itor = mSamplerSlots.begin() + numSlots;
+            FastArray<const HlmsSamplerblock*>::const_iterator end  = mSamplerSlots.end();
+
+            while( itor != end )
+            {
+                if( *itor )
+                    hlmsManager->destroySamplerblock( *itor );
+                ++itor;
+            }
+
+            removeListenerFromTextures( mTexSlots, numSlots, mTexSlots.size() );
+        }
+
+        mSamplerSlots.resize( numSlots );
+        mTexSlots.resize( numSlots );
         if( mInformHlmsOfTextureData )
             mPsoCacheHash = -1;
     }
     //-----------------------------------------------------------------------------------
     void HlmsComputeJob::removeTexUnit( uint8 slotIdx )
     {
-        mTextureSlots.erase( mTextureSlots.begin() + slotIdx );
+        destroyDescriptorSamplers();
+        destroyDescriptorTextures();
+
+        if( mSamplerSlots[slotIdx] )
+        {
+            HlmsManager *hlmsManager = mCreator->getHlmsManager();
+            hlmsManager->destroySamplerblock( mSamplerSlots[slotIdx] );
+        }
+        removeListenerFromTextures( mTexSlots, slotIdx, slotIdx + 1u );
+
+        mSamplerSlots.erase( mSamplerSlots.begin() + slotIdx );
+        mTexSlots.erase( mTexSlots.begin() + slotIdx );
         if( mInformHlmsOfTextureData )
             mPsoCacheHash = -1;
     }
     //-----------------------------------------------------------------------------------
-    const TexturePtr& HlmsComputeJob::getTexture( uint8 slotIdx ) const
+    TextureGpu* HlmsComputeJob::getTexture( uint8 slotIdx ) const
     {
-        return mTextureSlots[slotIdx].texture;
+        TextureGpu *retVal = 0;
+
+        if( mTexSlots[slotIdx].isTexture() )
+            retVal = mTexSlots[slotIdx].getTexture().texture;
+
+        return retVal;
     }
     //-----------------------------------------------------------------------------------
     void HlmsComputeJob::setNumUavUnits( uint8 numSlots )
     {
+        destroyDescriptorUavs();
+
+        if( numSlots < mUavSlots.size() )
+            removeListenerFromTextures( mUavSlots, numSlots, mUavSlots.size() );
+
         mUavSlots.resize( numSlots );
         if( mInformHlmsOfTextureData )
             mPsoCacheHash = -1;
@@ -563,80 +767,114 @@ namespace Ogre
     //-----------------------------------------------------------------------------------
     void HlmsComputeJob::removeUavUnit( uint8 slotIdx )
     {
+        destroyDescriptorUavs();
+        removeListenerFromTextures( mUavSlots, slotIdx, slotIdx + 1u );
         mUavSlots.erase( mUavSlots.begin() + slotIdx );
         if( mInformHlmsOfTextureData )
             mPsoCacheHash = -1;
     }
     //-----------------------------------------------------------------------------------
-    const TexturePtr& HlmsComputeJob::getUavTexture( uint8 slotIdx ) const
+    TextureGpu* HlmsComputeJob::getUavTexture( uint8 slotIdx ) const
     {
-        return mUavSlots[slotIdx].texture;
+        return mUavSlots[slotIdx].getTexture().texture;
     }
     //-----------------------------------------------------------------------------------
     UavBufferPacked* HlmsComputeJob::getUavBuffer( uint8 slotIdx ) const
     {
-        return static_cast<UavBufferPacked*>( mUavSlots[slotIdx].buffer );
+        return mUavSlots[slotIdx].getBuffer().buffer;
     }
     //-----------------------------------------------------------------------------------
-    void HlmsComputeJob::setTexBuffer( uint8 slotIdx, TexBufferPacked *texBuffer,
-                                       size_t offset, size_t sizeBytes )
+    void HlmsComputeJob::setTexBuffer( uint8 slotIdx, const DescriptorSetTexture2::BufferSlot &newSlot )
     {
-        setBuffer( slotIdx, texBuffer, offset, sizeBytes, ResourceAccess::Undefined, mTextureSlots );
+        assert( slotIdx < mTexSlots.size() );
+
+        DescriptorSetTexture2::Slot &slot = mTexSlots[slotIdx];
+        if( slot.slotType != DescriptorSetTexture2::SlotTypeBuffer ||
+            slot.getBuffer() != newSlot )
+        {
+            if( mInformHlmsOfTextureData &&
+                slot.slotType == DescriptorSetTexture2::SlotTypeTexture &&
+                slot.getTexture().texture )
+            {
+                mPsoCacheHash = -1;
+            }
+
+            slot.slotType = DescriptorSetTexture2::SlotTypeBuffer;
+            DescriptorSetTexture2::BufferSlot &bufferSlot = slot.getBuffer();
+            bufferSlot = newSlot;
+            destroyDescriptorTextures();    //Descriptor is dirty
+
+            //Remove sampler
+            if( mSamplerSlots[slotIdx] )
+            {
+                destroyDescriptorSamplers();    //Sampler descriptors are also dirty
+
+                HlmsManager *hlmsManager = mCreator->getHlmsManager();
+                hlmsManager->destroySamplerblock( mSamplerSlots[slotIdx] );
+                mSamplerSlots[slotIdx] = 0;
+            }
+        }
     }
     //-----------------------------------------------------------------------------------
-    void HlmsComputeJob::setTexture( uint8 slotIdx, TexturePtr &texture,
+    void HlmsComputeJob::setTexture( uint8 slotIdx, const DescriptorSetTexture2::TextureSlot &newSlot,
                                      const HlmsSamplerblock *refParams )
     {
-        assert( slotIdx < mTextureSlots.size() );
-
-        TextureSlot &texSlot = mTextureSlots[slotIdx];
-        texSlot.buffer = 0;
-
-        if( mInformHlmsOfTextureData && texSlot.texture != texture &&
-            (texture.isNull() || texSlot.texture.isNull() ||
-            texSlot.texture->getWidth() != texture->getWidth() ||
-            texSlot.texture->getHeight() != texture->getHeight() ||
-            texSlot.texture->getDepth() != texture->getDepth() ||
-            texSlot.texture->getNumFaces() != texture->getNumFaces() ||
-            texSlot.texture->getNumMipmaps() != texture->getNumMipmaps() ||
-            texSlot.texture->getFSAA() != texture->getFSAA() ||
-            texSlot.texture->getTextureType() != texture->getTextureType()) )
-        {
-            mPsoCacheHash = -1;
-        }
-
-        texSlot.texture = texture;
+        assert( slotIdx < mTexSlots.size() );
 
         HlmsManager *hlmsManager = mCreator->getHlmsManager();
 
-        if( refParams || !texSlot.samplerblock )
+        DescriptorSetTexture2::Slot &slot = mTexSlots[slotIdx];
+        if( slot.slotType != DescriptorSetTexture2::SlotTypeTexture ||
+            slot.getTexture() != newSlot )
         {
-            const HlmsSamplerblock *oldSamplerblock = texSlot.samplerblock;
+            slot.slotType = DescriptorSetTexture2::SlotTypeTexture;
+            DescriptorSetTexture2::TextureSlot &texSlot = slot.getTexture();
+
+            if( mInformHlmsOfTextureData &&
+                texSlot.texture != newSlot.texture &&
+                (!texSlot.texture || !newSlot.texture ||
+                 !texSlot.texture->hasEquivalentParameters( newSlot.texture )) )
+            {
+                mPsoCacheHash = -1;
+            }
+
+            if( texSlot.texture )
+                texSlot.texture->removeListener( this );
+            if( newSlot.texture )
+                newSlot.texture->addListener( this );
+
+            texSlot = newSlot;
+            destroyDescriptorTextures();    //Descriptor is dirty
+        }
+
+        //Set explicit sampler, or create a default one if needed.
+        if( refParams || (!mSamplerSlots[slotIdx] && newSlot.texture) )
+        {
+            const HlmsSamplerblock *oldSamplerblock = mSamplerSlots[slotIdx];
             if( refParams )
-                texSlot.samplerblock = hlmsManager->getSamplerblock( *refParams );
+                mSamplerSlots[slotIdx] = hlmsManager->getSamplerblock( *refParams );
             else
-                texSlot.samplerblock = hlmsManager->getSamplerblock( HlmsSamplerblock() );
+                mSamplerSlots[slotIdx] = hlmsManager->getSamplerblock( HlmsSamplerblock() );
+
+            if( oldSamplerblock != mSamplerSlots[slotIdx] )
+                destroyDescriptorSamplers();    //Sampler descriptors are also dirty
 
             if( oldSamplerblock )
                 hlmsManager->destroySamplerblock( oldSamplerblock );
         }
-
-        texSlot.textureArrayIndex   = 0;
-        texSlot.access              = ResourceAccess::Undefined;
-        texSlot.mipmapLevel         = 0;
-        if( !texture.isNull() )
-            texSlot.pixelFormat = texture->getFormat();
     }
     //-----------------------------------------------------------------------------------
     void HlmsComputeJob::setSamplerblock( uint8 slotIdx, const HlmsSamplerblock &refParams )
     {
-        assert( slotIdx < mTextureSlots.size() );
+        assert( slotIdx < mSamplerSlots.size() );
 
-        TextureSlot &texSlot = mTextureSlots[slotIdx];
         HlmsManager *hlmsManager = mCreator->getHlmsManager();
 
-        const HlmsSamplerblock *oldSamplerblock = texSlot.samplerblock;
-        texSlot.samplerblock = hlmsManager->getSamplerblock( refParams );
+        const HlmsSamplerblock *oldSamplerblock = mSamplerSlots[slotIdx];
+        mSamplerSlots[slotIdx] = hlmsManager->getSamplerblock( refParams );
+
+        if( oldSamplerblock != mSamplerSlots[slotIdx] )
+            destroyDescriptorSamplers();    //Sampler descriptors are dirty
 
         if( oldSamplerblock )
             hlmsManager->destroySamplerblock( oldSamplerblock );
@@ -644,56 +882,112 @@ namespace Ogre
     //-----------------------------------------------------------------------------------
     void HlmsComputeJob::_setSamplerblock( uint8 slotIdx, const HlmsSamplerblock *refParams )
     {
-        assert( slotIdx < mTextureSlots.size() );
+        assert( slotIdx < mSamplerSlots.size() );
 
-        TextureSlot &texSlot = mTextureSlots[slotIdx];
         HlmsManager *hlmsManager = mCreator->getHlmsManager();
 
-        const HlmsSamplerblock *oldSamplerblock = texSlot.samplerblock;
-        texSlot.samplerblock = refParams;
+        const HlmsSamplerblock *oldSamplerblock = mSamplerSlots[slotIdx];
+        mSamplerSlots[slotIdx] = refParams;
+
+        if( oldSamplerblock != mSamplerSlots[slotIdx] )
+            destroyDescriptorSamplers();    //Sampler descriptors are dirty
 
         if( oldSamplerblock )
             hlmsManager->destroySamplerblock( oldSamplerblock );
     }
     //-----------------------------------------------------------------------------------
-    void HlmsComputeJob::_setUavBuffer( uint8 slotIdx, UavBufferPacked *uavBuffer,
-                                        ResourceAccess::ResourceAccess access,
-                                        size_t offset, size_t sizeBytes )
-    {
-        setBuffer( slotIdx, uavBuffer, offset, sizeBytes, access, mUavSlots );
-    }
-    //-----------------------------------------------------------------------------------
-    void HlmsComputeJob::_setUavTexture( uint8 slotIdx, TexturePtr &texture, int32 textureArrayIndex,
-                                         ResourceAccess::ResourceAccess access, int32 mipmapLevel,
-                                         PixelFormat pixelFormat )
+    void HlmsComputeJob::_setUavBuffer( uint8 slotIdx, const DescriptorSetUav::BufferSlot &newSlot )
     {
         assert( slotIdx < mUavSlots.size() );
 
-        TextureSlot &texSlot = mUavSlots[slotIdx];
-        texSlot.buffer = 0;
-        texSlot.samplerblock = 0;
-
-        if( mInformHlmsOfTextureData && texSlot.texture != texture &&
-            (texture.isNull() || texSlot.texture.isNull() ||
-            texSlot.texture->getWidth() != texture->getWidth() ||
-            texSlot.texture->getHeight() != texture->getHeight() ||
-            texSlot.texture->getDepth() != texture->getDepth() ||
-            texSlot.texture->getNumFaces() != texture->getNumFaces() ||
-            texSlot.texture->getNumMipmaps() != texture->getNumMipmaps() ||
-            texSlot.texture->getFSAA() != texture->getFSAA() ||
-            texSlot.texture->getTextureType() != texture->getTextureType()) )
+        DescriptorSetUav::Slot &slot = mUavSlots[slotIdx];
+        if( slot.slotType != DescriptorSetUav::SlotTypeBuffer ||
+            slot.getBuffer() != newSlot )
         {
-            mPsoCacheHash = -1;
+            if( mInformHlmsOfTextureData &&
+                slot.slotType == DescriptorSetUav::SlotTypeTexture &&
+                slot.getTexture().texture )
+            {
+                mPsoCacheHash = -1;
+            }
+
+            slot.slotType = DescriptorSetUav::SlotTypeBuffer;
+            DescriptorSetUav::BufferSlot &bufferSlot = slot.getBuffer();
+
+            bufferSlot = newSlot;
+            destroyDescriptorUavs();    //Descriptor is dirty
+        }
+    }
+    //-----------------------------------------------------------------------------------
+    void HlmsComputeJob::_setUavTexture( uint8 slotIdx, const DescriptorSetUav::TextureSlot &newSlot )
+    {
+        assert( slotIdx < mUavSlots.size() );
+
+        DescriptorSetUav::Slot &slot = mUavSlots[slotIdx];
+        if( slot.slotType != DescriptorSetUav::SlotTypeTexture ||
+            slot.getTexture() != newSlot )
+        {
+            slot.slotType = DescriptorSetUav::SlotTypeTexture;
+            DescriptorSetUav::TextureSlot &texSlot = slot.getTexture();
+
+            if( mInformHlmsOfTextureData &&
+                texSlot.texture != newSlot.texture &&
+                (!texSlot.texture || !newSlot.texture ||
+                 !texSlot.texture->hasEquivalentParameters( newSlot.texture )) )
+            {
+                mPsoCacheHash = -1;
+            }
+
+            if( texSlot.texture )
+                texSlot.texture->removeListener( this );
+            if( newSlot.texture )
+                newSlot.texture->addListener( this );
+
+            texSlot = newSlot;
+            destroyDescriptorUavs();    //Descriptor is dirty
+        }
+    }
+    //-----------------------------------------------------------------------------------
+    void HlmsComputeJob::clearTexBuffers(void)
+    {
+        bool bChanged = false;
+        DescriptorSetTexture2::BufferSlot emptySlot = DescriptorSetTexture2::BufferSlot::makeEmpty();
+        DescriptorSetTexSlotArray::iterator itor = mTexSlots.begin();
+        DescriptorSetTexSlotArray::iterator end  = mTexSlots.end();
+
+        while( itor != end )
+        {
+            if( itor->isBuffer() && itor->getBuffer().buffer )
+            {
+                itor->getBuffer() = emptySlot;
+                bChanged = true;
+            }
+            ++itor;
         }
 
-        texSlot.texture             = texture;
-        texSlot.textureArrayIndex   = textureArrayIndex;
-        texSlot.access              = access;
-        texSlot.mipmapLevel         = mipmapLevel;
-        texSlot.pixelFormat         = pixelFormat;
+        if( bChanged )
+            destroyDescriptorTextures();
+    }
+    //-----------------------------------------------------------------------------------
+    void HlmsComputeJob::clearUavBuffers(void)
+    {
+        bool bChanged = false;
+        DescriptorSetUav::BufferSlot emptySlot = DescriptorSetUav::BufferSlot::makeEmpty();
+        DescriptorSetUavSlotArray::iterator itor = mUavSlots.begin();
+        DescriptorSetUavSlotArray::iterator end  = mUavSlots.end();
 
-        if( pixelFormat == PF_UNKNOWN && !texture.isNull() )
-            texSlot.pixelFormat = texture->getFormat();
+        while( itor != end )
+        {
+            if( itor->isBuffer() && itor->getBuffer().buffer )
+            {
+                itor->getBuffer() = emptySlot;
+                bChanged = true;
+            }
+            ++itor;
+        }
+
+        if( bChanged )
+            destroyDescriptorUavs();
     }
     //-----------------------------------------------------------------------------------
     HlmsComputeJob* HlmsComputeJob::clone( const String &cloneName )
@@ -715,14 +1009,68 @@ namespace Ogre
         dstJob->mName = originalName;
 
         HlmsManager *hlmsManager = mCreator->getHlmsManager();
-        TextureSlotVec::const_iterator itor = dstJob->mTextureSlots.begin();
-        TextureSlotVec::const_iterator end  = dstJob->mTextureSlots.end();
+
+        if( mTexturesDescSet )
+            dstJob->mTexturesDescSet = hlmsManager->getDescriptorSetTexture2( *this->mTexturesDescSet );
+        if( mSamplersDescSet )
+            dstJob->mSamplersDescSet = hlmsManager->getDescriptorSetSampler( *this->mSamplersDescSet );
+        if( mUavsDescSet )
+            dstJob->mUavsDescSet = hlmsManager->getDescriptorSetUav( *this->mUavsDescSet );
+
+        FastArray<const HlmsSamplerblock*>::const_iterator itor = dstJob->mSamplerSlots.begin();
+        FastArray<const HlmsSamplerblock*>::const_iterator end  = dstJob->mSamplerSlots.end();
 
         while( itor != end )
         {
-            if( itor->samplerblock )
-                hlmsManager->addReference( itor->samplerblock );
+            if( *itor )
+                hlmsManager->addReference( *itor );
             ++itor;
         }
+    }
+    //-----------------------------------------------------------------------------------
+    void HlmsComputeJob::notifyTextureChanged( TextureGpu *texture, TextureGpuListener::Reason reason,
+                                               void *extraData )
+    {
+        if( reason == TextureGpuListener::Deleted )
+        {
+            if( texture->isTexture() )
+            {
+                DescriptorSetTexSlotArray::const_iterator itor = mTexSlots.begin();
+                DescriptorSetTexSlotArray::const_iterator end  = mTexSlots.end();
+
+                while( itor != end )
+                {
+                    if( itor->isTexture() && itor->getTexture().texture == texture )
+                    {
+                        DescriptorSetTexture2::TextureSlot emptySlot = itor->getTexture();
+                        emptySlot.texture = 0;
+                        setTexture( itor - mTexSlots.begin(), emptySlot );
+                    }
+                    ++itor;
+                }
+            }
+
+            if( texture->isUav() )
+            {
+                DescriptorSetUavSlotArray::const_iterator itor = mUavSlots.begin();
+                DescriptorSetUavSlotArray::const_iterator end  = mUavSlots.end();
+
+                while( itor != end )
+                {
+                    if( itor->isTexture() && itor->getTexture().texture == texture )
+                    {
+                        DescriptorSetUav::TextureSlot emptySlot = itor->getTexture();
+                        emptySlot.texture = 0;
+                        _setUavTexture( itor - mUavSlots.begin(), emptySlot );
+                    }
+                    ++itor;
+                }
+            }
+        }
+
+        if( texture->isTexture() )
+            destroyDescriptorTextures();
+        if( texture->isUav() )
+            destroyDescriptorUavs();
     }
 }

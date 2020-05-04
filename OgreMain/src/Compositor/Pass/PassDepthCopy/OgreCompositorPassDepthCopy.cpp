@@ -36,7 +36,7 @@ THE SOFTWARE.
 #include "Compositor/OgreCompositorWorkspaceListener.h"
 
 #include "OgreDepthBuffer.h"
-#include "OgreRenderTarget.h"
+#include "OgreTextureBox.h"
 
 #include "OgreRenderSystem.h"
 
@@ -62,12 +62,12 @@ namespace Ogre
     //-----------------------------------------------------------------------------------
     //-----------------------------------------------------------------------------------
     CompositorPassDepthCopy::CompositorPassDepthCopy( const CompositorPassDepthCopyDef *definition,
-                                                      const CompositorChannel &target,
+                                                      const RenderTargetViewDef *rtv,
                                                       CompositorNode *parentNode ) :
-                CompositorPass( definition, target, parentNode ),
-                mDefinition( definition ),
-                mCopyFailed( false )
+                CompositorPass( definition, parentNode ),
+                mDefinition( definition )
     {
+        initialize( rtv );
     }
     //-----------------------------------------------------------------------------------
     void CompositorPassDepthCopy::execute( const Camera *lodCamera )
@@ -80,46 +80,23 @@ namespace Ogre
             --mNumPassesLeft;
         }
 
-        CompositorWorkspaceListener *listener = mParentNode->getWorkspace()->getListener();
-        if( listener )
-            listener->passEarlyPreExecute( this );
-
-        //Call beginUpdate if we're the first to use this RT
-        if( mDefinition->mBeginRtUpdate )
-            mTarget->_beginUpdate();
+        notifyPassEarlyPreExecuteListeners();
 
         //Fire the listener in case it wants to change anything
-        if( listener )
-            listener->passPreExecute( this );
+        notifyPassPreExecuteListeners();
 
         executeResourceTransitions();
 
         //Should we retrieve every update, or cache the return values
         //and listen to notifyRecreated and family of funtions?
-        const CompositorChannel *srcChannel = mParentNode->_getDefinedTexture(
-                                                mDefinition->mSrcDepthTextureName );
-        const CompositorChannel *dstChannel = mParentNode->_getDefinedTexture(
-                                                mDefinition->mDstDepthTextureName );
+        TextureGpu *srcChannel = mParentNode->getDefinedTexture( mDefinition->mSrcDepthTextureName );
+        TextureGpu *dstChannel = mParentNode->getDefinedTexture( mDefinition->mDstDepthTextureName );
 
-        DepthBuffer *srcDepthBuffer = srcChannel->target->getDepthBuffer();
-        DepthBuffer *dstDepthBuffer = dstChannel->target->getDepthBuffer();
-        if( !mCopyFailed )
-        {
-            mCopyFailed = !srcDepthBuffer->copyTo( dstDepthBuffer );
-        }
+        TextureBox srcBox = srcChannel->getEmptyBox( 0 );
+        TextureBox dstBox = dstChannel->getEmptyBox( 0 );
+        srcChannel->copyTo( dstChannel, dstBox, 0, srcBox, 0, false );
 
-        if( mCopyFailed && srcDepthBuffer != dstDepthBuffer &&
-            mDefinition->mAliasDepthBufferOnCopyFailure )
-        {
-            dstChannel->target->attachDepthBuffer( srcDepthBuffer, false );
-        }
-
-        if( listener )
-            listener->passPosExecute( this );
-
-        //Call endUpdate if we're the last pass in a row to use this RT
-        if( mDefinition->mEndRtUpdate )
-            mTarget->_endUpdate();
+        notifyPassPosExecuteListeners();
     }
     //-----------------------------------------------------------------------------------
     void CompositorPassDepthCopy::_placeBarriersAndEmulateUavExecution( BoundUav boundUavs[64],
