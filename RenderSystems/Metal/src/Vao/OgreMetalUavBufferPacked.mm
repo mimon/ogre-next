@@ -52,7 +52,7 @@ namespace Ogre
     {
     }
     //-----------------------------------------------------------------------------------
-    TexBufferPacked* MetalUavBufferPacked::getAsTexBufferImpl( PixelFormatGpu pixelFormat )
+    TexBufferPacked* MetalUavBufferPacked::getAsTexBufferImpl( PixelFormat pixelFormat )
     {
         assert( dynamic_cast<MetalBufferInterface*>( mBufferInterface ) );
 
@@ -65,8 +65,6 @@ namespace Ogre
                                                         mBufferType, (void*)0, false,
                                                         (VaoManager*)0, bufferInterface, pixelFormat,
                                                         mDevice );
-        //We were overriden by the BufferPacked we just created. Restore this back!
-        bufferInterface->_notifyBuffer( this );
 
         mTexBufferViews.push_back( retVal );
 
@@ -120,15 +118,5 @@ namespace Ogre
         [computeEncoder setBuffer:bufferInterface->getVboName()
                            offset:mFinalBufferStart * mBytesPerElement + offset
                           atIndex:slot + OGRE_METAL_CS_UAV_SLOT_START];
-    }
-    //-----------------------------------------------------------------------------------
-    void MetalUavBufferPacked::bindBufferForDescriptor( __unsafe_unretained id <MTLBuffer> *buffers,
-                                                        NSUInteger *offsets, size_t offset )
-    {
-        assert( dynamic_cast<MetalBufferInterface*>( mBufferInterface ) );
-        MetalBufferInterface *bufferInterface = static_cast<MetalBufferInterface*>( mBufferInterface );
-
-        *buffers = bufferInterface->getVboName();
-        *offsets = mFinalBufferStart * mBytesPerElement + offset;
     }
 }

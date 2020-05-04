@@ -34,8 +34,7 @@ THE SOFTWARE.
 #include "Vao/OgreVertexBufferPacked.h"
 #include "Vao/OgreIndexBufferPacked.h"
 #include "OgreRenderOperation.h"
-
-#include "ogrestd/unordered_set.h"
+#include "OgrePixelFormat.h"
 
 namespace Ogre
 {
@@ -112,7 +111,7 @@ namespace Ogre
                                                           void *initialData, bool keepAsShadow ) = 0;
         virtual void destroyConstBufferImpl( ConstBufferPacked *constBuffer ) = 0;
 
-        virtual TexBufferPacked* createTexBufferImpl( PixelFormatGpu pixelFormat, size_t sizeBytes,
+        virtual TexBufferPacked* createTexBufferImpl( PixelFormat pixelFormat, size_t sizeBytes,
                                                       BufferType bufferType,
                                                       void *initialData, bool keepAsShadow ) = 0;
         virtual void destroyTexBufferImpl( TexBufferPacked *texBuffer ) = 0;
@@ -150,62 +149,12 @@ namespace Ogre
             Caller is responsible for hazard checking.
         */
         void destroyDelayedBuffers( uint8 fromDynamicFrame );
-        void _destroyAllDelayedBuffers(void);
 
         inline void callDestroyBufferImpl( BufferPacked *bufferPacked );
 
-        void switchVboPoolIndex( size_t oldPoolIdx, size_t newPoolIdx );
-        virtual void switchVboPoolIndexImpl( size_t oldPoolIdx, size_t newPoolIdx,
-                                             BufferPacked *buffer ) = 0;
-
     public:
-        VaoManager( const NameValuePairList *params );
+        VaoManager();
         virtual ~VaoManager();
-
-        struct _OgreExport MemoryStatsEntry
-        {
-            uint32 poolType;
-            size_t offset;
-            size_t sizeBytes;
-            size_t poolCapacity; /// This value is the same for all entries with same poolType & poolIdx
-
-            MemoryStatsEntry( uint32 _poolType, size_t _offset,
-                              size_t _sizeBytes, size_t _poolCapacity ) :
-                poolType( _poolType ), offset( _offset ),
-                sizeBytes( _sizeBytes ), poolCapacity( _poolCapacity ) {}
-        };
-
-        typedef vector<MemoryStatsEntry>::type MemoryStatsEntryVec;
-
-        /** Retrieves memory stats about our GPU pools being managed.
-            The output in the Log will be csv data that resembles the following:
-                Pool Type                   Offset	Bytes       Pool Capacity
-                CPU_INACCESSIBLE            0       148128      67108864
-                CPU_INACCESSIBLE            200000  1024        67108864
-                CPU_ACCESSIBLE_PERSISTENT   0       1152        16777216
-
-            These are the chunks of memory currently in use. If there are multiple
-            entries belonging to the same pool, that means the memory has been
-            fragmented.
-
-            The actual output may vary depending on the RenderSystem.
-        @remarks
-            Worst case scenario this function has O(N^2) complexity where N
-            is the number of free blocks.
-        @param outStats
-            Detailed information about each entry.
-        @param outCapacityBytes
-            Total capacity i.e. total used VRAM in GPU.
-        @param outFreeBytes
-            Total free memory available for consumption.
-        @param log
-            Optional to dump all information to a CSV file. Nullptr to avoid dumping.
-        */
-        virtual void getMemoryStats( MemoryStatsEntryVec &outStats, size_t &outCapacityBytes,
-                                     size_t &outFreeBytes, Log *log ) const = 0;
-
-        /// Frees GPU memory if there are empty, unused pools
-        virtual void cleanupEmptyPools(void) = 0;
 
         /// Returns the size of a single vertex buffer source with the given declaration, in bytes
         static uint32 calculateVertexSize( const VertexElement2Vec &vertexElements );
@@ -299,7 +248,7 @@ namespace Ogre
         @return
             The desired texture buffer pointer
         */
-        TexBufferPacked* createTexBuffer( PixelFormatGpu pixelFormat, size_t sizeBytes,
+        TexBufferPacked* createTexBuffer( PixelFormat pixelFormat, size_t sizeBytes,
                                           BufferType bufferType,
                                           void *initialData, bool keepAsShadow );
 

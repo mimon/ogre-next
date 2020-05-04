@@ -65,7 +65,6 @@ namespace Ogre
         size_t  mObjsPerCell;
         size_t  mLightsPerCell;
         size_t  mDecalsPerCell;
-        size_t  mCubemapProbesPerCell;
 
         RawSimdUniquePtr<FrustumRegion, MEMCATEGORY_SCENE_CONTROL> mFrustumRegions;
 
@@ -84,9 +83,6 @@ namespace Ogre
         bool                    mDebugWireAabbFrozen;
         vector<WireAabb*>::type mDebugWireAabb;
 
-        inline size_t getDecalsOffsetStart() const;
-        inline size_t getCubemapProbesOffsetStart() const;
-
         /// Performs the reverse of getSliceAtDepth. @see getSliceAtDepth.
         inline float getDepthAtSlice( uint32 slice ) const;
 
@@ -104,12 +100,11 @@ namespace Ogre
                                   uint16 numFloat4PerObj );
         void collectLightForSlice( size_t slice, size_t threadId );
 
-        void collectObjs( const Camera *camera, size_t &outNumDecals, size_t &outNumCubemapProbes );
+        void collectObjs( const Camera *camera, size_t &outNumDecals );
 
     public:
         ForwardClustered( uint32 width, uint32 height, uint32 numSlices, uint32 lightsPerCell,
-                          uint32 decalsPerCell, uint32 cubemapProbesPerCell,
-                          float minDistance, float maxDistance,
+                          uint32 decalsPerCell, float minDistance, float maxDistance,
                           SceneManager *sceneManager );
         virtual ~ForwardClustered();
 
@@ -141,8 +136,8 @@ namespace Ogre
         @remarks
             Assumes 'passBufferPtr' is aligned to a vec4/float4 boundary.
         */
-        virtual void fillConstBufferData( Viewport *viewport, TextureGpu *renderTarget,
-                                          IdString shaderSyntax, bool instancedStereo,
+        virtual void fillConstBufferData( Viewport *viewport, RenderTarget* renderTarget,
+                                          IdString shaderSyntax,
                                           float * RESTRICT_ALIAS passBufferPtr ) const;
 
         virtual void setHlmsPassProperties( Hlms *hlms );

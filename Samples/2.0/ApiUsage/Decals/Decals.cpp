@@ -5,11 +5,11 @@
 #include "OgreSceneManager.h"
 #include "OgreCamera.h"
 #include "OgreRoot.h"
-#include "OgreWindow.h"
+#include "OgreRenderWindow.h"
 #include "OgreConfigFile.h"
 #include "Compositor/OgreCompositorManager2.h"
-#include "OgreTextureFilters.h"
-#include "OgreTextureGpuManager.h"
+#include "OgreHlmsManager.h"
+#include "OgreHlmsTextureManager.h"
 
 //Declares WinMain / main
 #include "MainEntryPointHelper.h"
@@ -31,8 +31,8 @@ namespace Demo
         virtual Ogre::CompositorWorkspace* setupCompositor()
         {
             Ogre::CompositorManager2 *compositorManager = mRoot->getCompositorManager2();
-            return compositorManager->addWorkspace( mSceneManager, mRenderWindow->getTexture(),
-                                                    mCamera, "PbsMaterialsWorkspace", true );
+            return compositorManager->addWorkspace( mSceneManager, mRenderWindow, mCamera,
+                                                    "PbsMaterialsWorkspace", true );
         }
 
         virtual void setupResources(void)
@@ -69,10 +69,11 @@ namespace Demo
 
             If we do not do this, then we have to assign them a different alias to load it twice
             on RAM, e.g. call
-            textureManager->createOrRetrieveTexture( "different_name_floor_bump",
-                                                     "floor_bump.PNG",... );
+            hlmsTextureManager->createOrRetrieveTexture( "different_name_floor_bump",
+                                                         "floor_bump.PNG",... );
             */
-            Ogre::TextureGpuManager *textureManager = mRoot->getRenderSystem()->getTextureGpuManager();
+            Ogre::HlmsManager *hlmsManager = mRoot->getHlmsManager();
+            Ogre::HlmsTextureManager *hlmsTextureManager = hlmsManager->getTextureManager();
             /*
             These pool IDs must be unique per texture array, to ensure textures go into the
             right array.
@@ -91,12 +92,10 @@ namespace Demo
             const Ogre::uint32 decalDiffuseId = 1;
             const Ogre::uint32 decalNormalId = 1;
 
-            //TODO: These pools should be destroyed manually or else they will live
-            //forever until Ogre shutdowns
-            textureManager->reservePoolId( decalDiffuseId, 512u, 512u, 8u, 10u,
-                                           Ogre::PFG_RGBA8_UNORM_SRGB );
-            textureManager->reservePoolId( decalNormalId, 512u, 512u, 8u, 10u,
-                                           Ogre::PFG_RG8_SNORM );
+            hlmsTextureManager->reservePoolId( decalDiffuseId, Ogre::HlmsTextureManager::TEXTURE_TYPE_DIFFUSE,
+                                               512u, 512u, 8u, 9u, Ogre::PF_A8R8G8B8, false, true );
+            hlmsTextureManager->reservePoolId( decalNormalId, Ogre::HlmsTextureManager::TEXTURE_TYPE_NORMALS,
+                                               512u, 512u, 8u, 9u, Ogre::PF_R8G8_SNORM, true, false );
 
             /*
                 Create a blank diffuse & normal map textures, so we can use index 0 to "disable" them
@@ -105,65 +104,43 @@ namespace Demo
                 and normals.
             */
             Ogre::uint8 *blackBuffer = reinterpret_cast<Ogre::uint8*>(
-                                           OGRE_MALLOC_SIMD( 512u * 512u * 4u,
-                                                             Ogre::MEMCATEGORY_RESOURCE ) );
+                                           OGRE_MALLOC( 512u * 512u * 4u, Ogre::MEMCATEGORY_RESOURCE ) );
             memset( blackBuffer, 0, 512u * 512u * 4u );
-            Ogre::Image2 blackImage;
-            blackImage.loadDynamicImage( blackBuffer, 512u, 512u, 1u, Ogre::TextureTypes::Type2D,
-                                         Ogre::PFG_RGBA8_UNORM_SRGB, true );
-            blackImage.generateMipmaps( false, Ogre::Image2::FILTER_NEAREST );
-            Ogre::TextureGpu *decalTexture = 0;
-            decalTexture = textureManager->createOrRetrieveTexture(
-                               "decals_disabled_diffuse",
-                               Ogre::GpuPageOutStrategy::Discard,
-                               Ogre::TextureFlags::AutomaticBatching |
-                               Ogre::TextureFlags::ManualTexture,
-                               Ogre::TextureTypes::Type2D, Ogre::BLANKSTRING, 0, decalDiffuseId );
-            decalTexture->setResolution( blackImage.getWidth(), blackImage.getHeight() );
-            decalTexture->setNumMipmaps( blackImage.getNumMipmaps() );
-            decalTexture->setPixelFormat( blackImage.getPixelFormat() );
-            decalTexture->scheduleTransitionTo( Ogre::GpuResidency::Resident );
-            blackImage.uploadTo( decalTexture, 0, decalTexture->getNumMipmaps() - 1u );
-
+            Ogre::Image blackImage;
+            blackImage.loadDynamicImage( blackBuffer, 512u, 512u, 1u, Ogre::PF_A8R8G8B8, true );
+            hlmsTextureManager->createOrRetrieveTexture( "decals_disabled_diffuse",
+                                                         "decals_disabled_diffuse",
+                                                         Ogre::HlmsTextureManager::TEXTURE_TYPE_DIFFUSE,
+                                                         decalDiffuseId, &blackImage );
+            //128 == 0 in Normal maps, because of signedness
             blackImage.freeMemory();
             blackBuffer = reinterpret_cast<Ogre::uint8*>(
-                              OGRE_MALLOC_SIMD( 512u * 512u * 2u, Ogre::MEMCATEGORY_RESOURCE ) );
+                              OGRE_MALLOC( 512u * 512u * 2u, Ogre::MEMCATEGORY_RESOURCE ) );
             memset( blackBuffer, 0, 512u * 512u * 2u );
-            blackImage.loadDynamicImage( blackBuffer, 512u, 512u, 1u, Ogre::TextureTypes::Type2D,
-                                         Ogre::PFG_RG8_SNORM, true );
-            blackImage.generateMipmaps( false, Ogre::Image2::FILTER_NEAREST );
-            decalTexture = textureManager->createOrRetrieveTexture(
-                               "decals_disabled_normals",
-                               Ogre::GpuPageOutStrategy::Discard,
-                               Ogre::TextureFlags::AutomaticBatching |
-                               Ogre::TextureFlags::ManualTexture,
-                               Ogre::TextureTypes::Type2D, Ogre::BLANKSTRING, 0, decalNormalId );
-            decalTexture->setResolution( blackImage.getWidth(), blackImage.getHeight() );
-            decalTexture->setNumMipmaps( blackImage.getNumMipmaps() );
-            decalTexture->setPixelFormat( blackImage.getPixelFormat() );
-            decalTexture->scheduleTransitionTo( Ogre::GpuResidency::Resident );
-            blackImage.uploadTo( decalTexture, 0, decalTexture->getNumMipmaps() - 1u );
+            blackImage.loadDynamicImage( blackBuffer, 512u, 512u, 1u, Ogre::PF_R8G8_SNORM, true );
+            hlmsTextureManager->createOrRetrieveTexture( "decals_disabled_normals",
+                                                         "decals_disabled_normals",
+                                                         Ogre::HlmsTextureManager::TEXTURE_TYPE_NORMALS,
+                                                         decalNormalId, &blackImage );
 
             /*
-                Now actually create the decals into the array with the pool ID we desire.
+                Now actually load the decals we want into the array.
+                Note aliases are all lowercase! Ogre automatically aliases
+                all resources as lowercase, thus we need to do that too, or else
+                the texture will end up being loaded twice
             */
-            textureManager->createOrRetrieveTexture(
-                        "floor_diffuse.PNG", Ogre::GpuPageOutStrategy::Discard,
-                        Ogre::CommonTextureTypes::Diffuse,
-                        Ogre::ResourceGroupManager::AUTODETECT_RESOURCE_GROUP_NAME,
-                        decalDiffuseId );
-            textureManager->createOrRetrieveTexture(
-                        "floor_bump.PNG", Ogre::GpuPageOutStrategy::Discard,
-                        Ogre::CommonTextureTypes::NormalMap,
-                        Ogre::ResourceGroupManager::AUTODETECT_RESOURCE_GROUP_NAME,
-                        decalNormalId );
+            hlmsTextureManager->createOrRetrieveTexture( "floor_diffuse.png", "floor_diffuse.PNG",
+                                                         Ogre::HlmsTextureManager::TEXTURE_TYPE_DIFFUSE,
+                                                         decalDiffuseId );
+            hlmsTextureManager->createOrRetrieveTexture( "floor_bump.png", "floor_bump.PNG",
+                                                         Ogre::HlmsTextureManager::TEXTURE_TYPE_NORMALS,
+                                                         decalNormalId );
         }
 
         virtual void loadResources(void)
         {
             registerHlms();
 
-            loadTextureCache();
             loadHlmsDiskCache();
 
             reserveDecalTextures();

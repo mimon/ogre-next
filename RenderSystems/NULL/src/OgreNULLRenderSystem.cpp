@@ -27,9 +27,8 @@ Copyright (c) 2000-2014 Torus Knot Software Ltd
 */
 
 #include "OgreNULLRenderSystem.h"
-#include "OgreNULLWindow.h"
-#include "OgreNULLTextureGpuManager.h"
-#include "OgreRenderPassDescriptor.h"
+#include "OgreNULLRenderWindow.h"
+#include "OgreNULLTextureManager.h"
 #include "Vao/OgreNULLVaoManager.h"
 
 #include "OgreDefaultHardwareBufferManager.h"
@@ -44,15 +43,26 @@ namespace Ogre
     {
     }
     //-------------------------------------------------------------------------
-    NULLRenderSystem::~NULLRenderSystem(void)
-    {
-     shutdown();
-    }
-    //-------------------------------------------------------------------------
     void NULLRenderSystem::shutdown(void)
     {
         OGRE_DELETE mHardwareBufferManager;
         mHardwareBufferManager = 0;
+
+        OGRE_DELETE mTextureManager;
+        mTextureManager = 0;
+
+        {
+            vector<RenderTarget*>::type::const_iterator itor = mRenderTargets.begin();
+            vector<RenderTarget*>::type::const_iterator end  = mRenderTargets.end();
+
+            while( itor != end )
+            {
+                OGRE_DELETE *itor;
+                ++itor;
+            }
+
+            mRenderTargets.clear();
+        }
     }
     //-------------------------------------------------------------------------
     const String& NULLRenderSystem::getName(void) const
@@ -115,9 +125,9 @@ namespace Ogre
         this->_initialise(true);
     }
     //-------------------------------------------------------------------------
-    Window* NULLRenderSystem::_initialise( bool autoCreateWindow, const String& windowTitle )
+    RenderWindow* NULLRenderSystem::_initialise( bool autoCreateWindow, const String& windowTitle )
     {
-        Window *autoWindow = 0;
+        RenderWindow *autoWindow = 0;
         if( autoCreateWindow )
             autoWindow = _createRenderWindow( windowTitle, 1, 1, false );
         RenderSystem::_initialise(autoCreateWindow, windowTitle);
@@ -125,36 +135,31 @@ namespace Ogre
         return autoWindow;
     }
     //-------------------------------------------------------------------------
-    Window* NULLRenderSystem::_createRenderWindow( const String &name,
-                                                   uint32 width, uint32 height,
-                                                   bool fullScreen,
-                                                   const NameValuePairList *miscParams )
+    RenderWindow* NULLRenderSystem::_createRenderWindow( const String &name,
+                                                         unsigned int width, unsigned int height,
+                                                         bool fullScreen,
+                                                         const NameValuePairList *miscParams )
     {
-        Window *win = OGRE_NEW NULLWindow( name, width, height, fullScreen );
-        mWindows.insert( win );
+        RenderWindow *win = OGRE_NEW NULLRenderWindow();
 
         if( !mInitialized )
         {
-            if( miscParams )
-            {
-                NameValuePairList::const_iterator itOption = miscParams->find( "reverse_depth" );
-                if( itOption != miscParams->end() )
-                    mReverseDepth = StringConverter::parseBool( itOption->second, true );
-            }
-
             mRealCapabilities = createRenderSystemCapabilities();
             mCurrentCapabilities = mRealCapabilities;
 
             mHardwareBufferManager = new v1::DefaultHardwareBufferManager();
+            mTextureManager = new NULLTextureManager();
             mVaoManager = OGRE_NEW NULLVaoManager();
-            mTextureGpuManager = OGRE_NEW NULLTextureGpuManager( mVaoManager, this );
 
             mInitialized = true;
         }
 
-        win->_initialize( mTextureGpuManager );
-
         return win;
+    }
+    //-------------------------------------------------------------------------
+    MultiRenderTarget* NULLRenderSystem::createMultiRenderTarget(const String & name)
+    {
+        return 0;
     }
     //-------------------------------------------------------------------------
     String NULLRenderSystem::getErrorDescription(long errorNumber) const
@@ -194,44 +199,47 @@ namespace Ogre
     {
     }
     //-------------------------------------------------------------------------
+    void NULLRenderSystem::queueBindUAV( uint32 slot, TexturePtr texture,
+                                         ResourceAccess::ResourceAccess access,
+                                         int32 mipmapLevel, int32 textureArrayIndex,
+                                         PixelFormat pixelFormat )
+    {
+    }
+    //-------------------------------------------------------------------------
+    void NULLRenderSystem::queueBindUAV( uint32 slot, UavBufferPacked *buffer,
+                                         ResourceAccess::ResourceAccess access,
+                                         size_t offset, size_t sizeBytes )
+    {
+    }
+    //-------------------------------------------------------------------------
+    void NULLRenderSystem::clearUAVs(void)
+    {
+    }
+    //-------------------------------------------------------------------------
     void NULLRenderSystem::flushUAVs(void)
     {
     }
     //-------------------------------------------------------------------------
-    void NULLRenderSystem::_setCurrentDeviceFromTexture( TextureGpu *texture )
+    void NULLRenderSystem::_bindTextureUavCS( uint32 slot, Texture *texture,
+                                              ResourceAccess::ResourceAccess access,
+                                              int32 mipmapLevel, int32 textureArrayIndex,
+                                              PixelFormat pixelFormat )
     {
     }
     //-------------------------------------------------------------------------
-    void NULLRenderSystem::_setTexture( size_t unit, TextureGpu *texPtr )
+    void NULLRenderSystem::_setTextureCS( uint32 slot, bool enabled, Texture *texPtr )
     {
     }
     //-------------------------------------------------------------------------
-    void NULLRenderSystem::_setTextures( uint32 slotStart, const DescriptorSetTexture *set,
-                                         uint32 hazardousTexIdx )
+    void NULLRenderSystem::_setHlmsSamplerblockCS( uint8 texUnit, const HlmsSamplerblock *samplerblock )
     {
     }
     //-------------------------------------------------------------------------
-    void NULLRenderSystem::_setTextures( uint32 slotStart, const DescriptorSetTexture2 *set )
+    void NULLRenderSystem::_setTexture(size_t unit, bool enabled,  Texture *texPtr)
     {
     }
     //-------------------------------------------------------------------------
-    void NULLRenderSystem::_setSamplers( uint32 slotStart, const DescriptorSetSampler *set )
-    {
-    }
-    //-------------------------------------------------------------------------
-    void NULLRenderSystem::_setTexturesCS( uint32 slotStart, const DescriptorSetTexture *set )
-    {
-    }
-    //-------------------------------------------------------------------------
-    void NULLRenderSystem::_setTexturesCS( uint32 slotStart, const DescriptorSetTexture2 *set )
-    {
-    }
-    //-------------------------------------------------------------------------
-    void NULLRenderSystem::_setSamplersCS( uint32 slotStart, const DescriptorSetSampler *set )
-    {
-    }
-    //-------------------------------------------------------------------------
-    void NULLRenderSystem::_setUavCS( uint32 slotStart, const DescriptorSetUav *set )
+    void NULLRenderSystem::_setTextureCoordSet(size_t unit, size_t index)
     {
     }
     //-------------------------------------------------------------------------
@@ -252,11 +260,10 @@ namespace Ogre
     {
     }
     //-------------------------------------------------------------------------
-    RenderPassDescriptor* NULLRenderSystem::createRenderPassDescriptor(void)
+    DepthBuffer* NULLRenderSystem::_createDepthBufferFor( RenderTarget *renderTarget,
+                                                          bool exactMatchFormat )
     {
-        RenderPassDescriptor *retVal = OGRE_NEW RenderPassDescriptor();
-        mRenderPassDescs.insert( retVal );
-        return retVal;
+        return 0;
     }
     //-------------------------------------------------------------------------
     void NULLRenderSystem::_beginFrame(void)
@@ -264,6 +271,10 @@ namespace Ogre
     }
     //-------------------------------------------------------------------------
     void NULLRenderSystem::_endFrame(void)
+    {
+    }
+    //-------------------------------------------------------------------------
+    void NULLRenderSystem::_setViewport(Viewport *vp)
     {
     }
     //-------------------------------------------------------------------------
@@ -329,8 +340,12 @@ namespace Ogre
     {
     }
     //-------------------------------------------------------------------------
-    void NULLRenderSystem::clearFrameBuffer( RenderPassDescriptor *renderPassDesc,
-                                             TextureGpu *anyTarget, uint8 mipLevel )
+    void NULLRenderSystem::clearFrameBuffer( unsigned int buffers, const ColourValue& colour,
+                                             Real depth, unsigned short stencil )
+    {
+    }
+    //-------------------------------------------------------------------------
+    void NULLRenderSystem::discardFrameBuffer( unsigned int buffers )
     {
     }
     //-------------------------------------------------------------------------
@@ -354,6 +369,10 @@ namespace Ogre
         return 1.0f;
     }
     //-------------------------------------------------------------------------
+    void NULLRenderSystem::_setRenderTarget(RenderTarget *target, uint8 viewportRenderTargetFlags)
+    {
+    }
+    //-------------------------------------------------------------------------
     void NULLRenderSystem::preExtraThreadsStarted()
     {
     }
@@ -373,10 +392,6 @@ namespace Ogre
     const PixelFormatToShaderType* NULLRenderSystem::getPixelFormatToShaderType(void) const
     {
         return &mPixelFormatToShaderType;
-    }
-    //-------------------------------------------------------------------------
-    void NULLRenderSystem::flushCommands(void)
-    {
     }
     //-------------------------------------------------------------------------
     void NULLRenderSystem::beginProfileEvent( const String &eventName )
@@ -411,7 +426,7 @@ namespace Ogre
     {
     }
     //-------------------------------------------------------------------------
-    void NULLRenderSystem::initialiseFromRenderSystemCapabilities(RenderSystemCapabilities* caps, Window *primary)
+    void NULLRenderSystem::initialiseFromRenderSystemCapabilities(RenderSystemCapabilities* caps, RenderTarget* primary)
     {
     }
 }

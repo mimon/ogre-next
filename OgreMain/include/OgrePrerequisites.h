@@ -47,28 +47,13 @@ THE SOFTWARE
 #   endif
 #endif
 
-// If:
-//  1. We detected Clang
-//  2. We're using C++98
-//  3. Not using libc++ (using libstdc++ instead; which is common in GCC)
-//
-// Then we're almost certain this is being parsed by QtCreator ClangCodeModel
-// and we need to include tr1/unordered_set for autocomplete to work
-//
-// Otherwise this is still harmless to include, it just makes build times slower
-#if OGRE_COMPILER == OGRE_COMPILER_CLANG
-#    if !defined(_LIBCPP_VERSION) && __cplusplus < 201103L
-#       include <tr1/unordered_set>
-#    endif
-#endif
-
 namespace Ogre {
     // Define ogre version
     #define OGRE_VERSION_MAJOR 2
-    #define OGRE_VERSION_MINOR 2
-    #define OGRE_VERSION_PATCH 2
-    #define OGRE_VERSION_SUFFIX "unstable"
-    #define OGRE_VERSION_NAME "Cerberus"
+    #define OGRE_VERSION_MINOR 1
+    #define OGRE_VERSION_PATCH 1
+    #define OGRE_VERSION_SUFFIX ""
+    #define OGRE_VERSION_NAME "Baldur"
 
     #define OGRE_VERSION    ((OGRE_VERSION_MAJOR << 16) | (OGRE_VERSION_MINOR << 8) | OGRE_VERSION_PATCH)
 
@@ -163,7 +148,6 @@ namespace Ogre {
     class Archive;
     class ArchiveFactory;
     class ArchiveManager;
-    class AsyncTextureTicket;
     class AsyncTicket;
     class AutoParamDataSource;
     class AxisAlignedBox;
@@ -181,7 +165,6 @@ namespace Ogre {
     class Codec;
     class ColourValue;
     class CommandBuffer;
-    class ComputeTools;
     class ConfigDialog;
     class ConstBufferPacked;
     template <typename T> class Controller;
@@ -192,13 +175,7 @@ namespace Ogre {
     class Decal;
     class DefaultWorkQueue;
     class Degree;
-#ifndef OGRE_DEPRECATED_2_2
-    struct DepthBuffer;
-#endif
-    struct DescriptorSetSampler;
-    struct DescriptorSetTexture;
-    struct DescriptorSetTexture2;
-    struct DescriptorSetUav;
+    class DepthBuffer;
     class DynLib;
     class DynLibManager;
     class ErrorDialog;
@@ -217,8 +194,6 @@ namespace Ogre {
     class GpuProgram;
     class GpuProgramManager;
     class GpuProgramUsage;
-    class GpuResource;
-    struct GpuTrackedResource;
     class HardwareOcclusionQuery;
     class HighLevelGpuProgram;
     class HighLevelGpuProgramManager;
@@ -238,13 +213,20 @@ namespace Ogre {
     struct HlmsPso;
     struct HlmsSamplerblock;
     class HlmsTextureExportListener;
+    class HlmsTextureManager;
     struct HlmsTexturePack;
     class IndexBufferPacked;
     class IndirectBufferPacked;
-    class InternalCubemapProbe;
+    class InstanceBatch;
+    class InstanceBatchHW;
+    class InstanceBatchHW_VTF;
+    class InstanceBatchShader;
+    class InstanceBatchVTF;
+    class InstanceManager;
+    class InstancedEntity;
     class IntersectionSceneQuery;
     class IntersectionSceneQueryListener;
-    class Image2;
+    class Image;
     class Item;
     struct KfTransform;
     class Light;
@@ -252,7 +234,6 @@ namespace Ogre {
     class LogManager;
     class LodStrategy;
     class LodStrategyManager;
-    class LwString;
     class ManualResourceLoader;
     class Material;
     class MaterialManager;
@@ -282,6 +263,7 @@ namespace Ogre {
     class ParticleSystemRendererFactory;
     class ParticleVisualData;
     class Pass;
+    class PixelBox;
     class Plane;
     class PlaneBoundedVolume;
     class Plugin;
@@ -292,17 +274,20 @@ namespace Ogre {
     class Ray;
     class RaySceneQuery;
     class RaySceneQueryListener;
-    class Rectangle2D;
     class Renderable;
     class RenderPriorityGroup;
     class RenderQueue;
     class RenderQueueListener;
     class RenderObjectListener;
-    class RenderPassDescriptor;
     class RenderSystem;
     class RenderSystemCapabilities;
     class RenderSystemCapabilitiesManager;
     class RenderSystemCapabilitiesSerializer;
+    class RenderTarget;
+    class RenderTargetListener;
+    class RenderTexture;
+    class MultiRenderTarget;
+    class RenderWindow;
     class Resource;
     class ResourceBackgroundQueue;
     class ResourceGroupManager;
@@ -326,7 +311,6 @@ namespace Ogre {
     class Sphere;
     class SphereSceneQuery;
     class StagingBuffer;
-    class StagingTexture;
     class StreamSerialiser;
     class StringConverter;
     class StringInterface;
@@ -338,11 +322,8 @@ namespace Ogre {
     class TexBufferPacked;
     class ExternalTextureSource;
     class TextureUnitState;
-    struct TextureBox;
-    class TextureGpu;
-    class TextureGpuListener;
-    class TextureGpuManager;
-    struct TexturePool;
+    class Texture;
+    class TextureManager;
     struct Transform;
     class Timer;
     class UavBufferPacked;
@@ -355,31 +336,11 @@ namespace Ogre {
     class VertexAnimationTrack;
     struct VertexArrayObject;
     class VertexBufferPacked;
-    class Window;
     class WireAabb;
     class WireBoundingBox;
     class WorkQueue;
     class CompositorManager2;
     class CompositorWorkspace;
-
-#ifdef OGRE_DEPRECATED_2_2
-    class DepthBuffer;
-    class HlmsTextureManager;
-    class Image;
-    class PixelBox;
-    class RenderTarget;
-    class RenderTargetListener;
-    class RenderTexture;
-    class RenderToVertexBuffer;
-    class RenderWindow;
-    class MultiRenderTarget;
-    class Texture;
-    class TextureManager;
-
-    template<typename T> class SharedPtr;
-    typedef SharedPtr<RenderToVertexBuffer> RenderToVertexBufferSharedPtr;
-    typedef SharedPtr<Texture> TexturePtr;
-#endif
 
     template<typename T> class SharedPtr;
     typedef SharedPtr<AnimableValue> AnimableValuePtr;
@@ -397,6 +358,7 @@ namespace Ogre {
     typedef SharedPtr<Resource> ResourcePtr;
     typedef SharedPtr<ShadowCameraSetup> ShadowCameraSetupPtr;
     typedef SharedPtr<SkeletonDef> SkeletonDefPtr;
+    typedef SharedPtr<Texture> TexturePtr;
 
     namespace v1
     {
@@ -418,6 +380,13 @@ namespace Ogre {
         class HardwarePixelBuffer;
         class HardwarePixelBufferSharedPtr;
         class IndexData;
+        class InstanceBatch;
+        class InstanceBatchHW;
+        class InstanceBatchHW_VTF;
+        class InstanceBatchShader;
+        class InstanceBatchVTF;
+        class InstanceManager;
+        class InstancedEntity;
         class KeyFrame;
         class ManualObject;
         class Mesh;
@@ -432,6 +401,7 @@ namespace Ogre {
         class PatchMesh;
         class Pose;
         class RenderOperation;
+        class RenderToVertexBuffer;
         class RibbonTrail;
         class SimpleRenderable;
         class Skeleton;
@@ -447,6 +417,7 @@ namespace Ogre {
 
         typedef SharedPtr<Mesh> MeshPtr;
         typedef SharedPtr<PatchMesh> PatchMeshPtr;
+        typedef SharedPtr<RenderToVertexBuffer> RenderToVertexBufferSharedPtr;
         typedef SharedPtr<Skeleton> SkeletonPtr;
     }
 }
@@ -620,29 +591,142 @@ namespace std
 }
 #endif
 
-// Forward declaration of a regular STL. This is a workaround to prevent forward declaring
-// an std::map & co (which is undefined behavior). Use this for rarely used maps/vector/etc that
-// are passed by reference & need to be everywhere in headers (thus affecting compilation times)
+//for stl container
 namespace Ogre
-{
-    template <typename T, typename A = STLAllocator<T, GeneralAllocPolicy> >
-    class StdVector;
+{ 
+    template <typename T, typename A = STLAllocator<T, GeneralAllocPolicy> > 
+    struct deque 
+    { 
+#if OGRE_CONTAINERS_USE_CUSTOM_MEMORY_ALLOCATOR
+        typedef typename std::deque<T, A> type;    
+        typedef typename std::deque<T, A>::iterator iterator;
+        typedef typename std::deque<T, A>::const_iterator const_iterator;
+#else
+        typedef typename std::deque<T> type;
+        typedef typename std::deque<T>::iterator iterator;
+        typedef typename std::deque<T>::const_iterator const_iterator;
+#endif
+    }; 
 
-    template <typename K, typename V, typename P = std::less<K>,
-              typename A = STLAllocator<std::pair<const K, V>, GeneralAllocPolicy> >
-    class StdMap;
+    template <typename T, typename A = STLAllocator<T, GeneralAllocPolicy> > 
+    struct vector 
+    { 
+#if OGRE_CONTAINERS_USE_CUSTOM_MEMORY_ALLOCATOR
+        typedef typename std::vector<T, A> type;
+        typedef typename std::vector<T, A>::iterator iterator;
+        typedef typename std::vector<T, A>::const_iterator const_iterator;
+#else
+        typedef typename std::vector<T> type;
+        typedef typename std::vector<T>::iterator iterator;
+        typedef typename std::vector<T>::const_iterator const_iterator;
+#endif
+    }; 
 
-    template <typename K, typename V, typename P = std::less<K>,
-              typename A = STLAllocator<std::pair<const K, V>, GeneralAllocPolicy> >
-    class StdMultiMap;
+    template <typename T, typename A = STLAllocator<T, GeneralAllocPolicy> > 
+    struct list 
+    { 
+#if OGRE_CONTAINERS_USE_CUSTOM_MEMORY_ALLOCATOR
+        typedef typename std::list<T, A> type;
+        typedef typename std::list<T, A>::iterator iterator;
+        typedef typename std::list<T, A>::const_iterator const_iterator;
+#else
+        typedef typename std::list<T> type;
+        typedef typename std::list<T>::iterator iterator;
+        typedef typename std::list<T>::const_iterator const_iterator;
+#endif
+    }; 
 
-    template <typename T, typename A = STLAllocator<T, GeneralAllocPolicy> >
-    class StdList;
+    template <typename T, typename P = std::less<T>, typename A = STLAllocator<T, GeneralAllocPolicy> > 
+    struct set 
+    { 
+#if OGRE_CONTAINERS_USE_CUSTOM_MEMORY_ALLOCATOR
+        typedef typename std::set<T, P, A> type;
+        typedef typename std::set<T, P, A>::iterator iterator;
+        typedef typename std::set<T, P, A>::const_iterator const_iterator;
+#else
+        typedef typename std::set<T, P> type;
+        typedef typename std::set<T, P>::iterator iterator;
+        typedef typename std::set<T, P>::const_iterator const_iterator;
+#endif
+    }; 
 
-    template <typename K, typename H = OGRE_HASH_NAMESPACE::hash<K>, typename E = std::equal_to<K>,
-              typename A = STLAllocator<K, GeneralAllocPolicy> >
-    class StdUnorderedSet;
-}
+    template <typename K, typename V, typename P = std::less<K>, typename A = STLAllocator<std::pair<const K, V>, GeneralAllocPolicy> > 
+    struct map 
+    { 
+#if OGRE_CONTAINERS_USE_CUSTOM_MEMORY_ALLOCATOR
+        typedef typename std::map<K, V, P, A> type;
+        typedef typename std::map<K, V, P, A>::iterator iterator;
+        typedef typename std::map<K, V, P, A>::const_iterator const_iterator;
+#else
+        typedef typename std::map<K, V, P> type;
+        typedef typename std::map<K, V, P>::iterator iterator;
+        typedef typename std::map<K, V, P>::const_iterator const_iterator;
+#endif
+    }; 
+
+    template <typename K, typename V, typename P = std::less<K>, typename A = STLAllocator<std::pair<const K, V>, GeneralAllocPolicy> > 
+    struct multimap 
+    { 
+#if OGRE_CONTAINERS_USE_CUSTOM_MEMORY_ALLOCATOR
+        typedef typename std::multimap<K, V, P, A> type;
+        typedef typename std::multimap<K, V, P, A>::iterator iterator;
+        typedef typename std::multimap<K, V, P, A>::const_iterator const_iterator;
+#else
+        typedef typename std::multimap<K, V, P> type;
+        typedef typename std::multimap<K, V, P>::iterator iterator;
+        typedef typename std::multimap<K, V, P>::const_iterator const_iterator;
+#endif
+    }; 
+
+    template <typename K, typename V, typename H = OGRE_HASH_NAMESPACE::hash<K>, typename E = std::equal_to<K>, typename A = STLAllocator<std::pair<const K, V>, GeneralAllocPolicy> >
+    struct unordered_map
+    { 
+#if OGRE_CONTAINERS_USE_CUSTOM_MEMORY_ALLOCATOR
+        typedef typename OGRE_HASH_NAMESPACE::OGRE_HASHMAP_NAME<K, V, H, E, A> type;
+#else
+        typedef typename OGRE_HASH_NAMESPACE::OGRE_HASHMAP_NAME<K, V, H, E> type;
+#endif
+        typedef typename type::iterator iterator;
+        typedef typename type::const_iterator const_iterator;
+    };
+
+    template <typename K, typename V, typename H = OGRE_HASH_NAMESPACE::hash<K>, typename E = std::equal_to<K>, typename A = STLAllocator<std::pair<const K, V>, GeneralAllocPolicy> >
+    struct unordered_multimap
+    { 
+#if OGRE_CONTAINERS_USE_CUSTOM_MEMORY_ALLOCATOR
+        typedef typename OGRE_HASH_NAMESPACE::OGRE_HASHMULTIMAP_NAME<K, V, H, E, A> type;
+#else
+        typedef typename OGRE_HASH_NAMESPACE::OGRE_HASHMULTIMAP_NAME<K, V, H, E> type;
+#endif
+        typedef typename type::iterator iterator;
+        typedef typename type::const_iterator const_iterator;
+    };
+
+    template <typename K, typename H = OGRE_HASH_NAMESPACE::hash<K>, typename E = std::equal_to<K>, typename A = STLAllocator<K, GeneralAllocPolicy> >
+    struct unordered_set
+    { 
+#if OGRE_CONTAINERS_USE_CUSTOM_MEMORY_ALLOCATOR
+        typedef typename OGRE_HASH_NAMESPACE::OGRE_HASHSET_NAME<K, H, E, A> type;
+#else
+        typedef typename OGRE_HASH_NAMESPACE::OGRE_HASHSET_NAME<K, H, E> type;
+#endif
+        typedef typename type::iterator iterator;
+        typedef typename type::const_iterator const_iterator;
+    };
+
+    template <typename K, typename H = OGRE_HASH_NAMESPACE::hash<K>, typename E = std::equal_to<K>, typename A = STLAllocator<K, GeneralAllocPolicy> >
+    struct unordered_multiset
+    { 
+#if OGRE_CONTAINERS_USE_CUSTOM_MEMORY_ALLOCATOR
+        typedef typename OGRE_HASH_NAMESPACE::OGRE_HASHMULTISET_NAME<K, H, E, A> type;
+#else
+        typedef typename OGRE_HASH_NAMESPACE::OGRE_HASHMULTISET_NAME<K, H, E> type;
+#endif
+        typedef typename type::iterator iterator;
+        typedef typename type::const_iterator const_iterator;
+    };
+
+} // Ogre
 
 #include "OgreAssert.h"
 

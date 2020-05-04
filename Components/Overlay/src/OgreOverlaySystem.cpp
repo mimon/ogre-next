@@ -82,11 +82,13 @@ namespace v1 {
     {
         if(queueGroupId == mOverlayManager->mDefaultRenderQueueId)
         {
-            Ogre::Viewport* vp =
-                    Ogre::Root::getSingletonPtr()->getRenderSystem()->getCurrentRenderViewports();
-            if (vp->getOverlaysEnabled())
+            Ogre::Viewport* vp = Ogre::Root::getSingletonPtr()->getRenderSystem()->_getViewport();
+            if(vp != NULL)
             {
-                OverlayManager::getSingleton()._queueOverlaysForRendering( rq, vp );
+                if (vp->getOverlaysEnabled())
+                {
+                    OverlayManager::getSingleton()._queueOverlaysForRendering( rq, vp );
+                }
             }
         }
     }

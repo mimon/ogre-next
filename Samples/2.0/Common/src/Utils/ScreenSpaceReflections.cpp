@@ -19,7 +19,7 @@ namespace Demo
         0,      0,    1,    0,
         0,      0,    0,    1);
 
-    ScreenSpaceReflections::ScreenSpaceReflections( Ogre::TextureGpu *globalCubemap,
+    ScreenSpaceReflections::ScreenSpaceReflections( const Ogre::TexturePtr &globalCubemap,
                                                     Ogre::RenderSystem *renderSystem ) :
         mLastUvSpaceViewProjMatrix( PROJECTIONCLIPSPACE2DTOIMAGESPACE_PERSPECTIVE ),
         mRsDepthRange( 1.0f )
@@ -45,13 +45,16 @@ namespace Demo
     //-----------------------------------------------------------------------------------
     void ScreenSpaceReflections::update( Ogre::Camera *camera )
     {
-        Ogre::Vector2 projectionAB = camera->getProjectionParamsAB();
+        Ogre::Real projectionA = camera->getFarClipDistance() /
+                                    (camera->getFarClipDistance() - camera->getNearClipDistance());
+        Ogre::Real projectionB = (-camera->getFarClipDistance() * camera->getNearClipDistance()) /
+                                    (camera->getFarClipDistance() - camera->getNearClipDistance());
         for( int i=0; i<2; ++i )
         {
             //The division will keep "linearDepth" in the shader in the [0; 1] range.
-            //projectionAB.y /= camera->getFarClipDistance();
+            //projectionB /= camera->getFarClipDistance();
             mPsParams[0]->setNamedConstant( "projectionParams",
-                                            Ogre::Vector4( projectionAB.x, projectionAB.y, 0, 0 ) );
+                                            Ogre::Vector4( projectionA, projectionB, 0, 0 ) );
         }
 
         Ogre::Matrix4 viewToTextureSpaceMatrix = camera->getProjectionMatrix();
@@ -82,7 +85,7 @@ namespace Demo
         invViewMatrixCubemap[2][2] = -invViewMatrixCubemap[2][2];
         invViewMatrixCubemap = invViewMatrixCubemap.Inverse();
 
-        mPsParams[1]->setNamedConstant( "invViewMatCubemap", invViewMatrixCubemap );
+        mPsParams[1]->setNamedConstant( "invViewMatCubemap", &invViewMatrixCubemap[0][0], 3*3, 1 );
 
         //Why do we need to 2x the camera position in GL (so that difference is 2x)? I have no clue,
         //but could be realted with OpenGL's depth range being in range [-1;1] and projection magic.

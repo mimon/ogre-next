@@ -49,7 +49,6 @@ THE SOFTWARE.
 
 #include "OgreHlms.h"
 #include "OgreHlmsManager.h"
-#include "OgrePixelFormatGpuUtils.h"
 
 #include "Compositor/OgreCompositorManager2.h"
 #include "Compositor/OgreCompositorWorkspaceDef.h"
@@ -57,7 +56,6 @@ THE SOFTWARE.
 #include "Compositor/Pass/PassClear/OgreCompositorPassClearDef.h"
 #include "Compositor/Pass/PassCompute/OgreCompositorPassComputeDef.h"
 #include "Compositor/Pass/PassDepthCopy/OgreCompositorPassDepthCopyDef.h"
-#include "Compositor/Pass/PassIblSpecular/OgreCompositorPassIblSpecularDef.h"
 #include "Compositor/Pass/PassMipmap/OgreCompositorPassMipmapDef.h"
 #include "Compositor/Pass/PassQuad/OgreCompositorPassQuadDef.h"
 #include "Compositor/Pass/PassScene/OgreCompositorPassSceneDef.h"
@@ -2480,37 +2478,6 @@ namespace Ogre{
                                                prop->values.front()->getValue() + " is not a valid boolean");
                     }
                     break;
-                case ID_CHANNEL_MASK:
-                    if(prop->values.empty())
-                    {
-                        compiler->addError(ScriptCompiler::CE_STRINGEXPECTED, prop->file, prop->line);
-                    }
-                    else if(prop->values.size() > 1)
-                    {
-                        compiler->addError(ScriptCompiler::CE_FEWERPARAMETERSEXPECTED, prop->file, prop->line,
-                                           "channel_mask must have at most 1 argument");
-                    }
-                    else
-                    {
-                        String val;
-                        if( getString(prop->values.front(), &val) )
-                        {
-                            StringUtil::toLowerCase( val );
-                            blendblock.mBlendChannelMask = 0u;
-                            if( val.find( 'r' ) != String::npos )
-                                blendblock.mBlendChannelMask |= HlmsBlendblock::BlendChannelRed;
-                            if( val.find( 'g' ) != String::npos )
-                                blendblock.mBlendChannelMask |= HlmsBlendblock::BlendChannelGreen;
-                            if( val.find( 'b' ) != String::npos )
-                                blendblock.mBlendChannelMask |= HlmsBlendblock::BlendChannelBlue;
-                            if( val.find( 'a' ) != String::npos )
-                                blendblock.mBlendChannelMask |= HlmsBlendblock::BlendChannelAlpha;
-                        }
-                        else
-                            compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line,
-                                               prop->values.front()->getValue() + " is not a valid rgba string");
-                    }
-                    break;
                 case ID_MAX_LIGHTS:
                     if(prop->values.empty())
                     {
@@ -3188,10 +3155,11 @@ namespace Ogre{
                         String val;
                         if(getString(*j, &val))
                         {
-                            TextureTypes::TextureTypes texType = TextureTypes::Type2D;
+                            TextureType texType = TEX_TYPE_2D;
                             bool isAlpha = false;
                             bool sRGBRead = false;
-                            int mipmaps = 1u;
+                            PixelFormat format = PF_UNKNOWN;
+                            int mipmaps = MIP_DEFAULT;
 
                             ++j;
                             while(j != prop->values.end())
@@ -3209,24 +3177,23 @@ namespace Ogre{
 
                                             if (rs->getCapabilities()->hasCapability(RSC_TEXTURE_1D))
                                             {
-                                                texType = TextureTypes::Type1D;
+                                                texType = TEX_TYPE_1D;
                                                 break;
                                             }
-                                        }
-                                    case ID_2D:
-                                        texType = TextureTypes::Type2D;
+                                        }                                                                       case ID_2D:
+                                        texType = TEX_TYPE_2D;
                                         break;
                                     case ID_3D:
-                                        texType = TextureTypes::Type3D;
+                                        texType = TEX_TYPE_3D;
                                         break;
                                     case ID_CUBIC:
-                                        texType = TextureTypes::TypeCube;
+                                        texType = TEX_TYPE_CUBE_MAP;
                                         break;
                                     case ID_2DARRAY:
-                                        texType = TextureTypes::Type2DArray;
+                                        texType = TEX_TYPE_2D_ARRAY;
                                         break;
                                     case ID_UNLIMITED:
-                                        // mipmaps = MIP_UNLIMITED;
+                                        mipmaps = MIP_UNLIMITED;
                                         break;
                                     case ID_ALPHA:
                                         isAlpha = true;
@@ -3237,6 +3204,8 @@ namespace Ogre{
                                     default:
                                         if(StringConverter::isNumber(atom->value))
                                             mipmaps = StringConverter::parseInt(atom->value);
+                                        else
+                                            format = PixelUtil::getFormatFromName(atom->value, true);
                                     }
                                 }
                                 else
@@ -3251,6 +3220,7 @@ namespace Ogre{
                             compiler->_fireEvent(&evt, 0);
 
                             mUnit->setTextureName(evt.mName, texType);
+                            mUnit->setDesiredFormat(format);
                             mUnit->setIsAlpha(isAlpha);
                             mUnit->setNumMipmaps(mipmaps);
                             mUnit->setHardwareGammaEnabled(sRGBRead);
@@ -4492,7 +4462,16 @@ namespace Ogre{
                                     String textureName;
                                     getString(*getNodeAt(prop->values, 1), &textureName);
                                     
-                                    mUnit->setCompositorReference(textureName);
+                                    if (prop->values.size() == 3)
+                                    {
+                                        uint32 mrtIndex;
+                                        getUInt(*getNodeAt(prop->values, 2), (uint32*)&mrtIndex);
+                                        mUnit->setCompositorReference(textureName, mrtIndex);
+                                    }
+                                    else
+                                    {
+                                        mUnit->setCompositorReference(textureName);
+                                    }
                                 }
                                 else
                                 {
@@ -4511,20 +4490,6 @@ namespace Ogre{
                             compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line,
                                 prop->values.front()->getValue() + " is not a valid content type");
                         }
-                    }
-                    break;
-                case ID_AUTOMATIC_BATCHING:
-                    if(prop->values.size() != 1)
-                    {
-                        compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line);
-                    }
-                    else
-                    {
-                        bool automaticBatching = false;
-                        if( getBoolean( *prop->values.begin(), &automaticBatching ) )
-                            mUnit->setAutomaticBatching( automaticBatching );
-                        else
-                            compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line);
                     }
                     break;
                 default:
@@ -6253,21 +6218,20 @@ namespace Ogre{
         // Save the first atom, should be name
         AtomAbstractNode *atom0 = (AtomAbstractNode*)(*it).get();
 
-        TextureTypes::TextureTypes textureType = TextureTypes::Type2D;
-        uint width = 0, height = 0, depthOrSlices = 1u;
+        TextureType textureType = TEX_TYPE_2D;
+        uint width = 0, height = 0, depth = 1;
         float widthFactor = 1.0f, heightFactor = 1.0f;
-        bool widthSet = false, heightSet = false;
-        String fsaa = "1";
-        uint32 textureFlags = TextureFlags::RenderToTexture;
+        bool widthSet = false, heightSet = false, formatSet = false;
+        TextureDefinitionBase::BoolSetting hwGammaWrite = TextureDefinitionBase::BoolUndefined;
+        bool fsaa = true;
+        bool fsaaExplicitResolve = false;
         uint16 depthBufferId = DepthBuffer::POOL_INVALID;
-        PixelFormatGpu depthBufferFormat = PFG_UNKNOWN;
+        PixelFormat depthBufferFormat = PF_UNKNOWN;
+        int numMipmaps = 0;
+        bool automipmaps = false;
+        bool isUav = false;
         bool preferDepthTexture = false;
-        uint8 numMipmaps = 1u;
-        bool noAutomipmaps = false;
-        PixelFormatGpu format;
-
-        bool hasWidthScaleSet = false;
-        bool hasHeightScaleSet = false;
+        Ogre::PixelFormatList formats;
 
         while (atomIndex < prop->values.size())
         {
@@ -6301,14 +6265,12 @@ namespace Ogre{
                         pSetFlag = &widthSet;
                         pSize = &width;
                         pFactor = &widthFactor;
-                        hasWidthScaleSet = true;
                     }
                     else
                     {
                         pSetFlag = &heightSet;
                         pSize = &height;
                         pFactor = &heightFactor;
-                        hasHeightScaleSet = true;
                     }
                     // advance to next to get scaling
                     it = getNodeAt(prop->values, static_cast<int>(atomIndex++));
@@ -6330,32 +6292,19 @@ namespace Ogre{
                 }
                 break;
             case ID_TARGET_FORMAT:
-                format = PFG_UNKNOWN;
+                formatSet = true;
                 break;
-            case ID_MSAA:
-                // advance to next to get the MSAA setting
-                it = getNodeAt(prop->values, static_cast<int>(atomIndex++));
-                if(prop->values.end() == it || (*it)->type != ANT_ATOM)
-                {
-                    compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line);
-                    return;
-                }
-                atom = (AtomAbstractNode*)(*it).get();
-                if( !StringConverter::parseUnsignedInt(atom->value) )
-                {
-                    compiler->addError(ScriptCompiler::CE_NUMBEREXPECTED, prop->file, prop->line);
-                    return;
-                }
-                fsaa = atom->value;
+            case ID_GAMMA:
+                hwGammaWrite = TextureDefinitionBase::BoolTrue;
                 break;
-            case ID_MSAA_AUTO:
-                fsaa = "";
+            case ID_NO_GAMMA:
+                hwGammaWrite = TextureDefinitionBase::BoolFalse;
+                break;
+            case ID_NO_FSAA:
+                fsaa = false;
                 break;
             case ID_EXPLICIT_RESOLVE:
-                textureFlags |= TextureFlags::MsaaExplicitResolve;
-                break;
-            case ID_REINTERPRETABLE:
-                textureFlags |= TextureFlags::Reinterpretable;
+                fsaaExplicitResolve = true;
                 break;
             case ID_DEPTH_POOL:
                 {
@@ -6390,8 +6339,8 @@ namespace Ogre{
                     }
                     atom = (AtomAbstractNode*)(*it).get();
 
-                    depthBufferFormat = PixelFormatGpuUtils::getFormatFromName( atom->value );
-                    if( depthBufferFormat == PFG_UNKNOWN )
+                    depthBufferFormat = PixelUtil::getFormatFromName(atom->value, false);
+                    if( depthBufferFormat == PF_UNKNOWN )
                     {
                         compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line);
                         return;
@@ -6399,7 +6348,7 @@ namespace Ogre{
                 }
                 break;
             case ID_UAV:
-                textureFlags |= TextureFlags::Uav;
+                isUav = true;
                 break;
             case ID_MIPMAP:
             case ID_MIPMAPS:
@@ -6421,13 +6370,12 @@ namespace Ogre{
                     numMipmaps = StringConverter::parseInt(atom->value);
                 }
                 break;
-            case ID_NO_AUTOMIPMAPS:
-                noAutomipmaps = true;
+            case ID_AUTOMIPMAPS:
+                automipmaps = true;
                 break;
-            case ID_2D_ARRAY:       textureType = TextureTypes::Type2DArray; break;
-            case ID_3D:             textureType = TextureTypes::Type3D; break;
-            case ID_CUBEMAP:        textureType = TextureTypes::TypeCube; break;
-            case ID_CUBEMAP_ARRAY:  textureType = TextureTypes::TypeCubeArray; break;
+            case ID_2D_ARRAY:   textureType = TEX_TYPE_2D_ARRAY; break;
+            case ID_3D:         textureType = TEX_TYPE_3D; break;
+            case ID_CUBEMAP:    textureType = TEX_TYPE_CUBE_MAP; break;
             default:
                 if (StringConverter::isNumber(atom->value))
                 {
@@ -6441,11 +6389,9 @@ namespace Ogre{
                         height = StringConverter::parseInt(atom->value);
                         heightSet = true;
                     }
-                    else if (atomIndex == 4 ||
-                             (atomIndex == 5 && hasWidthScaleSet != hasHeightScaleSet) ||
-                             (atomIndex == 6 && hasWidthScaleSet && hasWidthScaleSet == hasHeightScaleSet))
+                    else if (atomIndex == 4)
                     {
-                        depthOrSlices = StringConverter::parseInt(atom->value);
+                        depth = StringConverter::parseInt(atom->value);
                     }
                     else
                     {
@@ -6456,19 +6402,21 @@ namespace Ogre{
                 else
                 {
                     // pixel format?
-                    format = PixelFormatGpuUtils::getFormatFromName( atom->value );
-                    if( format == PFG_UNKNOWN )
+                    PixelFormat format = PixelUtil::getFormatFromName(atom->value, false);
+                    if (format == PF_UNKNOWN)
                     {
                         compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line,
                                            "Unrecognized PixelFormat");
                         return;
                     }
+                    formats.push_back(format);
+                    formatSet = true;
 
                     if( depthBufferId == DepthBuffer::POOL_INVALID )
                     {
-                        if( PixelFormatGpuUtils::isDepth( format ) )
+                        if( PixelUtil::isDepth( format ) )
                             depthBufferId = DepthBuffer::POOL_NON_SHAREABLE;
-                        else if( format == PFG_NULL )
+                        else if( format == PF_NULL )
                             depthBufferId = DepthBuffer::POOL_NO_DEPTH;
                         else
                             depthBufferId = DepthBuffer::POOL_DEFAULT;
@@ -6477,52 +6425,35 @@ namespace Ogre{
 
             }
         }
-        if( !widthSet || !heightSet )
+        if (!widthSet || !heightSet || !formatSet)
         {
             compiler->addError(ScriptCompiler::CE_STRINGEXPECTED, prop->file, prop->line);
             return;
         }
 
-        if( textureType == TextureTypes::Type2D )
-            depthOrSlices = 1u;
-        else if( textureType == TextureTypes::TypeCube )
-            depthOrSlices = 6u;
-
-        if( !noAutomipmaps && numMipmaps != 1u )
-            textureFlags |= TextureFlags::AllowAutomipmaps;
+        if( textureType == TEX_TYPE_2D )
+            depth = 1;
+        else if( textureType == TEX_TYPE_CUBE_MAP )
+            depth = 6;
 
         // No errors, create
         TextureDefinitionBase::TextureDefinition *td = defBase->addTextureDefinition( atom0->value );
         td->textureType     = textureType;
         td->width           = width;
         td->height          = height;
-        td->depthOrSlices   = depthOrSlices;
+        td->depth           = depth;
         td->numMipmaps      = numMipmaps;
         td->widthFactor     = widthFactor;
         td->heightFactor    = heightFactor;
-        td->format          = format;
+        td->formatList      = formats;
         td->fsaa            = fsaa;
-        td->textureFlags    = textureFlags;
-        td->depthBufferId       = depthBufferId;
-        td->preferDepthTexture  = preferDepthTexture;
+        td->uav             = isUav;
+        td->automipmaps     = automipmaps;
+        td->hwGammaWrite    = hwGammaWrite;
+        td->depthBufferId   = depthBufferId;
         td->depthBufferFormat   = depthBufferFormat;
-
-        RenderTargetViewDef *rtv = defBase->addRenderTextureView( atom0->value );
-        if( format == PFG_UNKNOWN || !PixelFormatGpuUtils::isDepth( format ) )
-        {
-            RenderTargetViewEntry attachment;
-            attachment.textureName = atom0->value;
-            rtv->colourAttachments.push_back( attachment );
-            rtv->depthBufferId      = depthBufferId;
-            rtv->preferDepthTexture = preferDepthTexture;
-            rtv->depthBufferFormat  = depthBufferFormat;
-        }
-        else
-        {
-            rtv->depthAttachment.textureName = atom0->value;
-            if( PixelFormatGpuUtils::isStencil( format ) )
-                rtv->stencilAttachment.textureName = atom0->value;
-        }
+        td->preferDepthTexture  = preferDepthTexture;
+        td->fsaaExplicitResolve = fsaaExplicitResolve;
     }
     //-----------------------------------------------------------------------------------
     void CompositorTextureBaseTranslator::translateBufferProperty( TextureDefinitionBase *defBase,
@@ -7198,6 +7129,7 @@ namespace Ogre{
         //AtomAbstractNode *atom0 = (AtomAbstractNode*)(*it).get();
 
         String texName = "";
+        uint8       mrtIndex = 0;
         Vector2     uvOffset( Vector2::ZERO );
         Vector2     uvLength( Vector2::UNIT_SCALE );
         uint8       arrayIdx = 0;
@@ -7311,6 +7243,15 @@ namespace Ogre{
                         if( getString( *it, &texName ) )
                             isValid = true;
                     }
+                    else if( atomIndex == 3 )
+                    {
+                        uint32 val = 0;
+                        if( getUInt( *it, &val ) )
+                        {
+                            isValid = true;
+                            mrtIndex = static_cast<uint32>( val );
+                        }
+                    }
 
                     if( !isValid )
                     {
@@ -7327,14 +7268,13 @@ namespace Ogre{
         }
 
         ShadowTextureDefinition *td = mShadowNodeDef->addShadowTextureDefinition(
-                    lightIdx, splitIdx, texName, uvOffset, uvLength, arrayIdx );
+                    lightIdx, splitIdx, texName, mrtIndex, uvOffset, uvLength, arrayIdx );
         // No errors, create
         td->pssmLambda      = defaultParams.pssmLambda;
         td->splitPadding    = defaultParams.splitPadding;
         td->splitBlend      = defaultParams.splitBlend;
         td->splitFade       = defaultParams.splitFade;
         td->numSplits       = defaultParams.numSplits;
-        td->numStableSplits = defaultParams.numStableSplits;
     }
     //-------------------------------------------------------------------------
     void CompositorShadowNodeTranslator::translate(ScriptCompiler *compiler, const AbstractNodePtr &node)
@@ -7402,7 +7342,7 @@ namespace Ogre{
         mShadowNodeDef->setNumTargetPass( numTargetPasses );
         mShadowNodeDef->setNumOutputChannels( numOutputChannels );
 
-        ShadowTextureDefinition defaultParams( SHADOWMAP_UNIFORM, "", Vector2::ZERO,
+        ShadowTextureDefinition defaultParams( SHADOWMAP_UNIFORM, "", 0, Vector2::ZERO,
                                                Vector2::UNIT_SCALE, 0, 0, 0 );
 
         AbstractNodeList::iterator i = obj->children.begin();
@@ -7483,33 +7423,6 @@ namespace Ogre{
                         else
                         {
                             compiler->addError(ScriptCompiler::CE_NUMBEREXPECTED, prop->file, prop->line);
-                            return;
-                        }
-                    }
-                    break;
-                case ID_NUM_STABLE_SPLITS:
-                    {
-                        if( prop->values.empty() )
-                        {
-                            compiler->addError( ScriptCompiler::CE_NUMBEREXPECTED, prop->file,
-                                                prop->line );
-                        }
-                        else if( prop->values.size() != 1 )
-                        {
-                            compiler->addError( ScriptCompiler::CE_FEWERPARAMETERSEXPECTED, prop->file,
-                                                prop->line );
-                        }
-
-                        uint32 val;
-                        AbstractNodeList::const_iterator it0 = prop->values.begin();
-                        if( getUInt( *it0, &val ) )
-                        {
-                            defaultParams.numStableSplits = val;
-                        }
-                        else
-                        {
-                            compiler->addError( ScriptCompiler::CE_NUMBEREXPECTED, prop->file,
-                                                prop->line );
                             return;
                         }
                     }
@@ -7660,348 +7573,6 @@ namespace Ogre{
     }
 
     /**************************************************************************
-     * CompositorRenderTargetViewTranslator
-     *************************************************************************/
-    CompositorRenderTargetViewTranslator::CompositorRenderTargetViewTranslator() : mRtv(0)
-    {
-    }
-
-    void CompositorRenderTargetViewTranslator::translateRenderTargetViewEntry(
-            RenderTargetViewEntry &attachment, PropertyAbstractNode *prop,
-            ScriptCompiler *compiler, bool isColour )
-    {
-        if( (isColour && prop->values.size() < 2u) ||
-            (!isColour && prop->values.size() < 1u) )
-        {
-            compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line);
-            return;
-        }
-
-        AbstractNodeList::const_iterator itor = prop->values.begin();
-        AbstractNodeList::const_iterator end  = prop->values.end();
-
-        if( isColour )
-            ++itor; //Skip the attachment index
-
-        if( !getIdString( *itor, &attachment.textureName ) )
-        {
-            compiler->addError( ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line,
-                                "Could not retrieve texture name for this RTV entry" );
-            return;
-        }
-        ++itor;
-
-        bool resolveMipSet = false;
-        bool resolveSliceSet = false;
-
-        while( itor != end )
-        {
-            AtomAbstractNode *atom = (AtomAbstractNode*)(*itor).get();
-            switch( atom->id )
-            {
-            case ID_RESOLVE:
-                break;
-            case ID_MIP:
-            case ID_MIPMAP:
-            {
-                uint32 mip = 0;
-                if( getUInt( *itor, &mip ) )
-                {
-                    attachment.mipLevel = static_cast<uint8>( mip );
-                    if( !resolveMipSet )
-                        attachment.resolveMipLevel = static_cast<uint8>( mip );
-                }
-                else
-                {
-                    compiler->addError(ScriptCompiler::CE_NUMBEREXPECTED, prop->file, prop->line);
-                }
-            }
-                break;
-            case ID_RESOLVE_MIP:
-            case ID_RESOLVE_MIPMAP:
-            {
-                uint32 mip = 0;
-                if( getUInt( *itor, &mip ) )
-                {
-                    attachment.resolveMipLevel = static_cast<uint8>( mip );
-                    resolveMipSet = true;
-                }
-                else
-                {
-                    compiler->addError(ScriptCompiler::CE_NUMBEREXPECTED, prop->file, prop->line);
-                }
-            }
-                break;
-            case ID_SLICE:
-            {
-                uint32 slice = 0;
-                if( getUInt( *itor, &slice ) )
-                {
-                    attachment.slice = static_cast<uint8>( slice );
-                    if( !resolveSliceSet )
-                        attachment.resolveSlice = static_cast<uint8>( slice );
-                }
-                else
-                {
-                    compiler->addError(ScriptCompiler::CE_NUMBEREXPECTED, prop->file, prop->line);
-                }
-            }
-                break;
-            case ID_RESOLVE_SLICE:
-            {
-                uint32 slice = 0;
-                if( getUInt( *itor, &slice ) )
-                {
-                    attachment.resolveSlice = static_cast<uint8>( slice );
-                    resolveSliceSet = true;
-                }
-                else
-                {
-                    compiler->addError(ScriptCompiler::CE_NUMBEREXPECTED, prop->file, prop->line);
-                }
-            }
-            case ID_ALL_LAYERS:
-            {
-                if( !getBoolean( *itor, &attachment.colourAllLayers ) )
-                {
-                    compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line);
-                }
-            }
-                break;
-            }
-
-            ++itor;
-        }
-    }
-
-    void CompositorRenderTargetViewTranslator::translate(ScriptCompiler *compiler, const AbstractNodePtr &node)
-    {
-        ObjectAbstractNode *obj = reinterpret_cast<ObjectAbstractNode*>(node.get());
-        if(obj->name.empty())
-        {
-            compiler->addError(ScriptCompiler::CE_OBJECTNAMEEXPECTED, obj->file, obj->line);
-            return;
-        }
-
-        CompositorNodeDef *nodeDef = any_cast<CompositorNodeDef*>(obj->parent->context);
-
-        //First edit an existing RTV. If none found, create a new one.
-        mRtv = nodeDef->getRenderTargetViewDefNonConstNoThrow( obj->name );
-        if( !mRtv )
-            mRtv = nodeDef->addRenderTextureView( obj->name );
-
-        if(mRtv == 0)
-        {
-            compiler->addError(ScriptCompiler::CE_OBJECTALLOCATIONERROR, obj->file, obj->line);
-            return;
-        }
-
-        if( mRtv->isRuntimeAnalyzed() )
-        {
-            compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, obj->file, obj->line,
-                               "RTV " + obj->name + "cannot be overriden because it comes "
-                               "from an input. Create a duplicate instead");
-            return;
-        }
-
-        // Prepare the compositor
-        obj->context = Any(mRtv);
-
-        AbstractNodeList::iterator i = obj->children.begin();
-        try
-        {
-        for(i = obj->children.begin(); i != obj->children.end(); ++i)
-        {
-            if((*i)->type == ANT_OBJECT)
-            {
-                processNode(compiler, *i);
-            }
-            else if((*i)->type == ANT_PROPERTY)
-            {
-                PropertyAbstractNode *prop = reinterpret_cast<PropertyAbstractNode*>((*i).get());
-                switch(prop->id)
-                {
-                case ID_COLOUR:
-                {
-                    if(prop->values.empty())
-                    {
-                        compiler->addError(ScriptCompiler::CE_STRINGEXPECTED, prop->file, prop->line);
-                    }
-                    else
-                    {
-                        uint32 colourAttachmentIdx;
-                        if( getUInt( *prop->values.begin(), &colourAttachmentIdx ) )
-                        {
-                            //Specifying a colour RTT in detail at a given location
-                            if( colourAttachmentIdx >= mRtv->colourAttachments.size() )
-                                mRtv->colourAttachments.resize( colourAttachmentIdx + 1u );
-                            translateRenderTargetViewEntry( mRtv->colourAttachments[colourAttachmentIdx],
-                                                            prop, compiler, true );
-                        }
-                        else
-                        {
-                            //Specifying one or multiple colour RTT, no detail
-                            size_t colourIdx = 0;
-                            AbstractNodeList::const_iterator it = prop->values.begin();
-                            AbstractNodeList::const_iterator en = prop->values.end();
-
-                            while( it != en )
-                            {
-                                IdString texName;
-                                if( getIdString( *it, &texName ) )
-                                {
-                                    if( colourIdx >= mRtv->colourAttachments.size() )
-                                        mRtv->colourAttachments.push_back( RenderTargetViewEntry() );
-                                    mRtv->colourAttachments.back().textureName = texName;
-                                    ++colourIdx;
-                                }
-                                else
-                                {
-                                    compiler->addError( ScriptCompiler::CE_STRINGEXPECTED,
-                                                        prop->file, prop->line );
-                                }
-
-                                ++it;
-                            }
-                        }
-                    }
-                }
-                    break;
-                case ID_DEPTH:
-                    translateRenderTargetViewEntry( mRtv->depthAttachment, prop, compiler, false );
-                    mRtv->depthBufferId = DepthBuffer::POOL_NON_SHAREABLE;
-                    break;
-                case ID_STENCIL:
-                    translateRenderTargetViewEntry( mRtv->stencilAttachment, prop, compiler, false );
-                    mRtv->depthBufferId = DepthBuffer::POOL_NON_SHAREABLE;
-                    break;
-                case ID_DEPTH_STENCIL:
-                    translateRenderTargetViewEntry( mRtv->depthAttachment, prop, compiler, false );
-                    mRtv->stencilAttachment = mRtv->depthAttachment;
-                    break;
-                case ID_DEPTH_TEXTURE:
-                    if(prop->values.size() != 1)
-                    {
-                        compiler->addError( ScriptCompiler::CE_INVALIDPARAMETERS,
-                                            prop->file, prop->line,
-                                            "depth_texture argument must be \"true\", \"false\", "
-                                            "\"yes\", \"no\", \"on\", or \"off\"" );
-                    }
-                    else
-                    {
-                        AbstractNodeList::const_iterator it0 = prop->values.begin();
-
-                        if( !getBoolean( *it0, &mRtv->preferDepthTexture ) )
-                        {
-                            compiler->addError( ScriptCompiler::CE_INVALIDPARAMETERS,
-                                                prop->file, prop->line,
-                                                "depth_texture argument must be \"true\", \"false\", "
-                                                "\"yes\", \"no\", \"on\", or \"off\"" );
-                        }
-                    }
-                    break;
-                case ID_DEPTH_POOL:
-                    if(prop->values.size() != 1)
-                    {
-                        compiler->addError( ScriptCompiler::CE_NUMBEREXPECTED,
-                                            prop->file, prop->line );
-                    }
-                    else
-                    {
-                        AbstractNodeList::const_iterator it0 = prop->values.begin();
-
-                        uint32 depthBufferPool = 0;
-                        if( getUInt( *it0, &depthBufferPool ) )
-                            mRtv->depthBufferId = depthBufferPool;
-                        else
-                        {
-                            compiler->addError( ScriptCompiler::CE_NUMBEREXPECTED,
-                                                prop->file, prop->line );
-                        }
-                    }
-                    break;
-                case ID_DEPTH_FORMAT:
-                    if(prop->values.size() != 1)
-                    {
-                        compiler->addError( ScriptCompiler::CE_STRINGEXPECTED,
-                                            prop->file, prop->line );
-                    }
-                    else
-                    {
-                        AbstractNodeList::const_iterator it0 = prop->values.begin();
-
-                        AtomAbstractNode *atom0 = (AtomAbstractNode*)(*it0).get();
-                        mRtv->depthBufferFormat = PixelFormatGpuUtils::getFormatFromName( atom0->value );
-
-                        if( !PixelFormatGpuUtils::isDepth( mRtv->depthBufferFormat ) )
-                        {
-                            compiler->addError( ScriptCompiler::CE_INVALIDPARAMETERS,
-                                                prop->file, prop->line,
-                                                "PixelFormat not recognized or is not depth" );
-                        }
-                    }
-                    break;
-                case ID_DEPTH_READ_ONLY:
-                    if(prop->values.size() != 1)
-                    {
-                        compiler->addError( ScriptCompiler::CE_INVALIDPARAMETERS,
-                                            prop->file, prop->line,
-                                            "depth_read_only argument must be \"true\", \"false\", "
-                                            "\"yes\", \"no\", \"on\", or \"off\"" );
-                    }
-                    else
-                    {
-                        AbstractNodeList::const_iterator it0 = prop->values.begin();
-                        if( !getBoolean( *it0, &mRtv->depthReadOnly ) )
-                        {
-                            compiler->addError( ScriptCompiler::CE_INVALIDPARAMETERS,
-                                                prop->file, prop->line,
-                                                "depth_read_only argument must be \"true\", \"false\", "
-                                                "\"yes\", \"no\", \"on\", or \"off\"" );
-                        }
-                    }
-                    break;
-                case ID_STENCIL_READ_ONLY:
-                    if(prop->values.size() != 1)
-                    {
-                        compiler->addError( ScriptCompiler::CE_INVALIDPARAMETERS,
-                                            prop->file, prop->line,
-                                            "stencil_read_only argument must be \"true\", \"false\", "
-                                            "\"yes\", \"no\", \"on\", or \"off\"" );
-                    }
-                    else
-                    {
-                        AbstractNodeList::const_iterator it0 = prop->values.begin();
-                        if( !getBoolean( *it0, &mRtv->stencilReadOnly ) )
-                        {
-                            compiler->addError( ScriptCompiler::CE_INVALIDPARAMETERS,
-                                                prop->file, prop->line,
-                                                "stencil_read_only argument must be \"true\", \"false\", "
-                                                "\"yes\", \"no\", \"on\", or \"off\"" );
-                        }
-                    }
-                    break;
-                default:
-                    compiler->addError(ScriptCompiler::CE_UNEXPECTEDTOKEN, prop->file, prop->line,
-                        "token \"" + prop->name + "\" is not recognized");
-                }
-            }
-            else
-            {
-                compiler->addError(ScriptCompiler::CE_UNEXPECTEDTOKEN, (*i)->file, (*i)->line,
-                    "token not recognized");
-            }
-        }
-        }
-        catch( Exception &e )
-        {
-            if( i != obj->children.end() )
-                compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, (*i)->file, (*i)->line);
-            throw e;
-        }
-    }
-
-    /**************************************************************************
      * CompositorTargetTranslator
      *************************************************************************/
     CompositorTargetTranslator::CompositorTargetTranslator() : mTargetDef(0)
@@ -8022,47 +7593,55 @@ namespace Ogre{
         else
             nodeDef = any_cast<CompositorNodeDef*>(obj->parent->context);
 
-        uint32 rtIndex = 0;
-        if( !obj->values.empty() )
+        if( !obj->name.empty() )
         {
-            AbstractNodeList::const_iterator sliceIt = obj->values.begin();
-
-            if( !getUInt( *sliceIt, &rtIndex ) )
+            uint32 rtIndex = 0;
+            if( !obj->values.empty() )
             {
-                String cubemapHint;
-                if( getString( *sliceIt, &cubemapHint ) )
-                {
-                    StringUtil::toUpperCase( cubemapHint );
+                AbstractNodeList::const_iterator sliceIt = obj->values.begin();
 
-                    if( cubemapHint == "+X" || cubemapHint == "X" )
+                if( !getUInt( *sliceIt, &rtIndex ) )
+                {
+                    String cubemapHint;
+                    if( getString( *sliceIt, &cubemapHint ) )
                     {
-                        rtIndex = 0;
-                    }
-                    else if( cubemapHint == "-X" )
-                    {
-                        rtIndex = 1;
-                    }
-                    else if( cubemapHint == "+Y" || cubemapHint == "Y" )
-                    {
-                        rtIndex = 2;
-                    }
-                    else if( cubemapHint == "-Y" )
-                    {
-                        rtIndex = 3;
-                    }
-                    else if( cubemapHint == "+Z" || cubemapHint == "Z" )
-                    {
-                        rtIndex = 4;
-                    }
-                    else if( cubemapHint == "-Z" )
-                    {
-                        rtIndex = 5;
+                        StringUtil::toUpperCase( cubemapHint );
+
+                        if( cubemapHint == "+X" || cubemapHint == "X" )
+                        {
+                            rtIndex = 0;
+                        }
+                        else if( cubemapHint == "-X" )
+                        {
+                            rtIndex = 1;
+                        }
+                        else if( cubemapHint == "+Y" || cubemapHint == "Y" )
+                        {
+                            rtIndex = 2;
+                        }
+                        else if( cubemapHint == "-Y" )
+                        {
+                            rtIndex = 3;
+                        }
+                        else if( cubemapHint == "+Z" || cubemapHint == "Z" )
+                        {
+                            rtIndex = 4;
+                        }
+                        else if( cubemapHint == "-Z" )
+                        {
+                            rtIndex = 5;
+                        }
                     }
                 }
             }
-        }
 
-        mTargetDef = nodeDef->addTargetPass( obj->name, rtIndex );
+            mTargetDef = nodeDef->addTargetPass( obj->name, rtIndex );
+        }
+        else
+        {
+            compiler->addError(ScriptCompiler::CE_STRINGEXPECTED, node->file, node->line);
+            return;
+        }
 
         obj->context = Any(mTargetDef);
 
@@ -8418,453 +7997,6 @@ namespace Ogre{
             }
         }
     }
-
-    /**************************************************************************
-     * CompositorLoadActionTranslator
-     *************************************************************************/
-    CompositorLoadActionTranslator::CompositorLoadActionTranslator() : mPassDef( 0 )
-    {
-    }
-    //-------------------------------------------------------------------------
-    bool CompositorLoadActionTranslator::getLoadAction( const Ogre::AbstractNodePtr &node,
-                                                        LoadAction::LoadAction *result )
-    {
-        if (node->type != ANT_ATOM)
-            return false;
-
-        AtomAbstractNode *atom = (AtomAbstractNode*)node.get();
-
-        if( atom->value == "dont_care" )
-            *result = LoadAction::DontCare;
-        else if( atom->value == "clear" )
-            *result = LoadAction::Clear;
-        else if( atom->value == "clear_on_tilers" )
-            *result = LoadAction::ClearOnTilers;
-        else if( atom->value == "load" )
-            *result = LoadAction::Load;
-        else
-            return false; // Conversion failed
-
-        return true;
-    }
-    //-------------------------------------------------------------------------
-    void CompositorLoadActionTranslator::translate( ScriptCompiler *compiler, const AbstractNodePtr &node )
-    {
-        mPassDef = any_cast<CompositorPassDef*>(node->parent->context);
-
-        ObjectAbstractNode *obj = reinterpret_cast<ObjectAbstractNode*>(node.get());
-        obj->context = Any(mPassDef);
-
-        for(AbstractNodeList::iterator i = obj->children.begin(); i != obj->children.end(); ++i)
-        {
-            if((*i)->type == ANT_OBJECT)
-            {
-                processNode(compiler, *i);
-            }
-            else if((*i)->type == ANT_PROPERTY)
-            {
-                PropertyAbstractNode *prop = reinterpret_cast<PropertyAbstractNode*>((*i).get());
-                switch(prop->id)
-                {
-                case ID_ALL:
-                {
-                    if(prop->values.empty())
-                    {
-                        compiler->addError(ScriptCompiler::CE_STRINGEXPECTED, prop->file, prop->line);
-                        return;
-                    }
-
-                    LoadAction::LoadAction loadAction;
-                    AbstractNodeList::const_iterator it0 = prop->values.begin();
-                    if( getLoadAction( *it0, &loadAction ) )
-                    {
-                        mPassDef->setAllLoadActions( loadAction );
-                    }
-                    else
-                    {
-                         compiler->addError(ScriptCompiler::CE_STRINGEXPECTED, prop->file, prop->line);
-                    }
-                }
-                    break;
-                case ID_COLOUR:
-                {
-                    if(prop->values.size() != 1u && prop->values.size() != 2u)
-                    {
-                        compiler->addError(ScriptCompiler::CE_STRINGEXPECTED, prop->file, prop->line,
-                                           "1 or 2 arguments expected");
-                        return;
-                    }
-
-                    if( prop->values.size() == 1u )
-                    {
-                        LoadAction::LoadAction loadAction;
-                        AbstractNodeList::const_iterator it0 = prop->values.begin();
-                        if( getLoadAction( *it0, &loadAction ) )
-                        {
-                            for( int j=0; j<OGRE_MAX_MULTIPLE_RENDER_TARGETS; ++j )
-                                mPassDef->mLoadActionColour[j] = loadAction;
-                        }
-                        else
-                        {
-                            compiler->addError(ScriptCompiler::CE_STRINGEXPECTED, prop->file, prop->line,
-                                               "Expected dont_care|load|clear|clear_on_tilers" );
-                        }
-                    }
-                    else
-                    {
-                        uint32 colourIdx;
-                        LoadAction::LoadAction loadAction;
-                        AbstractNodeList::const_iterator it1 = prop->values.begin();
-                        AbstractNodeList::const_iterator it0 = it1++;
-                        if( getUInt( *it0, &colourIdx ) && getLoadAction( *it1, &loadAction ) )
-                        {
-                            if( colourIdx < OGRE_MAX_MULTIPLE_RENDER_TARGETS )
-                                mPassDef->mLoadActionColour[colourIdx] = loadAction;
-                            else
-                            {
-                                compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line,
-                                                   "Number must be between 0 and " +
-                                                   StringConverter::toString(OGRE_MAX_MULTIPLE_RENDER_TARGETS) );
-                            }
-                        }
-                        else
-                        {
-                            compiler->addError(ScriptCompiler::CE_STRINGEXPECTED, prop->file, prop->line,
-                                               "Number expected, followed by dont_care|load|clear|clear_on_tilers");
-                        }
-                    }
-                }
-                    break;
-                case ID_DEPTH:
-                {
-                    if(prop->values.empty())
-                    {
-                        compiler->addError(ScriptCompiler::CE_STRINGEXPECTED, prop->file, prop->line);
-                        return;
-                    }
-
-                    LoadAction::LoadAction loadAction;
-                    AbstractNodeList::const_iterator it0 = prop->values.begin();
-                    if( getLoadAction( *it0, &loadAction ) )
-                        mPassDef->mLoadActionDepth = loadAction;
-                    else
-                    {
-                        compiler->addError(ScriptCompiler::CE_STRINGEXPECTED, prop->file, prop->line,
-                                           "Expected dont_care|load|clear|clear_on_tilers" );
-                    }
-                }
-                    break;
-                case ID_STENCIL:
-                {
-                    if(prop->values.empty())
-                    {
-                        compiler->addError(ScriptCompiler::CE_STRINGEXPECTED, prop->file, prop->line);
-                        return;
-                    }
-
-                    LoadAction::LoadAction loadAction;
-                    AbstractNodeList::const_iterator it0 = prop->values.begin();
-                    if( getLoadAction( *it0, &loadAction ) )
-                        mPassDef->mLoadActionStencil = loadAction;
-                    else
-                    {
-                        compiler->addError(ScriptCompiler::CE_STRINGEXPECTED, prop->file, prop->line,
-                                           "Expected dont_care|load|clear|clear_on_tilers" );
-                    }
-                }
-                    break;
-                case ID_CLEAR_COLOUR:
-                case ID_COLOUR_VALUE:
-                case ID_CLEAR_COLOUR_REVERSE_DEPTH_AWARE:
-                {
-                    if(prop->values.size() != 4u && prop->values.size() != 5u)
-                    {
-                        compiler->addError(ScriptCompiler::CE_STRINGEXPECTED, prop->file, prop->line,
-                                           "4 or 5 arguments expected");
-                        return;
-                    }
-
-                    if( prop->values.size() == 4u )
-                    {
-                        ColourValue clearColour;
-                        if( getColour( prop->values.begin(), prop->values.end(), &clearColour ) )
-                        {
-                            const RenderSystem *renderSystem = Root::getSingleton().getRenderSystem();
-                            if( renderSystem->isReverseDepth() )
-                            {
-                                if( prop->id == ID_CLEAR_COLOUR_REVERSE_DEPTH_AWARE )
-                                    clearColour = ColourValue::White - clearColour;
-                            }
-                            for( int j=0; j<OGRE_MAX_MULTIPLE_RENDER_TARGETS; ++j )
-                                mPassDef->mClearColour[j] = clearColour;
-                        }
-                        else
-                        {
-                            compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line );
-                        }
-                    }
-                    else
-                    {
-                        uint32 colourIdx;
-                        ColourValue clearColour;
-                        AbstractNodeList::const_iterator it1 = prop->values.begin();
-                        AbstractNodeList::const_iterator it0 = it1++;
-                        if( getUInt( *it0, &colourIdx ) &&
-                            getColour( it1, prop->values.end(), &clearColour ) )
-                        {
-                            if( colourIdx < OGRE_MAX_MULTIPLE_RENDER_TARGETS )
-                            {
-                                mPassDef->mClearColour[colourIdx] = clearColour;
-
-                                const RenderSystem *renderSystem =
-                                        Root::getSingleton().getRenderSystem();
-                                if( renderSystem->isReverseDepth() )
-                                {
-                                    if( prop->id == ID_CLEAR_COLOUR_REVERSE_DEPTH_AWARE )
-                                    {
-                                        mPassDef->mClearColour[colourIdx] =
-                                                ColourValue::White - mPassDef->mClearColour[colourIdx];
-                                    }
-                                }
-                            }
-                            else
-                            {
-                                compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line,
-                                                   "Number must be between 0 and " +
-                                                   StringConverter::toString(OGRE_MAX_MULTIPLE_RENDER_TARGETS) );
-                            }
-                        }
-                        else
-                        {
-                            compiler->addError(ScriptCompiler::CE_STRINGEXPECTED, prop->file, prop->line,
-                                               "Number expected, followed by dont_care|load|clear|clear_on_tilers");
-                        }
-                    }
-                }
-                    break;
-                case ID_CLEAR_DEPTH:
-                {
-                    if(prop->values.empty())
-                    {
-                        compiler->addError(ScriptCompiler::CE_STRINGEXPECTED, prop->file, prop->line,
-                                           "1 float expected");
-                        return;
-                    }
-
-                    Real clearDepth;
-                    AbstractNodeList::const_iterator it0 = prop->values.begin();
-                    if( getReal( *it0, &clearDepth ) )
-                        mPassDef->mClearDepth = clearDepth;
-                    else
-                    {
-                        compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line );
-                    }
-                }
-                    break;
-                case ID_CLEAR_STENCIL:
-                {
-                    if(prop->values.empty())
-                    {
-                        compiler->addError(ScriptCompiler::CE_STRINGEXPECTED, prop->file, prop->line,
-                                           "1 float expected");
-                        return;
-                    }
-
-                    uint32 clearStencil;
-                    AbstractNodeList::const_iterator it0 = prop->values.begin();
-                    if( getUInt( *it0, &clearStencil ) )
-                        mPassDef->mClearStencil = clearStencil;
-                    else
-                    {
-                        compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line );
-                    }
-                }
-                    break;
-                case ID_WARN_IF_RTV_WAS_FLUSHED:
-                {
-                    if(prop->values.empty())
-                    {
-                        compiler->addError(ScriptCompiler::CE_STRINGEXPECTED, prop->file, prop->line,
-                                           "1 bool expected");
-                        return;
-                    }
-
-                    AbstractNodeList::const_iterator it0 = prop->values.begin();
-                    if( !getBoolean( *it0, &mPassDef->mWarnIfRtvWasFlushed ) )
-                        compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line );
-                }
-                    break;
-                default:
-                    compiler->addError(ScriptCompiler::CE_UNEXPECTEDTOKEN, prop->file, prop->line,
-                        "token \"" + prop->name + "\" is not recognized");
-                }
-            }
-        }
-    }
-
-    /**************************************************************************
-     * CompositorStoreActionTranslator
-     *************************************************************************/
-    CompositorStoreActionTranslator::CompositorStoreActionTranslator() : mPassDef( 0 )
-    {
-    }
-    //-------------------------------------------------------------------------
-    bool CompositorStoreActionTranslator::getStoreAction( const Ogre::AbstractNodePtr &node,
-                                                          StoreAction::StoreAction *result )
-    {
-        if (node->type != ANT_ATOM)
-            return false;
-
-        AtomAbstractNode *atom = (AtomAbstractNode*)node.get();
-
-        if( atom->value == "dont_care" )
-            *result = StoreAction::DontCare;
-        else if( atom->value == "store" )
-            *result = StoreAction::Store;
-        else if( atom->value == "resolve" )
-            *result = StoreAction::MultisampleResolve;
-        else if( atom->value == "store_and_resolve" )
-            *result = StoreAction::StoreAndMultisampleResolve;
-        else if( atom->value == "store_or_resolve" )
-            *result = StoreAction::StoreOrResolve;
-        else
-            return false; // Conversion failed
-
-        return true;
-    }
-    //-------------------------------------------------------------------------
-    void CompositorStoreActionTranslator::translate( ScriptCompiler *compiler, const AbstractNodePtr &node )
-    {
-        mPassDef = any_cast<CompositorPassDef*>(node->parent->context);
-
-        ObjectAbstractNode *obj = reinterpret_cast<ObjectAbstractNode*>(node.get());
-        obj->context = Any(mPassDef);
-
-        for(AbstractNodeList::iterator i = obj->children.begin(); i != obj->children.end(); ++i)
-        {
-            if((*i)->type == ANT_OBJECT)
-            {
-                processNode(compiler, *i);
-            }
-            else if((*i)->type == ANT_PROPERTY)
-            {
-                PropertyAbstractNode *prop = reinterpret_cast<PropertyAbstractNode*>((*i).get());
-                switch(prop->id)
-                {
-                case ID_ALL:
-                {
-                    if(prop->values.empty())
-                    {
-                        compiler->addError(ScriptCompiler::CE_STRINGEXPECTED, prop->file, prop->line);
-                        return;
-                    }
-
-                    StoreAction::StoreAction storeAction;
-                    AbstractNodeList::const_iterator it0 = prop->values.begin();
-                    if( getStoreAction( *it0, &storeAction ) )
-                    {
-                        mPassDef->setAllStoreActions( storeAction );
-                    }
-                    else
-                    {
-                         compiler->addError(ScriptCompiler::CE_STRINGEXPECTED, prop->file, prop->line);
-                    }
-                }
-                    break;
-                case ID_COLOUR:
-                {
-                    if(prop->values.size() != 1u && prop->values.size() != 2u)
-                    {
-                        compiler->addError(ScriptCompiler::CE_STRINGEXPECTED, prop->file, prop->line,
-                                           "1 or 2 arguments expected");
-                        return;
-                    }
-
-                    if( prop->values.size() == 1u )
-                    {
-                        StoreAction::StoreAction storeAction;
-                        AbstractNodeList::const_iterator it0 = prop->values.begin();
-                        if( getStoreAction( *it0, &storeAction ) )
-                        {
-                            for( int j=0; j<OGRE_MAX_MULTIPLE_RENDER_TARGETS; ++j )
-                                mPassDef->mStoreActionColour[j] = storeAction;
-                        }
-                        else
-                        {
-                            compiler->addError(ScriptCompiler::CE_STRINGEXPECTED, prop->file, prop->line,
-                                               "Expected dont_care|store|clear|clear_on_tilers" );
-                        }
-                    }
-                    else
-                    {
-                        uint32 colourIdx;
-                        StoreAction::StoreAction storeAction;
-                        AbstractNodeList::const_iterator it1 = prop->values.begin();
-                        AbstractNodeList::const_iterator it0 = it1++;
-                        if( getUInt( *it0, &colourIdx ) && getStoreAction( *it1, &storeAction ) )
-                        {
-                            if( colourIdx < OGRE_MAX_MULTIPLE_RENDER_TARGETS )
-                                mPassDef->mStoreActionColour[colourIdx] = storeAction;
-                            else
-                            {
-                                compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line,
-                                                   "Number must be between 0 and " +
-                                                   StringConverter::toString(OGRE_MAX_MULTIPLE_RENDER_TARGETS) );
-                            }
-                        }
-                        else
-                        {
-                            compiler->addError(ScriptCompiler::CE_STRINGEXPECTED, prop->file, prop->line,
-                                               "Number expected, followed by dont_care|store|clear|clear_on_tilers");
-                        }
-                    }
-                }
-                    break;
-                case ID_DEPTH:
-                {
-                    if(prop->values.empty())
-                    {
-                        compiler->addError(ScriptCompiler::CE_STRINGEXPECTED, prop->file, prop->line);
-                        return;
-                    }
-
-                    StoreAction::StoreAction storeAction;
-                    AbstractNodeList::const_iterator it0 = prop->values.begin();
-                    if( getStoreAction( *it0, &storeAction ) )
-                        mPassDef->mStoreActionDepth = storeAction;
-                    else
-                    {
-                        compiler->addError(ScriptCompiler::CE_STRINGEXPECTED, prop->file, prop->line,
-                                           "Expected dont_care|store|clear|clear_on_tilers" );
-                    }
-                }
-                    break;
-                case ID_STENCIL:
-                {
-                    if(prop->values.empty())
-                    {
-                        compiler->addError(ScriptCompiler::CE_STRINGEXPECTED, prop->file, prop->line);
-                        return;
-                    }
-
-                    StoreAction::StoreAction storeAction;
-                    AbstractNodeList::const_iterator it0 = prop->values.begin();
-                    if( getStoreAction( *it0, &storeAction ) )
-                        mPassDef->mStoreActionStencil = storeAction;
-                    else
-                    {
-                        compiler->addError(ScriptCompiler::CE_STRINGEXPECTED, prop->file, prop->line,
-                                           "Expected dont_care|store|clear|clear_on_tilers" );
-                    }
-                }
-                    break;
-                default:
-                    compiler->addError(ScriptCompiler::CE_UNEXPECTEDTOKEN, prop->file, prop->line,
-                        "token \"" + prop->name + "\" is not recognized");
-                }
-            }
-        }
-    }
         
     /**************************************************************************
      * CompositorPassTranslator
@@ -8893,19 +8025,6 @@ namespace Ogre{
                 PropertyAbstractNode *prop = reinterpret_cast<PropertyAbstractNode*>((*i).get());
                 switch(prop->id)
                 {
-                case ID_NON_TILERS_ONLY:
-                {
-                    if(prop->values.empty())
-                    {
-                        compiler->addError(ScriptCompiler::CE_STRINGEXPECTED, prop->file, prop->line);
-                        return;
-                    }
-                    if( !getBoolean(prop->values.front(), &passClear->mNonTilersOnly) )
-                    {
-                        compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line);
-                    }
-                }
-                    break;
                 case ID_BUFFERS:
                     {
                         uint32 buffers = 0;
@@ -8916,13 +8035,13 @@ namespace Ogre{
                                 switch(((AtomAbstractNode*)(*k).get())->id)
                                 {
                                 case ID_COLOUR:
-                                    buffers |= RenderPassDescriptor::Colour;
+                                    buffers |= FBT_COLOUR;
                                     break;
                                 case ID_DEPTH:
-                                    buffers |= RenderPassDescriptor::Depth;
+                                    buffers |= FBT_DEPTH;
                                     break;
                                 case ID_STENCIL:
-                                    buffers |= RenderPassDescriptor::Stencil;
+                                    buffers |= FBT_STENCIL;
                                     break;
                                 default:
                                     compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line);
@@ -8931,29 +8050,17 @@ namespace Ogre{
                             else
                                 compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line);
                         }
-                        passClear->setBuffersToClear( buffers );
+                        passClear->mClearBufferFlags = buffers;
                     }
                     break;
                 case ID_COLOUR_VALUE:
-                case ID_CLEAR_COLOUR_REVERSE_DEPTH_AWARE:
                     {
                         if(prop->values.empty())
                         {
                             compiler->addError(ScriptCompiler::CE_NUMBEREXPECTED, prop->file, prop->line);
                             return;
                         }
-                        ColourValue clearColour;
-                        if( getColour(prop->values.begin(), prop->values.end(), &clearColour) )
-                        {
-                            const RenderSystem *renderSystem = Root::getSingleton().getRenderSystem();
-                            if( renderSystem->isReverseDepth() )
-                            {
-                                if( prop->id == ID_CLEAR_COLOUR_REVERSE_DEPTH_AWARE )
-                                    clearColour = ColourValue::White - clearColour;
-                            }
-                            passClear->setAllClearColours( clearColour );
-                        }
-                        else
+                        if( !getColour(prop->values.begin(), prop->values.end(), &passClear->mColourValue) )
                         {
                             compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line);
                         }
@@ -8966,7 +8073,7 @@ namespace Ogre{
                             compiler->addError(ScriptCompiler::CE_NUMBEREXPECTED, prop->file, prop->line);
                             return;
                         }
-                        if( !getReal(prop->values.front(), &passClear->mClearDepth) )
+                        if( !getReal(prop->values.front(), &passClear->mDepthValue) )
                         {
                             compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line);
                         }
@@ -8979,7 +8086,7 @@ namespace Ogre{
                             compiler->addError(ScriptCompiler::CE_NUMBEREXPECTED, prop->file, prop->line);
                             return;
                         }
-                        if( !getUInt(prop->values.front(), &passClear->mClearStencil) )
+                        if( !getUInt(prop->values.front(), &passClear->mStencilValue) )
                         {
                             compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line);
                         }
@@ -8987,13 +8094,22 @@ namespace Ogre{
                     break;
                 case ID_DISCARD_ONLY:
                     {
-                         compiler->addError(ScriptCompiler::CE_UNSUPPORTEDBYRENDERSYSTEM, prop->file, prop->line,
-                            "discard_only is deprecated and does nothing now. Use StoreActions instead.");
+                        if(prop->values.empty())
+                        {
+                            compiler->addError(ScriptCompiler::CE_STRINGEXPECTED, prop->file, prop->line);
+                            return;
+                        }
+
+                        AbstractNodeList::const_iterator it0 = prop->values.begin();
+                        if( !getBoolean( *it0, &passClear->mDiscardOnly ) )
+                        {
+                             compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line,
+                                "discard_only argument must be 'true', 'false', 'yes', 'no', 'on', or 'off'");
+                        }
                     }
                     break;
                 case ID_VIEWPORT:
                 case ID_IDENTIFIER:
-                case ID_FLUSH_COMMAND_BUFFERS:
                 case ID_NUM_INITIAL:
                 case ID_OVERLAYS:
                 case ID_EXECUTION_MASK:
@@ -9034,6 +8150,22 @@ namespace Ogre{
                 PropertyAbstractNode *prop = reinterpret_cast<PropertyAbstractNode*>((*i).get());
                 switch(prop->id)
                 {
+                case ID_ALIAS_ON_COPY_FAILURE:
+                    {
+                        if(prop->values.size() != 1)
+                        {
+                            compiler->addError(ScriptCompiler::CE_STRINGEXPECTED, prop->file, prop->line,
+                                               "Boolean value expected");
+                            return;
+                        }
+
+                        AbstractNodeList::const_iterator it0 = prop->values.begin();
+                        if( !getBoolean( *it0, &passDepthCopy->mAliasDepthBufferOnCopyFailure ) )
+                        {
+                             compiler->addError(ScriptCompiler::CE_STRINGEXPECTED, prop->file, prop->line);
+                        }
+                    }
+                    break;
                 case ID_IN:
                     {
                         if(prop->values.empty())
@@ -9065,7 +8197,6 @@ namespace Ogre{
                     }
                     break;
                 case ID_IDENTIFIER:
-                case ID_FLUSH_COMMAND_BUFFERS:
                 case ID_NUM_INITIAL:
                 case ID_EXECUTION_MASK:
                 case ID_VIEWPORT_MODIFIER_MASK:
@@ -9204,7 +8335,17 @@ namespace Ogre{
                         String name;
                         if( getUInt(*it0, &id) && getString(*it1, &name) )
                         {
-                            passQuad->addQuadTextureSource( id, name );
+                            uint32 index = 0;
+                            if(it2 != prop->values.end())
+                            {
+                                if(!getUInt(*it2, &index))
+                                {
+                                    compiler->addError(ScriptCompiler::CE_NUMBEREXPECTED, prop->file, prop->line);
+                                    return;
+                                }
+                            }
+
+                            passQuad->addQuadTextureSource( id, name, index );
                         }
                         else
                         {
@@ -9227,9 +8368,29 @@ namespace Ogre{
                         }
                     }
                     break;
+                case ID_RESOLVE:
+                    if( prop->values.empty() )
+                    {
+                        compiler->addError( ScriptCompiler::CE_STRINGEXPECTED, prop->file, prop->line );
+                    }
+                    else if( prop->values.size() > 1 )
+                    {
+                        compiler->addError( ScriptCompiler::CE_FEWERPARAMETERSEXPECTED, prop->file, prop->line );
+                    }
+                    else
+                    {
+                        String name;
+                        if( !getString( prop->values.front(), &name ) )
+                        {
+                            compiler->addError( ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line );
+                        }
+
+                        passQuad->mIsResolve = true;
+                        passQuad->mFsaaTextureName = name;
+                    }
+                    break;
                 case ID_VIEWPORT:
                 case ID_IDENTIFIER:
-                case ID_FLUSH_COMMAND_BUFFERS:
                 case ID_NUM_INITIAL:
                 case ID_OVERLAYS:
                 case ID_EXECUTION_MASK:
@@ -9537,21 +8698,6 @@ namespace Ogre{
                         }
                     }
                     break;
-                case ID_FLUSH_COMMAND_BUFFERS_AFTER_SHADOW_NODE:
-                    {
-                        if(prop->values.empty())
-                        {
-                            compiler->addError(ScriptCompiler::CE_STRINGEXPECTED, prop->file, prop->line);
-                            return;
-                        }
-
-                        AbstractNodeList::const_iterator it0 = prop->values.begin();
-                        if( !getBoolean( *it0, &passScene->mFlushCommandBuffersAfterShadowNode ) )
-                        {
-                             compiler->addError(ScriptCompiler::CE_NUMBEREXPECTED, prop->file, prop->line);
-                        }
-                    }
-                    break;
                 case ID_IS_PREPASS:
                     {
                         if(prop->values.empty())
@@ -9577,27 +8723,23 @@ namespace Ogre{
                     {
                         compiler->addError(ScriptCompiler::CE_STRINGEXPECTED, prop->file, prop->line);
                     }
-                    else if(prop->values.size() != 3 && prop->values.size() != 4)
+                    else if(prop->values.size() != 2 && prop->values.size() != 3)
                     {
                         compiler->addError(ScriptCompiler::CE_FEWERPARAMETERSEXPECTED, prop->file, prop->line,
-                                           "use_prepass only supports 3 or 4 arguments: the GBuffer's' "
+                                           "use_prepass only supports 2 or 3 arguments: the GBuffer's' "
                                            "texture name, the depth texture, & optionally the SSR texture name");
                     }
                     else
                     {
-                        IdStringVec gbuffer;
-                        IdString gbufDepthTexture, ssr;
-                        gbuffer.resize( 2 );
+                        IdString gbuffer, gbufDepthTexture, ssr;
 
-                        AbstractNodeList::const_iterator it3 = prop->values.begin();
-                        AbstractNodeList::const_iterator it0 = it3++;
-                        AbstractNodeList::const_iterator it1 = it3++;
-                        AbstractNodeList::const_iterator it2 = it3++;
+                        AbstractNodeList::const_iterator it2 = prop->values.begin();
+                        AbstractNodeList::const_iterator it0 = it2++;
+                        AbstractNodeList::const_iterator it1 = it2++;
 
-                        if( !getIdString( *it0, &gbuffer[0] ) ||
-                            !getIdString( *it1, &gbuffer[1] ) ||
-                            !getIdString( *it2, &gbufDepthTexture ) ||
-                            (it3 != prop->values.end() && !getIdString( *it3, &ssr )) )
+                        if( !getIdString( *it0, &gbuffer ) ||
+                            !getIdString( *it1, &gbufDepthTexture ) ||
+                            (it2 != prop->values.end() && !getIdString( *it2, &ssr )) )
                         {
                             compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line,
                                 "use_prepass must be the name of a texture available in the local or global scope");
@@ -9605,127 +8747,6 @@ namespace Ogre{
                         else
                         {
                             passScene->setUseDepthPrePass( gbuffer, gbufDepthTexture, ssr );
-                        }
-                    }
-                    break;
-                case ID_GEN_NORMALS_GBUFFER:
-                    if( prop->values.size() != 1 )
-                    {
-                        compiler->addError(
-                            ScriptCompiler::CE_FEWERPARAMETERSEXPECTED, prop->file, prop->line,
-                            "gen_normals_gbuffer requires exactly one parameter (boolean)" );
-                    }
-                    else
-                    {
-                        AbstractNodeList::const_iterator it0 = prop->values.begin();
-
-                        if( !getBoolean( *it0, &passScene->mGenNormalsGBuf ) )
-                        {
-                            compiler->addError( ScriptCompiler::CE_INVALIDPARAMETERS, prop->file,
-                                                prop->line, "gen_normals_gbuffer must be a boolean" );
-                        }
-                    }
-                    break;
-                case ID_USE_REFRACTIONS:
-                    if( prop->values.size() != 2u )
-                    {
-                        compiler->addError( ScriptCompiler::CE_FEWERPARAMETERSEXPECTED, prop->file,
-                                            prop->line,
-                                            "use_refractions only supports 2 arguments: the depth "
-                                            "texture & the refraction texture" );
-                    }
-                    else
-                    {
-                        IdString depthTexture, refractions;
-
-                        AbstractNodeList::const_iterator it1 = prop->values.begin();
-                        AbstractNodeList::const_iterator it0 = it1++;
-
-                        if( !getIdString( *it0, &depthTexture ) || !getIdString( *it1, &refractions ) )
-                        {
-                            compiler->addError( ScriptCompiler::CE_INVALIDPARAMETERS, prop->file,
-                                                prop->line,
-                                                "use_refractions must be the name of a texture "
-                                                "available in the local or global scope" );
-                        }
-                        else
-                        {
-                            passScene->setUseRefractions( depthTexture, refractions );
-                        }
-                    }
-                    break;
-                case ID_UV_BAKING:
-                    if(prop->values.size() != 1)
-                    {
-                        compiler->addError(ScriptCompiler::CE_FEWERPARAMETERSEXPECTED, prop->file, prop->line,
-                                           "uv_baking requires exactly one parameter (number)");
-                    }
-                    else
-                    {
-                        AbstractNodeList::const_iterator it0 = prop->values.begin();
-
-                        uint32 uvSet = 0;
-                        if( !getUInt( *it0, &uvSet ) )
-                        {
-                            compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line,
-                                "uv_baking must be an integer");
-                        }
-                        else
-                        {
-                            passScene->mUvBakingSet = static_cast<uint8>( uvSet );
-                        }
-                    }
-                    break;
-                case ID_UV_BAKING_OFFSET:
-                    if(prop->values.size() != 2)
-                    {
-                        compiler->addError(ScriptCompiler::CE_FEWERPARAMETERSEXPECTED, prop->file, prop->line,
-                                           "uv_baking_offset requires exactly 2 floats");
-                    }
-                    else
-                    {
-                        AbstractNodeList::const_iterator it1 = prop->values.begin();
-                        AbstractNodeList::const_iterator it0 = it1++;
-
-                        if( !getReal( *it0, &passScene->mUvBakingOffset.x ) ||
-                            !getReal( *it1, &passScene->mUvBakingOffset.y ) )
-                        {
-                            compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line,
-                                "uv_baking_offset requires exactly 2 floats");
-                        }
-                    }
-                    break;
-                case ID_BAKE_LIGHTING_ONLY:
-                    if(prop->values.size() != 1)
-                    {
-                        compiler->addError(ScriptCompiler::CE_FEWERPARAMETERSEXPECTED, prop->file, prop->line,
-                                           "bake_lighting_only requires exactly one parameter (boolean)");
-                    }
-                    else
-                    {
-                        AbstractNodeList::const_iterator it0 = prop->values.begin();
-
-                        if( !getBoolean( *it0, &passScene->mBakeLightingOnly ) )
-                        {
-                            compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line,
-                                "bake_lighting_only must be a boolean");
-                        }
-                    }
-                    break;
-                case ID_INSTANCED_STEREO:
-                    if(prop->values.size() != 1)
-                    {
-                        compiler->addError(ScriptCompiler::CE_FEWERPARAMETERSEXPECTED, prop->file, prop->line,
-                                           "instanced_stereo requires exactly one parameter (boolean)");
-                    }
-                    else
-                    {
-                        AbstractNodeList::const_iterator it0 = prop->values.begin();
-
-                        if( !getBoolean( *it0, &passScene->mInstancedStereo ) )
-                        {
-                            compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line,
-                                "instanced_stereo must be a boolean");
                         }
                     }
                     break;
@@ -9746,7 +8767,6 @@ namespace Ogre{
                     break;
                 case ID_VIEWPORT:
                 case ID_IDENTIFIER:
-                case ID_FLUSH_COMMAND_BUFFERS:
                 case ID_NUM_INITIAL:
                 case ID_OVERLAYS:
                 case ID_EXECUTION_MASK:
@@ -9858,7 +8878,6 @@ namespace Ogre{
                     break;
                 case ID_VIEWPORT:
                 case ID_IDENTIFIER:
-                case ID_FLUSH_COMMAND_BUFFERS:
                 case ID_NUM_INITIAL:
                 case ID_OVERLAYS:
                 case ID_EXECUTION_MASK:
@@ -9920,7 +8939,7 @@ namespace Ogre{
                         }
 
                         // Clearing the UAV
-                        passUav->setUav( slot, false, "", ResourceAccess::Read, 0, PFG_UNKNOWN );
+                        passUav->setUav( slot, false, "", 0, ResourceAccess::Read, 0, PF_UNKNOWN );
                     }
                     else
                     {
@@ -9939,7 +8958,8 @@ namespace Ogre{
                         if(getString(*j, &val))
                         {
                             uint32 access = 0;
-                            PixelFormatGpu format = PFG_UNKNOWN;
+                            uint32 mrtIndex = 0;
+                            PixelFormat format = PF_UNKNOWN;
                             int32 mipmap = 0;
                             bool mipmapFollows = false;
 
@@ -9969,9 +8989,11 @@ namespace Ogre{
                                                 mipmap = StringConverter::parseInt(atom->value);
                                                 mipmapFollows = false;
                                             }
+                                            else
+                                                mrtIndex = StringConverter::parseInt(atom->value);
                                         }
                                         else
-                                            format = PixelFormatGpuUtils::getFormatFromName(atom->value);
+                                            format = PixelUtil::getFormatFromName(atom->value, true);
                                     }
                                 }
                                 else
@@ -9991,7 +9013,7 @@ namespace Ogre{
                                                     "UAV must have the 'read' and/or 'write' access tokens." );
                             }
 
-                            passUav->setUav( slot, isExternal, evt.mName,
+                            passUav->setUav( slot, isExternal, evt.mName, mrtIndex,
                                              static_cast<ResourceAccess::ResourceAccess>(access),
                                              mipmap, format );
                         }
@@ -10126,15 +9148,21 @@ namespace Ogre{
                 break;
                 case ID_KEEP_PREVIOUS_UAV:
                 {
-                    compiler->addError( ScriptCompiler::CE_REFERENCETOANONEXISTINGOBJECT,
-                                        prop->file, prop->line,
-                                        "keep_previous_uav was removed. "
-                                        "You must redefine all UAVs now!" );
+                    if(prop->values.empty())
+                    {
+                        compiler->addError(ScriptCompiler::CE_STRINGEXPECTED, prop->file, prop->line);
+                        return;
+                    }
+
+                    AbstractNodeList::const_iterator it0 = prop->values.begin();
+                    if( !getBoolean( *it0, &passUav->mKeepPreviousUavs ) )
+                    {
+                         compiler->addError(ScriptCompiler::CE_NUMBEREXPECTED, prop->file, prop->line);
+                    }
                 }
                 break;
                 //case ID_VIEWPORT:
                 case ID_IDENTIFIER:
-                case ID_FLUSH_COMMAND_BUFFERS:
                 case ID_NUM_INITIAL:
                 //case ID_OVERLAYS:
                 case ID_EXECUTION_MASK:
@@ -10221,7 +9249,8 @@ namespace Ogre{
                         AbstractNodeList::const_iterator j = prop->values.begin();
 
                         uint32 slot = ~0u;
-                        PixelFormatGpu pixelFormat = PFG_UNKNOWN;
+                        uint32 mrtIndex = 0;
+                        PixelFormat pixelFormat = PF_UNKNOWN;
                         int32 slice = 0;
                         int32 mipmap = 0;
                         uint32 access = ResourceAccess::Undefined;
@@ -10267,9 +9296,11 @@ namespace Ogre{
                                                 mipmap = StringConverter::parseInt(atom->value);
                                                 mipmapFollows = false;
                                             }
+                                            else
+                                                mrtIndex = StringConverter::parseInt(atom->value);
                                         }
                                         else
-                                            pixelFormat = PixelFormatGpuUtils::getFormatFromName( atom->value );
+                                            pixelFormat = PixelUtil::getFormatFromName(atom->value, true);
                                     }
                                 }
                                 else
@@ -10289,7 +9320,7 @@ namespace Ogre{
                                                     "UAV must have the 'read' and/or 'write' access tokens." );
                             }
 
-                            passCompute->addUavSource( slot, evt.mName,
+                            passCompute->addUavSource( slot, evt.mName, mrtIndex,
                                                        static_cast<ResourceAccess::ResourceAccess>(access),
                                                        slice, mipmap, pixelFormat,
                                                        allowWriteAfterWrite );
@@ -10419,7 +9450,17 @@ namespace Ogre{
                         String name;
                         if( getUInt(*it0, &id) && getString(*it1, &name) )
                         {
-                            passCompute->addTextureSource( id, name );
+                            uint32 index = 0;
+                            if(it2 != prop->values.end())
+                            {
+                                if(!getUInt(*it2, &index))
+                                {
+                                    compiler->addError(ScriptCompiler::CE_NUMBEREXPECTED, prop->file, prop->line);
+                                    return;
+                                }
+                            }
+
+                            passCompute->addTextureSource( id, name, index );
                         }
                         else
                         {
@@ -10429,7 +9470,6 @@ namespace Ogre{
                     break;
                 //case ID_VIEWPORT:
                 case ID_IDENTIFIER:
-                case ID_FLUSH_COMMAND_BUFFERS:
                 case ID_NUM_INITIAL:
                 //case ID_OVERLAYS:
                 case ID_EXECUTION_MASK:
@@ -10553,7 +9593,6 @@ namespace Ogre{
 
                 //case ID_VIEWPORT:
                 case ID_IDENTIFIER:
-                case ID_FLUSH_COMMAND_BUFFERS:
                 case ID_NUM_INITIAL:
                 case ID_EXECUTION_MASK:
                 case ID_VIEWPORT_MODIFIER_MASK:
@@ -10562,100 +9601,6 @@ namespace Ogre{
                 default:
                     compiler->addError(ScriptCompiler::CE_UNEXPECTEDTOKEN, prop->file, prop->line,
                         "token \"" + prop->name + "\" is not recognized");
-                }
-            }
-        }
-    }
-
-    void CompositorPassTranslator::translateIblSpecular( ScriptCompiler *compiler,
-                                                         const AbstractNodePtr &node,
-                                                         CompositorTargetDef *targetDef )
-    {
-        mPassDef = targetDef->addPass( PASS_IBL_SPECULAR );
-        CompositorPassIblSpecularDef *passIbl = static_cast<CompositorPassIblSpecularDef *>( mPassDef );
-
-        ObjectAbstractNode *obj = reinterpret_cast<ObjectAbstractNode *>( node.get() );
-        obj->context = Any( mPassDef );
-
-        for( AbstractNodeList::iterator i = obj->children.begin(); i != obj->children.end(); ++i )
-        {
-            if( ( *i )->type == ANT_OBJECT )
-            {
-                processNode( compiler, *i );
-            }
-            else if( ( *i )->type == ANT_PROPERTY )
-            {
-                PropertyAbstractNode *prop = reinterpret_cast<PropertyAbstractNode *>( ( *i ).get() );
-                switch( prop->id )
-                {
-                case ID_INPUT:
-                case ID_OUTPUT:
-                    if( prop->values.size() != 1u )
-                    {
-                        compiler->addError( ScriptCompiler::CE_STRINGEXPECTED, prop->file, prop->line,
-                                            "Expecting texture name" );
-                        return;
-                    }
-                    else
-                    {
-                        AbstractNodeList::const_iterator it0 = prop->values.begin();
-                        String name;
-                        if( getString( *it0, &name ) )
-                        {
-                            if( prop->id == ID_INPUT )
-                                passIbl->setCubemapInput( name );
-                            else
-                                passIbl->setCubemapOutput( name );
-                        }
-                        else
-                        {
-                            compiler->addError( ScriptCompiler::CE_INVALIDPARAMETERS, prop->file,
-                                                prop->line );
-                        }
-                    }
-                    break;
-                case ID_SAMPLES_PER_ITERATION:
-                    if( prop->values.size() != 1u )
-                    {
-                        compiler->addError( ScriptCompiler::CE_NUMBEREXPECTED, prop->file, prop->line );
-                        return;
-                    }
-                    else
-                    {
-                        AbstractNodeList::const_iterator it0 = prop->values.begin();
-                        if( !getFloat( *it0, &passIbl->mSamplesPerIteration ) )
-                        {
-                            compiler->addError( ScriptCompiler::CE_NUMBEREXPECTED, prop->file,
-                                                prop->line, "Boolean expected" );
-                        }
-                    }
-                    break;
-                case ID_FORCE_MIPMAP_FALLBACK:
-                    if( prop->values.size() != 1u )
-                    {
-                        compiler->addError( ScriptCompiler::CE_STRINGEXPECTED, prop->file, prop->line );
-                        return;
-                    }
-                    else
-                    {
-                        AbstractNodeList::const_iterator it0 = prop->values.begin();
-                        if( !getBoolean( *it0, &passIbl->mForceMipmapFallback ) )
-                        {
-                            compiler->addError( ScriptCompiler::CE_STRINGEXPECTED, prop->file,
-                                                prop->line, "Boolean expected" );
-                        }
-                    }
-                    break;
-                // case ID_VIEWPORT:
-                case ID_IDENTIFIER:
-                case ID_FLUSH_COMMAND_BUFFERS:
-                case ID_NUM_INITIAL:
-                case ID_EXECUTION_MASK:
-                case ID_PROFILING_ID:
-                    break;
-                default:
-                    compiler->addError( ScriptCompiler::CE_UNEXPECTEDTOKEN, prop->file, prop->line,
-                                        "token \"" + prop->name + "\" is not recognized" );
                 }
             }
         }
@@ -10742,7 +9687,7 @@ namespace Ogre{
             translateQuad( compiler, node, target );
         else if(obj->name == "render_scene")
             translateScene( compiler, node, target );
-        else if(obj->name == "depth_copy" || obj->name == "texture_copy")
+        else if(obj->name == "depth_copy")
             translateDepthCopy( compiler, node, target );
         else if(obj->name == "bind_uav")
             translateUav( compiler, node, target );
@@ -10750,8 +9695,6 @@ namespace Ogre{
             translateCompute( compiler, node, target );
         else if(obj->name == "generate_mipmaps")
             translateMipmap( compiler, node, target );
-        else if(obj->name == "ibl_specular")
-            translateIblSpecular( compiler, node, target );
         else if(obj->name == "custom")
         {
             IdString customId;
@@ -10795,89 +9738,46 @@ namespace Ogre{
                 PropertyAbstractNode *prop = reinterpret_cast<PropertyAbstractNode*>((*i).get());
                 switch(prop->id)
                 {
-                case ID_WARN_IF_RTV_WAS_FLUSHED:
-                {
-                    if(prop->values.empty())
-                    {
-                        compiler->addError(ScriptCompiler::CE_STRINGEXPECTED, prop->file, prop->line,
-                                           "1 bool expected");
-                        return;
-                    }
-
-                    AbstractNodeList::const_iterator it0 = prop->values.begin();
-                    if( !getBoolean( *it0, &mPassDef->mWarnIfRtvWasFlushed ) )
-                        compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line );
-                }
                 case ID_VIEWPORT:
                     {
-                        const size_t numParams = prop->values.size();
-                        if( numParams != 4u && numParams != 5u &&
-                            numParams != 8u && numParams != 9u )
+                        if(prop->values.size() != 4 && prop->values.size() != 8)
                         {
                             compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line,
-                                                "4, 5, 8 or 9 numeric arguments expected");
+                                                "4 or 8 numeric arguments expected");
                             return;
                         }
-
                         AbstractNodeList::const_iterator it3 = prop->values.begin();
-                        uint32 vpNum = 0u;
-
-                        if( numParams == 5u || numParams == 9u )
-                        {
-                            AbstractNodeList::const_iterator itVpNum = it3++;
-
-                            if( !getUInt( *itVpNum, &vpNum ) )
-                            {
-                                compiler->addError(ScriptCompiler::CE_NUMBEREXPECTED, prop->file, prop->line);
-                            }
-                            else
-                            {
-                                if( vpNum < 16u )
-                                {
-                                    mPassDef->mNumViewports = std::max( mPassDef->mNumViewports, vpNum + 1u );
-                                }
-                                else
-                                {
-                                    compiler->addError(ScriptCompiler::CE_NUMBEREXPECTED, prop->file, prop->line,
-                                                       "Viewport number must be < 16");
-                                    vpNum = 0;
-                                }
-                            }
-                        }
-
                         AbstractNodeList::const_iterator it0 = it3++;
                         AbstractNodeList::const_iterator it1 = it3++;
                         AbstractNodeList::const_iterator it2 = it3++;
 
-                        if( !getFloat( *it0, &mPassDef->mVpRect[vpNum].mVpLeft ) ||
-                            !getFloat( *it1, &mPassDef->mVpRect[vpNum].mVpTop ) ||
-                            !getFloat( *it2, &mPassDef->mVpRect[vpNum].mVpWidth ) ||
-                            !getFloat( *it3, &mPassDef->mVpRect[vpNum].mVpHeight ) )
+                        if( !getFloat( *it0, &mPassDef->mVpLeft ) || !getFloat( *it1, &mPassDef->mVpTop ) ||
+                            !getFloat( *it2, &mPassDef->mVpWidth ) || !getFloat( *it3, &mPassDef->mVpHeight ) )
                         {
-                            compiler->addError(ScriptCompiler::CE_NUMBEREXPECTED, prop->file, prop->line);
+                                compiler->addError(ScriptCompiler::CE_NUMBEREXPECTED, prop->file, prop->line);
                         }
 
-                        if( numParams >= 8 )
+                        if( prop->values.size() == 8 )
                         {
                             AbstractNodeList::const_iterator it7 = ++it3;
                             AbstractNodeList::const_iterator it4 = it7++;
                             AbstractNodeList::const_iterator it5 = it7++;
                             AbstractNodeList::const_iterator it6 = it7++;
 
-                            if( !getFloat( *it4, &mPassDef->mVpRect[vpNum].mVpScissorLeft ) ||
-                                !getFloat( *it5, &mPassDef->mVpRect[vpNum].mVpScissorTop ) ||
-                                !getFloat( *it6, &mPassDef->mVpRect[vpNum].mVpScissorWidth ) ||
-                                !getFloat( *it7, &mPassDef->mVpRect[vpNum].mVpScissorHeight ) )
+                            if( !getFloat( *it4, &mPassDef->mVpScissorLeft ) ||
+                                !getFloat( *it5, &mPassDef->mVpScissorTop ) ||
+                                !getFloat( *it6, &mPassDef->mVpScissorWidth ) ||
+                                !getFloat( *it7, &mPassDef->mVpScissorHeight ) )
                             {
                                  compiler->addError(ScriptCompiler::CE_NUMBEREXPECTED, prop->file, prop->line);
                             }
                         }
                         else
                         {
-                            mPassDef->mVpRect[vpNum].mVpScissorLeft = mPassDef->mVpRect[vpNum].mVpLeft;
-                            mPassDef->mVpRect[vpNum].mVpScissorTop  = mPassDef->mVpRect[vpNum].mVpTop;
-                            mPassDef->mVpRect[vpNum].mVpScissorWidth= mPassDef->mVpRect[vpNum].mVpWidth;
-                            mPassDef->mVpRect[vpNum].mVpScissorHeight= mPassDef->mVpRect[vpNum].mVpHeight;
+                            mPassDef->mVpScissorLeft    = mPassDef->mVpLeft;
+                            mPassDef->mVpScissorTop     = mPassDef->mVpTop;
+                            mPassDef->mVpScissorWidth   = mPassDef->mVpWidth;
+                            mPassDef->mVpScissorHeight  = mPassDef->mVpHeight;
                         }
                     }
                     break;
@@ -10896,25 +9796,6 @@ namespace Ogre{
                     else
                     {
                         if( !getUInt(prop->values.front(), &mPassDef->mIdentifier) )
-                        {
-                            compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line);
-                        }
-                    }
-                    break;
-                case ID_FLUSH_COMMAND_BUFFERS:
-                    if(prop->values.empty())
-                    {
-                        compiler->addError(ScriptCompiler::CE_STRINGEXPECTED, prop->file, prop->line);
-                        return;
-                    }
-                    else if (prop->values.size() > 1)
-                    {
-                        compiler->addError(ScriptCompiler::CE_FEWERPARAMETERSEXPECTED, prop->file, prop->line);
-                        return;
-                    }
-                    else
-                    {
-                        if( !getBoolean(prop->values.front(), &mPassDef->mFlushCommandBuffers) )
                         {
                             compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line);
                         }
@@ -11208,9 +10089,6 @@ namespace Ogre{
                     (parent->id == ID_COMPOSITOR_NODE || parent->id == ID_SHADOW_NODE ||
                      parent->id == ID_SHADOW_MAP_REPEAT))
                 translator = &mCompositorTargetTranslator;
-            else if( obj->id == ID_RTV && (parent->id == ID_COMPOSITOR_NODE ||
-                                           parent->id == ID_SHADOW_NODE) )
-                translator = &mCompositorRenderTargetViewTranslator;
             else if(obj->id == ID_SHADOW_MAP_TARGET_TYPE && parent && parent->id == ID_SHADOW_NODE)
                 translator = &mCompositorShadowMapTargetTypeTranslator;
             else if(obj->id == ID_SHADOW_MAP_REPEAT && parent && parent->id == ID_SHADOW_MAP_TARGET_TYPE)
@@ -11218,10 +10096,6 @@ namespace Ogre{
             else if(obj->id == ID_SHADOW_MAP && parent &&
                     (parent->id == ID_SHADOW_MAP_TARGET_TYPE || parent->id == ID_SHADOW_MAP_REPEAT))
                 translator = &mCompositorShadowMapTargetTranslator;
-            else if(obj->id == ID_LOAD && parent && parent->id == ID_PASS)
-                translator = &mCompositorLoadActionTranslator;
-            else if(obj->id == ID_STORE && parent && parent->id == ID_PASS)
-                translator = &mCompositorStoreActionTranslator;
             else if(obj->id == ID_PASS && parent && (parent->id == ID_TARGET || parent->id == ID_SHADOW_MAP))
                 translator = &mCompositorPassTranslator;
         }

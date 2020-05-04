@@ -34,9 +34,7 @@ THE SOFTWARE.
 #include "OgreRenderSystem.h"
 #include "OgreHlmsDatablock.h"
 #include "OgreMaterialManager.h"
-#include "OgreString.h"
 
-#include <sstream>
 
 namespace Ogre {
     //-----------------------------------------------------------------------------
@@ -265,8 +263,7 @@ namespace Ogre {
                     // Any 3D textures? NB we make the assumption that any
                     // card capable of running fragment programs can support
                     // 3D textures, which has to be true, surely?
-                    if (((tex->getTextureType() == TextureTypes::Type3D) ||
-                         (tex->getTextureType() == TextureTypes::Type2DArray)) &&
+                    if (((tex->getTextureType() == TEX_TYPE_3D) || (tex->getTextureType() == TEX_TYPE_2D_ARRAY)) && 
                          !caps->hasCapability(RSC_TEXTURE_3D))
                     {
                         // Fail

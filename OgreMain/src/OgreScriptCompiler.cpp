@@ -33,7 +33,6 @@ THE SOFTWARE.
 #include "OgreResourceGroupManager.h"
 #include "OgreLogManager.h"
 #include "OgreStringConverter.h"
-#include "OgreString.h"
 
 namespace Ogre
 {
@@ -286,7 +285,7 @@ namespace Ogre
     {
         ScriptLexer lexer;
         ScriptParser parser;
-        ConcreteNodeListPtr nodes = parser.parse(lexer.tokenize(str), source);
+        ConcreteNodeListPtr nodes = parser.parse(lexer.tokenize(str, source));
         return compile(nodes, group);
     }
 
@@ -395,7 +394,7 @@ namespace Ogre
 
         ScriptLexer lexer;
         ScriptParser parser;
-        ConcreteNodeListPtr cst = parser.parse(lexer.tokenize(str), source);
+        ConcreteNodeListPtr cst = parser.parse(lexer.tokenize(str, source));
 
         // Call the listener to intercept CST
         if(mListener)
@@ -597,8 +596,9 @@ namespace Ogre
             if(!stream.isNull())
             {
                 ScriptLexer lexer;
+                ScriptTokenListPtr tokens = lexer.tokenize(stream->getAsString(), name);
                 ScriptParser parser;
-                nodes = parser.parse(lexer.tokenize(stream->getAsString()), name);
+                nodes = parser.parse(tokens);
             }
         }
 
@@ -957,8 +957,9 @@ namespace Ogre
                 {
                     // Found the variable, so process it and insert it into the tree
                     ScriptLexer lexer;
+                    ScriptTokenListPtr tokens = lexer.tokenize(varAccess.second, var->file);
                     ScriptParser parser;
-                    ConcreteNodeListPtr cst = parser.parseChunk(lexer.tokenize(varAccess.second), var->file);
+                    ConcreteNodeListPtr cst = parser.parseChunk(tokens);
                     AbstractNodeListPtr ast = convertToAST(cst);
 
                     // Set up ownership for these nodes
@@ -1094,7 +1095,6 @@ namespace Ogre
         mIds["exp"] = ID_EXP;
         mIds["exp2"] = ID_EXP2;
         mIds["colour_write"] = ID_COLOUR_WRITE;
-        mIds["channel_mask"] = ID_CHANNEL_MASK;
         mIds["max_lights"] = ID_MAX_LIGHTS;
         mIds["start_light"] = ID_START_LIGHT;
         mIds["iteration"] = ID_ITERATION;
@@ -1200,7 +1200,6 @@ namespace Ogre
         mIds["named"] = ID_NAMED;
         mIds["shadow"] = ID_SHADOW;
         mIds["compositor"] = ID_COMPOSITOR;
-        mIds["automatic_batching"] = ID_AUTOMATIC_BATCHING;
         mIds["texture_source"] = ID_TEXTURE_SOURCE;
         mIds["shared_params"] = ID_SHARED_PARAMS;
         mIds["shared_param_named"] = ID_SHARED_PARAM_NAMED;
@@ -1226,17 +1225,6 @@ namespace Ogre
         mIds["in_buffer"]       = ID_IN_BUFFER;
         mIds["out_buffer"]      = ID_OUT_BUFFER;
         mIds["custom_id"]       = ID_CUSTOM_ID;
-        mIds["rtv"]             = ID_RTV;
-        mIds["resolve"]         = ID_RESOLVE;
-        mIds["mip"]             = ID_MIP;
-        mIds["resolve_mip"]     = ID_RESOLVE_MIP;
-        mIds["resolve_mipmap"]  = ID_RESOLVE_MIPMAP;
-        mIds["slice"]           = ID_SLICE;
-        mIds["resolve_slice"]   = ID_RESOLVE_SLICE;
-        mIds["all_layers"]      = ID_ALL_LAYERS;
-        mIds["depth_stencil"]   = ID_DEPTH_STENCIL;
-        mIds["depth_read_only"] = ID_DEPTH_READ_ONLY;
-        mIds["stencil_read_only"]=ID_STENCIL_READ_ONLY;
         mIds["buffer"]          = ID_BUFFER;
         mIds["target_width"]        = ID_TARGET_WIDTH;
         mIds["target_height"]       = ID_TARGET_HEIGHT;
@@ -1245,19 +1233,16 @@ namespace Ogre
         mIds["target_format"]       = ID_TARGET_FORMAT;
         mIds["no_gamma"]            = ID_NO_GAMMA;
         mIds["no_fsaa"]             = ID_NO_FSAA;
-        mIds["msaa"]                = ID_MSAA;
-        mIds["msaa_auto"]           = ID_MSAA_AUTO;
         mIds["explicit_resolve"]    = ID_EXPLICIT_RESOLVE;
-        mIds["reinterpretable"]     = ID_REINTERPRETABLE;
+        mIds["resolve"]             = ID_RESOLVE;
         mIds["depth_pool"]          = ID_DEPTH_POOL;
         mIds["depth_texture"]       = ID_DEPTH_TEXTURE;
         mIds["depth_format"]        = ID_DEPTH_FORMAT;
         mIds["2d_array"]            = ID_2D_ARRAY;
         //mIds["3d"]                = ID_3D;
         mIds["cubemap"]             = ID_CUBEMAP;
-        mIds["cubemap_array"]       = ID_CUBEMAP_ARRAY;
         mIds["mipmaps"]             = ID_MIPMAPS;
-        mIds["no_automipmaps"]      = ID_NO_AUTOMIPMAPS;
+        mIds["automipmaps"]         = ID_AUTOMIPMAPS;
 
         mIds["target"] = ID_TARGET;
 
@@ -1266,23 +1251,13 @@ namespace Ogre
         mIds["render_scene"]    = ID_RENDER_SCENE;
         mIds["render_quad"]     = ID_RENDER_QUAD;
         mIds["depth_copy"]      = ID_DEPTH_COPY;
-        mIds["texture_copy"]    = ID_DEPTH_COPY;
         mIds["bind_uav"]        = ID_BIND_UAV;
         mIds["read"]            = ID_READ;
         mIds["write"]           = ID_WRITE;
         mIds["mipmap"]          = ID_MIPMAP;
 
-        mIds["load"]            = ID_LOAD;
-        mIds["store"]           = ID_STORE;
-        mIds["all"]             = ID_ALL;
-        mIds["clear_colour"]    = ID_CLEAR_COLOUR;
-        mIds["clear_colour_reverse_depth_aware"]    = ID_CLEAR_COLOUR_REVERSE_DEPTH_AWARE;
-        mIds["clear_depth"]     = ID_CLEAR_DEPTH;
-        mIds["clear_stencil"]   = ID_CLEAR_STENCIL;
-        mIds["warn_if_rtv_was_flushed"]   = ID_WARN_IF_RTV_WAS_FLUSHED;
         mIds["viewport"]        = ID_VIEWPORT;
         mIds["num_initial"]     = ID_NUM_INITIAL;
-        mIds["flush_command_buffers"] = ID_FLUSH_COMMAND_BUFFERS;
         mIds["identifier"]      = ID_IDENTIFIER;
         mIds["overlays"]        = ID_OVERLAYS;
         mIds["execution_mask"]  = ID_EXECUTION_MASK;
@@ -1306,15 +1281,8 @@ namespace Ogre
         mIds["rq_last"]         = ID_LAST_RENDER_QUEUE;
         mIds["camera_cubemap_reorient"] = ID_CAMERA_CUBEMAP_REORIENT;
         mIds["enable_forwardplus"]= ID_ENABLE_FORWARDPLUS;
-        mIds["flush_command_buffers_after_shadow_node"]= ID_FLUSH_COMMAND_BUFFERS_AFTER_SHADOW_NODE;
         mIds["is_prepass"]      = ID_IS_PREPASS;
         mIds["use_prepass"]     = ID_USE_PREPASS;
-        mIds["gen_normals_gbuffer"]= ID_GEN_NORMALS_GBUFFER;
-        mIds["use_refractions"] = ID_USE_REFRACTIONS;
-        mIds["uv_baking"]       = ID_UV_BAKING;
-        mIds["uv_baking_offset"]= ID_UV_BAKING_OFFSET;
-        mIds["bake_lighting_only"] = ID_BAKE_LIGHTING_ONLY;
-        mIds["instanced_stereo"]= ID_INSTANCED_STEREO;
 
         mIds["use_quad"]        = ID_USE_QUAD;
         mIds["quad_normals"]    = ID_QUAD_NORMALS;
@@ -1327,9 +1295,9 @@ namespace Ogre
         mIds["camera_far_corners_world_space_centered"] = ID_CAMERA_FAR_CORNERS_WORLD_SPACE_CENTERED;
         mIds["camera_direction"]                = ID_CAMERA_DIRECTION;
         mIds["input"]           = ID_INPUT;
-        mIds["output"]          = ID_OUTPUT;
 
-        mIds["non_tilers_only"] = ID_NON_TILERS_ONLY;
+        mIds["alias_on_copy_failure"]           = ID_ALIAS_ON_COPY_FAILURE;
+
         mIds["buffers"]         = ID_BUFFERS;
         mIds["colour"]          = ID_COLOUR;
         mIds["depth"]           = ID_DEPTH;
@@ -1371,12 +1339,8 @@ namespace Ogre
         mIds["kernel_radius"]   = ID_KERNEL_RADIUS;
         mIds["gauss_deviation"] = ID_GAUSS_DEVIATION;
 
-        mIds["samples_per_iteration"] = ID_SAMPLES_PER_ITERATION;
-        mIds["force_mipmap_fallback"] = ID_FORCE_MIPMAP_FALLBACK;
-
         mIds["compositor_node_shadow"]  = ID_SHADOW_NODE;
         mIds["num_splits"]              = ID_NUM_SPLITS;
-        mIds["num_stable_splits"]       = ID_NUM_STABLE_SPLITS;
         mIds["pssm_split_padding"]      = ID_PSSM_SPLIT_PADDING;
         mIds["pssm_split_blend"]        = ID_PSSM_SPLIT_BLEND;
         mIds["pssm_split_fade"]         = ID_PSSM_SPLIT_FADE;

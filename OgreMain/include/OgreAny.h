@@ -39,7 +39,6 @@ THE SOFTWARE.
 #include "OgrePrerequisites.h"
 #include "OgreException.h"
 #include <typeinfo>
-#include "OgreLwString.h"
 #include "OgreHeaderPrefix.h"
 
 namespace Ogre
@@ -57,7 +56,7 @@ namespace Ogre
     */
     /** Variant type that can hold Any other type.
     */
-    class _OgreExport Any
+    class Any 
     {
     public: // constructors
 
@@ -77,7 +76,10 @@ namespace Ogre
         {
         }
 
-        virtual ~Any();
+        virtual ~Any()
+        {
+            reset();
+        }
 
     public: // modifiers
 
@@ -137,11 +139,13 @@ namespace Ogre
 
     protected: // types
 
-        class _OgreExport placeholder
+        class placeholder 
         {
         public: // structors
     
-            virtual ~placeholder();
+            virtual ~placeholder()
+            {
+            }
 
         public: // queries
 
@@ -217,7 +221,7 @@ namespace Ogre
     /** Specialised Any class which has built in arithmetic operators, but can 
         hold only types which support operator +,-,* and / .
     */
-    class _OgreExport AnyNumeric : public Any
+    class AnyNumeric : public Any
     {
     public:
         AnyNumeric()
@@ -238,14 +242,14 @@ namespace Ogre
             mContent = other.mContent ? other.mContent->clone() : 0; 
         }
 
-        virtual ~AnyNumeric();
-
     protected:
-        class _OgreExport numplaceholder : public Any::placeholder
+        class numplaceholder : public Any::placeholder
         {
         public: // structors
 
-            virtual ~numplaceholder();
+            ~numplaceholder()
+            {
+            }
             virtual placeholder* add(placeholder* rhs) = 0;
             virtual placeholder* subtract(placeholder* rhs) = 0;
             virtual placeholder* multiply(placeholder* rhs) = 0;
@@ -399,11 +403,12 @@ namespace Ogre
         const ValueType * result = any_cast<ValueType>(&operand);
         if(!result)
         {
-            char tmpBuffer[256];
-            LwString str( LwString::FromEmptyPointer( tmpBuffer, sizeof( tmpBuffer ) ) );
-            str.a( "Bad cast from type '", operand.type().name(), "' ", "to '",
-                   typeid( ValueType ).name() );
-            OGRE_EXCEPT( Exception::ERR_INVALIDPARAMS, str.c_str(), "Ogre::any_cast" );
+            StringStream str;
+            str << "Bad cast from type '" << operand.type().name() << "' "
+                << "to '" << typeid(ValueType).name() << "'";
+            OGRE_EXCEPT(Exception::ERR_INVALIDPARAMS,
+                str.str(), 
+                "Ogre::any_cast");
         }
         return *result;
     }

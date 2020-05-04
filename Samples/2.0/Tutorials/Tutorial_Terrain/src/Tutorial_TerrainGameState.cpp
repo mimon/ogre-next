@@ -11,7 +11,7 @@
 #include "Vao/OgreVertexArrayObject.h"
 
 #include "OgreCamera.h"
-#include "OgreWindow.h"
+#include "OgreRenderWindow.h"
 
 #include "Terra/Terra.h"
 #include "Terra/TerraShadowMapper.h"
@@ -21,7 +21,10 @@
 #include "Compositor/OgreCompositorManager2.h"
 #include "Compositor/OgreCompositorWorkspace.h"
 
-#include "OgreTextureGpuManager.h"
+#include "OgreTextureManager.h"
+#include "OgreTexture.h"
+#include "OgreHardwarePixelBuffer.h"
+#include "OgreRenderTexture.h"
 
 #include "OgreLwString.h"
 #include "OgreGpuProgramManager.h"
@@ -65,25 +68,25 @@ namespace Demo
 
         Root *root = mGraphicsSystem->getRoot();
         SceneManager *sceneManager = mGraphicsSystem->getSceneManager();
-        Window *renderWindow = mGraphicsSystem->getRenderWindow();
+        RenderWindow *renderWindow = mGraphicsSystem->getRenderWindow();
         Camera *camera = mGraphicsSystem->getCamera();
         CompositorManager2 *compositorManager = root->getCompositorManager2();
 
         CompositorWorkspace *oldWorkspace = mGraphicsSystem->getCompositorWorkspace();
         if( oldWorkspace )
         {
-            TextureGpu *terraShadowTex = oldWorkspace->getExternalRenderTargets()[1];
-            compositorManager->removeWorkspace( oldWorkspace );
-            if( terraShadowTex->getPixelFormat() == PFG_NULL )
+            TexturePtr terraShadowTex = oldWorkspace->getExternalRenderTargets()[1].textures.back();
+            if( terraShadowTex->getFormat() == PF_NULL )
             {
-                TextureGpuManager *textureManager = root->getRenderSystem()->getTextureGpuManager();
-                textureManager->destroyTexture( terraShadowTex );
+                ResourcePtr resourcePtr( terraShadowTex );
+                TextureManager::getSingleton().remove( resourcePtr );
             }
+            compositorManager->removeWorkspace( oldWorkspace );
         }
 
         CompositorChannelVec externalChannels( 2 );
         //Render window
-        externalChannels[0] = renderWindow->getTexture();
+        externalChannels[0].target = renderWindow;
 
         //Terra's Shadow texture
         ResourceLayoutMap initialLayouts;
@@ -92,21 +95,17 @@ namespace Demo
         {
             //Terra is initialized
             const ShadowMapper *shadowMapper = mTerra->getShadowMapper();
-            shadowMapper->fillUavDataForCompositorChannel( &externalChannels[1], initialLayouts,
+            shadowMapper->fillUavDataForCompositorChannel( externalChannels[1], initialLayouts,
                                                            initialUavAccess );
         }
         else
         {
-            //The texture is not available. Create a dummy dud.
-            TextureGpuManager *textureManager = root->getRenderSystem()->getTextureGpuManager();
-            TextureGpu *nullTex = textureManager->createOrRetrieveTexture( "DummyNull",
-                                                                           GpuPageOutStrategy::Discard,
-                                                                           TextureFlags::ManualTexture,
-                                                                           TextureTypes::Type2D );
-            nullTex->setResolution( 1u, 1u );
-            nullTex->setPixelFormat( PFG_R10G10B10A2_UNORM );
-            nullTex->scheduleTransitionTo( GpuResidency::Resident );
-            externalChannels[1] = nullTex;
+            //The texture is not available. Create a dummy dud using PF_NULL.
+            TexturePtr nullTex = TextureManager::getSingleton().createManual(
+                        "DummyNull", ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME,
+                        TEX_TYPE_2D, 1, 1, 0, PF_NULL );
+            externalChannels[1].target = nullTex->getBuffer(0)->getRenderTarget();
+            externalChannels[1].textures.push_back( nullTex );
         }
 
         return compositorManager->addWorkspace( sceneManager, externalChannels, camera,

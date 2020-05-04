@@ -17,6 +17,7 @@
 #include "Vao/OgreVertexArrayObject.h"
 
 #include "OgreCamera.h"
+#include "OgreRenderWindow.h"
 
 #include "OgreMaterialManager.h"
 #include "OgreTechnique.h"
@@ -106,10 +107,12 @@ namespace Demo
         Ogre::GpuProgramParametersSharedPtr psParams = pass->getFragmentProgramParameters();
 
         Ogre::Camera *camera = mGraphicsSystem->getCamera();
-        Ogre::Vector2 projectionAB = camera->getProjectionParamsAB();
+        Ogre::Real projectionA = camera->getFarClipDistance() /
+                                    (camera->getFarClipDistance() - camera->getNearClipDistance());
+        Ogre::Real projectionB = (-camera->getFarClipDistance() * camera->getNearClipDistance()) /
+                                    (camera->getFarClipDistance() - camera->getNearClipDistance());
         //The division will keep "linearDepth" in the shader in the [0; 1] range.
-        projectionAB.y /= camera->getFarClipDistance();
-        psParams->setNamedConstant( "projectionParams",
-                                    Ogre::Vector4( projectionAB.x, projectionAB.y, 0, 0 ) );
+        projectionB /= camera->getFarClipDistance();
+        psParams->setNamedConstant( "projectionParams", Ogre::Vector4( projectionA, projectionB, 0, 0 ) );
     }
 }

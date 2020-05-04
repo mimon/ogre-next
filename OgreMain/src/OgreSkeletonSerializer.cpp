@@ -34,10 +34,9 @@ THE SOFTWARE.
 #include "OgreAnimationTrack.h"
 #include "OgreKeyFrame.h"
 #include "OgreOldBone.h"
+#include "OgreString.h"
 #include "OgreDataStream.h"
 #include "OgreLogManager.h"
-
-#include <sstream>
 
 namespace Ogre {
 namespace v1 {
@@ -95,12 +94,12 @@ namespace v1 {
 
         // Write all animations
         unsigned short numAnims = pSkeleton->getNumAnimations();
-        *LogManager::getSingleton().stream().raw()
+        LogManager::getSingleton().stream()
             << "Exporting animations, count=" << numAnims;
         for (unsigned short i = 0; i < numAnims; ++i)
         {
             Animation* pAnim = pSkeleton->getAnimation(i);
-            *LogManager::getSingleton().stream().raw()
+            LogManager::getSingleton().stream()
                 << "Exporting animation: " << pAnim->getName();
             writeAnimation(pSkeleton, pAnim, ver);
             LogManager::getSingleton().logMessage("Animation exported.");

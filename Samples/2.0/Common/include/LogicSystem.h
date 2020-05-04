@@ -5,8 +5,6 @@
 #include "BaseSystem.h"
 #include "OgrePrerequisites.h"
 
-#include <deque>
-
 namespace Demo
 {
     class GameEntityManager;

@@ -31,7 +31,6 @@ THE SOFTWARE.
 
 #include "OgreMovableObject.h"
 #include "OgreRenderable.h"
-#include "OgreTextureGpuListener.h"
 
 namespace Ogre
 {
@@ -76,12 +75,12 @@ namespace Ogre
         will be overwritten instead, and the metalness value of the decal will
         act as a fresnel value, overwriting the original fresnel.
     */
-    class _OgreExport Decal : public MovableObject, public TextureGpuListener
+    class _OgreExport Decal : public MovableObject
     {
     protected:
-        TextureGpu  *mDiffuseTexture;
-        TextureGpu  *mNormalTexture;
-        TextureGpu  *mEmissiveTexture;
+        TexturePtr  mDiffuseTexture;
+        TexturePtr  mNormalTexture;
+        TexturePtr  mEmissiveTexture;
 
     public:
         uint16 mDiffuseIdx;
@@ -95,22 +94,13 @@ namespace Ogre
         Decal( IdType id, ObjectMemoryManager *objectMemoryManager, SceneManager* manager );
         virtual ~Decal();
 
-        /// Call this family of functions if the input texture is automatically batched
-        /// We will listen for residency changes and change the internal slice accordingly
-        void setDiffuseTexture( TextureGpu *diffuseTex );
-        void setNormalTexture( TextureGpu *normalTex );
-        void setEmissiveTexture( TextureGpu *emissiveTex );
+        void setDiffuseTexture( const TexturePtr &diffuseTex, uint16 diffuseIdx );
+        void setNormalTexture( const TexturePtr &normalTex, uint16 normalIdx );
+        void setEmissiveTexture( const TexturePtr &emissiveTex, uint16 emissiveIdx );
 
-        /// Call this family of functions if the input texture is managed by hand by you.
-        /// We will not listen to residency changes. It's your responsibility to ensure
-        /// the texture resident by the time it needs to be displayed.
-        void setDiffuseTextureRaw( TextureGpu *diffuseTex, uint32 sliceIdx );
-        void setNormalTextureRaw( TextureGpu *normalTex, uint32 sliceIdx );
-        void setEmissiveTextureRaw( TextureGpu *emissiveTex, uint32 sliceIdx );
-
-        TextureGpu* getDiffuseTexture(void) const;
-        TextureGpu* getNormalTexture(void) const;
-        TextureGpu* getEmissiveTexture(void) const;
+        const TexturePtr& getDiffuseTexture(void) const;
+        const TexturePtr& getNormalTexture(void) const;
+        const TexturePtr& getEmissiveTexture(void) const;
 
         /** When diffuse textures are used (globally), the alpha component of the diffuse texture
             will be used to mask all the other textures (e.g. normal & emissive maps).
@@ -154,8 +144,6 @@ namespace Ogre
 
         /// Decals only allow ForwardPlusBase::MinDecalRq <= queueID < ForwardPlusBase::MaxDecalRq
         virtual void setRenderQueueGroup(uint8 queueID);
-        virtual void notifyTextureChanged( TextureGpu *texture, TextureGpuListener::Reason reason,
-                                           void *extraData );
     };
 
     class _OgreExport DecalFactory : public MovableObjectFactory

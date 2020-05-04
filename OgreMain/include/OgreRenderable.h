@@ -32,6 +32,8 @@ THE SOFTWARE.
 #include "OgreCommon.h"
 
 #include "OgreIdString.h"
+#include "OgreGpuProgram.h"
+#include "OgreGpuProgramParams.h"
 #include "OgreMatrix4.h"
 #include "OgreMaterial.h"
 #include "OgrePlane.h"
@@ -44,7 +46,6 @@ THE SOFTWARE.
 namespace Ogre {
 
     typedef FastArray<VertexArrayObject*> VertexArrayObjectArray;
-    class GpuProgramParameters_AutoConstantEntry;
 
     /** \addtogroup Core
     *  @{
@@ -325,8 +326,16 @@ namespace Ogre {
             set the updated parameters.
         */
         virtual void _updateCustomGpuParameter(
-            const GpuProgramParameters_AutoConstantEntry &constantEntry,
-            GpuProgramParameters *params ) const;
+            const GpuProgramParameters::AutoConstantEntry& constantEntry,
+            GpuProgramParameters* params) const
+        {
+            CustomParameterMap::const_iterator i = mCustomParameters.find(constantEntry.data);
+            if (i != mCustomParameters.end())
+            {
+                params->_writeRawConstant(constantEntry.physicalIndex, i->second, 
+                    constantEntry.elementCount);
+            }
+        }
 
         /** Sets whether this renderable's chosen detail level can be
             overridden (downgraded) by the camera setting. 

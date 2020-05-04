@@ -28,7 +28,7 @@ THE SOFTWARE.
 #ifndef _OgreHlmsPso_H_
 #define _OgreHlmsPso_H_
 
-#include "OgrePixelFormatGpu.h"
+#include "OgrePixelFormat.h"
 #include "Vao/OgreVertexBufferPacked.h"
 #include "OgreGpuProgram.h"
 #include "OgreHeaderPrefix.h"
@@ -93,36 +93,35 @@ namespace Ogre
 
     /** IT'S MEMBERS MUST BE KEPT POD (Otherwise HlmsPso needs to be modified).
     @par
-        Padding bytes should be zeroed/copied for properly testing via memcmp.
+        Padding must be explicit! This way, copy/assignment operators will also copy the padded
+        values which is needed for properly testing via memcmp.
+        Use these Clang params to help you find alignment issues:
+            -Xclang -fdump-record-layouts -Wpadded > dmp.txt 2>err.txt
     */
     struct HlmsPassPso
     {
         /// Stencil support
         StencilParams   stencilParams;
 
+        bool        hwGamma[OGRE_MAX_MULTIPLE_RENDER_TARGETS];
         /// PF_NULL if no colour attachment is used.
-        PixelFormatGpu colourFormat[OGRE_MAX_MULTIPLE_RENDER_TARGETS];
+        PixelFormat colourFormat[OGRE_MAX_MULTIPLE_RENDER_TARGETS];
         /// PF_NULL if no depth buffer is used.
-        PixelFormatGpu depthFormat;
+        PixelFormat depthFormat;
 
-        /// FSAA specific settings
-        SampleDescription sampleDescription;
+        /// MSAA specific settings
+        uint32      multisampleCount;
+        uint32      multisampleQuality;
 
         /// For multi-GPU support
         uint32      adapterId;
 
         uint8 strongMacroblockBits;
-
-        HlmsPassPso& operator = ( const HlmsPassPso &_r )
-        {
-            // Copy padding bytes too.
-            memcpy( this, &_r, sizeof(HlmsPassPso) );
-            return *this;
-        }
+        uint8 padding0[3];
 
         bool operator == ( const HlmsPassPso &_r ) const
         {
-            //This will work correctly, because padded bytes are initialized.
+            //This will work correctly, because padded bytes are explicit.
             return !memcmp( this, &_r, sizeof(HlmsPassPso) );
         }
         bool operator != ( const HlmsPassPso &_r ) const
@@ -140,7 +139,6 @@ namespace Ogre
         {
             ForceDisableDepthWrites     = 1u << 0u,
             InvertVertexWinding         = 1u << 1u,
-            NoDepthBuffer               = 1u << 2u,
         };
     };
 
@@ -153,7 +151,10 @@ namespace Ogre
             In the other APIs, vertex-input data is use, and VertexArrayObject pointers
             only control which vertex and index buffers are bound to the device.
     @par
-        Padding bytes should be zeroed/copied for properly testing via memcmp.
+        Padding must be explicit! This way, copy/assignment operators will also copy the padded
+        values which is needed for properly testing via memcmp.
+        Use these Clang params to help you find alignment issues:
+            -Xclang -fdump-record-layouts -Wpadded > dmp.txt 2>err.txt
     */
     struct HlmsPso
     {
@@ -165,10 +166,10 @@ namespace Ogre
 
         //Computed from the VertexArrayObject (or v1 equivalent)
         VertexElement2VecVec    vertexElements;
-        // --- POD part starts here ---
         OperationType           operationType;
         bool                    enablePrimitiveRestart;
         uint8                   clipDistances; //Bitmask. Only needed by GL.
+        uint8                   padding[2];
 
         HlmsMacroblock const    *macroblock;
         HlmsBlendblock const    *blendblock;
@@ -195,26 +196,15 @@ namespace Ogre
 
         void initialize()
         {
-            // Zero out POD part including padding bytes.
-            memset( &operationType, 0,
-                (const uint8*)this + sizeof(HlmsPso) - (const uint8*)&this->operationType );
+            macroblock = 0;
+            blendblock = 0;
+            sampleMask = 0;
             operationType = OT_POINT_LIST;
-        }
-
-        HlmsPso& operator = ( const HlmsPso &_r )
-        {
-            // Copy non-POD part.
-            this->vertexShader = _r.vertexShader;
-            this->geometryShader = _r.geometryShader;
-            this->tesselationHullShader = _r.tesselationHullShader;
-            this->tesselationDomainShader = _r.tesselationDomainShader;
-            this->pixelShader = _r.pixelShader;
-            this->vertexElements = _r.vertexElements;
-
-            // Copy POD part including padding bytes.
-            memcpy( &operationType, &_r.operationType, 
-                (const uint8*)this + sizeof(HlmsPso) - (const uint8*)&this->operationType );
-            return *this;
+            enablePrimitiveRestart = false;
+            clipDistances = 0;
+            memset( padding, 0, sizeof(padding) );
+            memset( &pass, 0, sizeof(HlmsPassPso) );
+            rsData = 0;
         }
 
         bool equalNonPod( const HlmsPso &_r ) const

@@ -29,16 +29,14 @@ THE SOFTWARE.
 #include "Vao/OgreGL3PlusTexBufferEmulatedPacked.h"
 #include "Vao/OgreGL3PlusBufferInterface.h"
 
-#include "OgreGL3PlusMappings.h"
-
-#include "OgrePixelFormatGpuUtils.h"
+#include "OgreGL3PlusPixelFormat.h"
 
 namespace Ogre
 {
     GL3PlusTexBufferEmulatedPacked::GL3PlusTexBufferEmulatedPacked(
-        size_t internalBufStartBytes, size_t numElements, uint32 bytesPerElement,
-        uint32 numElementsPadding, BufferType bufferType, void *initialData, bool keepAsShadow,
-        VaoManager *vaoManager, GL3PlusBufferInterface *bufferInterface, PixelFormatGpu pf ) :
+            size_t internalBufStartBytes, size_t numElements, uint32 bytesPerElement,
+            uint32 numElementsPadding, BufferType bufferType, void *initialData, bool keepAsShadow,
+            VaoManager *vaoManager, GL3PlusBufferInterface *bufferInterface, PixelFormat pf ) :
         TexBufferPacked( internalBufStartBytes, numElements, bytesPerElement, numElementsPadding,
                          bufferType, initialData, keepAsShadow, vaoManager, bufferInterface, pf ),
         mTexName( 0 ),
@@ -50,15 +48,16 @@ namespace Ogre
     {
         OCGE( glGenTextures( 1, &mTexName ) );
         
-        mInternalFormat = GL3PlusMappings::get( pf );
+        mInternalFormat = GL3PlusPixelUtil::getGLImageInternalFormat( pf );
 
         OCGE( glBindTexture( GL_TEXTURE_2D, mTexName ) );
 
         mMaxTexSize = 2048;
 
-        GL3PlusMappings::getFormatAndType( pf, mOriginFormat, mOriginDataType );
+        mOriginFormat = GL3PlusPixelUtil::getGLOriginFormat( pf );
+        mOriginDataType = GL3PlusPixelUtil::getGLOriginDataType( pf );
 
-        mInternalNumElemBytes = PixelFormatGpuUtils::getBytesPerPixel( pf );
+        mInternalNumElemBytes = PixelUtil::getNumElemBytes( pf );
 
         mInternalNumElements = numElements / mInternalNumElemBytes;
 
@@ -81,7 +80,7 @@ namespace Ogre
         OCGE( glDeleteTextures( 1, &mTexName ) );
     }
     //-----------------------------------------------------------------------------------
-    inline void GL3PlusTexBufferEmulatedPacked::bindBuffer( size_t offset, size_t sizeBytes )
+    inline void GL3PlusTexBufferEmulatedPacked::bindBuffer( uint16 slot, size_t offset, size_t sizeBytes )
     {
         assert( dynamic_cast<GL3PlusBufferInterface*>( mBufferInterface ) );
         assert( offset < (mNumElements * mBytesPerElement - 1) );
@@ -104,6 +103,7 @@ namespace Ogre
         }
 
         OCGE( glBindBuffer( GL_PIXEL_UNPACK_BUFFER, bufferInterface->getVboName() ) );
+        OCGE( glActiveTexture( GL_TEXTURE0 + slot ) );
         OCGE( glBindTexture( GL_TEXTURE_2D, mTexName ) );
         OCGE( glTexSubImage2D( GL_TEXTURE_2D, 0, 0, 0, texWidth, texHeight,
                                mOriginFormat, mOriginDataType, reinterpret_cast<void*>(
@@ -114,21 +114,11 @@ namespace Ogre
         {
             OCGE( glPixelStorei( GL_UNPACK_ALIGNMENT, 4 ) );
         }
-    }
-    //-----------------------------------------------------------------------------------
-    inline void GL3PlusTexBufferEmulatedPacked::bindBuffer( uint16 slot, size_t offset, size_t sizeBytes )
-    {
-        OCGE( glActiveTexture( GL_TEXTURE0 + slot ) );
-        bindBuffer( offset, sizeBytes );
+
         //TODO: Get rid of this nonsense of restoring the active texture.
         //RenderSystem is always restores to 0 after using,
         //plus activateGLTextureUnit won't see our changes otherwise.
         OCGE( glActiveTexture( GL_TEXTURE0 ) );
-    }
-    //-----------------------------------------------------------------------------------
-    void GL3PlusTexBufferEmulatedPacked::_bindBufferDirectly( size_t offset, size_t sizeBytes )
-    {
-        bindBuffer( offset, sizeBytes );
     }
     //-----------------------------------------------------------------------------------
     void GL3PlusTexBufferEmulatedPacked::bindBufferVS( uint16 slot, size_t offset, size_t sizeBytes )
@@ -161,4 +151,4 @@ namespace Ogre
         bindBuffer( slot, offset, sizeBytes );
     }
     //-----------------------------------------------------------------------------------
-}  // namespace Ogre
+}

@@ -16,6 +16,7 @@
 
 #include "OgreRoot.h"
 #include "OgreHlmsManager.h"
+#include "OgreHlmsTextureManager.h"
 #include "OgreHlmsPbs.h"
 
 #include "OgreLwString.h"
@@ -25,9 +26,6 @@
 #include "InstantRadiosity/OgreInstantRadiosity.h"
 #include "OgreIrradianceVolume.h"
 #include "OgreForward3D.h"
-
-#include "OgreTextureGpu.h"
-#include "OgreTextureGpuManager.h"
 
 using namespace Demo;
 
@@ -194,7 +192,7 @@ namespace Demo
         mCameraController->mCameraBaseSpeed = 1.0f;
         mCameraController->mCameraSpeedBoost = 10.0f;
 
-        sceneManager->setForwardClustered( true, 16, 8, 24, 96, 0, 0, 2, 50 );
+        sceneManager->setForwardClustered( true, 16, 8, 24, 96, 0, 2, 50 );
         //Required by InstantRadiosity
         sceneManager->getForwardPlus()->setEnableVpls( true );
 

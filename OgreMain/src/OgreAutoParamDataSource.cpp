@@ -30,6 +30,7 @@ THE SOFTWARE.
 #include "OgreAutoParamDataSource.h"
 #include "OgreRenderable.h"
 #include "OgreCamera.h"
+#include "OgreRenderTarget.h"
 #include "OgreControllerManager.h"
 #include "OgreMath.h"
 #include "OgreRoot.h"
@@ -76,7 +77,7 @@ namespace Ogre {
          mCurrentRenderable(0),
          mCurrentCamera(0), 
          mCurrentLightList(0),
-         mCurrentRenderPassDesc(0),
+         mCurrentRenderTarget(0),
          mCurrentViewport(0), 
          mCurrentSceneManager(0),
          mCurrentPass(0),
@@ -346,13 +347,13 @@ namespace Ogre {
             {
                 // Use identity projection matrix, still need to take RS depth into account.
                 RenderSystem* rs = Root::getSingleton().getRenderSystem();
-                rs->_convertProjectionMatrix(Matrix4::IDENTITY, mProjectionMatrix);
+                rs->_convertProjectionMatrix(Matrix4::IDENTITY, mProjectionMatrix, true);
             }
             else
             {
                 mProjectionMatrix = mCurrentCamera->getProjectionMatrixWithRSDepth();
             }
-            if (mCurrentRenderPassDesc && mCurrentRenderPassDesc->requiresTextureFlipping())
+            if (mCurrentRenderTarget && mCurrentRenderTarget->requiresTextureFlipping())
             {
                 // Because we're not using setProjectionMatrix, this needs to be done here
                 // Invert transformed y
@@ -486,21 +487,6 @@ namespace Ogre {
         return mLodCameraPositionObjectSpace;
     }
     //-----------------------------------------------------------------------------
-    const Vector2 AutoParamDataSource::getRSDepthRange(void) const
-    {
-        RenderSystem *rs = Root::getSingleton().getRenderSystem();
-        if( rs->isReverseDepth() )
-            return Vector2( 1.0f, 0.0f );
-        else
-        {
-            Real rsDepthRange = rs->getRSDepthRange();
-            if( rsDepthRange > 1.0 )
-                return Vector2( -1.0f, 1.0f );
-            else
-                return Vector2( 0.0f, 1.0f );
-        }
-    }
-    //-----------------------------------------------------------------------------
     void AutoParamDataSource::setAmbientLightColour( const ColourValue hemispheres[2],
                                                      const Vector3 &hemisphereDir)
     {
@@ -551,47 +537,14 @@ namespace Ogre {
         return mCurrentJob;
     }
     //-----------------------------------------------------------------------------
-    Vector4 AutoParamDataSource::getUavSize(size_t index) const
-    {
-        Vector4 size = Vector4( 1, 1, 1, 1 );
-
-        if( mCurrentJob && index < mCurrentJob->getNumUavUnits() )
-        {
-            const TextureGpu *tex = mCurrentJob->getUavTexture( static_cast<uint8>( index ) );
-            if( tex )
-            {
-                size.x = static_cast<Real>( tex->getWidth() );
-                size.y = static_cast<Real>( tex->getHeight() );
-                size.z = static_cast<Real>( tex->getDepth() );
-            }
-        }
-
-        size.w = Ogre::max( size.x, size.y );
-        size.w = Ogre::max( size.w, size.z );
-
-        return size;
-    }
-    //-----------------------------------------------------------------------------
-    Vector4 AutoParamDataSource::getInverseUavSize(size_t index) const
-    {
-        Vector4 size = getUavSize(index);
-        return 1 / size;
-    }
-    //-----------------------------------------------------------------------------
-    Vector4 AutoParamDataSource::getPackedUavSize(size_t index) const
-    {
-        Vector4 size = getUavSize(index);
-        return Vector4(size.x, size.y, 1 / size.x, 1 / size.y);
-    }
-    //-----------------------------------------------------------------------------
     Vector4 AutoParamDataSource::getTextureSize(size_t index) const
     {
         Vector4 size = Vector4(1,1,1,1);
 
         if( mCurrentJob && index < mCurrentJob->getNumTexUnits() )
         {
-            const TextureGpu *tex = mCurrentJob->getTexture( static_cast<uint8>(index) );
-            if( tex )
+            const TexturePtr& tex = mCurrentJob->getTexture( static_cast<uint8>(index) );
+            if (!tex.isNull())
             {
                 size.x = static_cast<Real>(tex->getWidth());
                 size.y = static_cast<Real>(tex->getHeight());
@@ -600,9 +553,9 @@ namespace Ogre {
         }
         else if (index < mCurrentPass->getNumTextureUnitStates())
         {
-            const TextureGpu *tex = mCurrentPass->getTextureUnitState(
+            const TexturePtr& tex = mCurrentPass->getTextureUnitState(
                 static_cast<unsigned short>(index))->_getTexturePtr();
-            if( tex )
+            if (!tex.isNull())
             {
                 size.x = static_cast<Real>(tex->getWidth());
                 size.y = static_cast<Real>(tex->getHeight());
@@ -887,16 +840,15 @@ namespace Ogre {
         return retVal;
     }
     //-----------------------------------------------------------------------------
-    const RenderPassDescriptor* AutoParamDataSource::getCurrentRenderPassDesc(void) const
+    const RenderTarget* AutoParamDataSource::getCurrentRenderTarget(void) const
     {
-        return mCurrentRenderPassDesc;
+        return mCurrentRenderTarget;
     }
     //-----------------------------------------------------------------------------
     void AutoParamDataSource::setCurrentViewport(const Viewport* viewport)
     {
         mCurrentViewport = viewport;
-        RenderSystem *rs = Root::getSingleton().getRenderSystem();
-        mCurrentRenderPassDesc = rs->getCurrentPassDescriptor();
+        mCurrentRenderTarget = viewport->getTarget();
     }
     //-----------------------------------------------------------------------------
     void AutoParamDataSource::setShadowDirLightExtrusionDistance(Real dist)
@@ -1200,8 +1152,7 @@ namespace Ogre {
         return mCurrentSceneManager->getShadowColour();
     }
     //-------------------------------------------------------------------------
-    void AutoParamDataSource::updateLightCustomGpuParameter(
-        const GpuProgramParameters_AutoConstantEntry &constantEntry, GpuProgramParameters *params ) const
+    void AutoParamDataSource::updateLightCustomGpuParameter(const GpuProgramParameters::AutoConstantEntry& constantEntry, GpuProgramParameters *params) const
     {
         uint16 lightIndex = static_cast<uint16>(constantEntry.data & 0xFFFF),
             paramIndex = static_cast<uint16>((constantEntry.data >> 16) & 0xFFFF);

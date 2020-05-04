@@ -28,7 +28,7 @@ THE SOFTWARE.
 #ifndef __OgrePVRTCCodec_H__
 #define __OgrePVRTCCodec_H__
 
-#include "OgreImageCodec2.h"
+#include "OgreImageCodec.h"
 
 namespace Ogre {
 	/** \addtogroup Core
@@ -43,7 +43,7 @@ namespace Ogre {
 		We implement our own codec here since we need to be able to keep PVRTC
 		data compressed if the card supports it.
     */
-    class _OgreExport PVRTCCodec : public ImageCodec2
+    class _OgreExport PVRTCCodec : public ImageCodec
     {
     protected:
         String mType;

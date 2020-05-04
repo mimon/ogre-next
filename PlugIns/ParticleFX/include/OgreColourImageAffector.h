@@ -32,7 +32,7 @@ THE SOFTWARE.
 #include "OgreParticleAffector.h"
 #include "OgreStringInterface.h"
 #include "OgreColourValue.h"
-#include "OgreImage2.h"
+#include "OgreImage.h"
 
 namespace Ogre {
 
@@ -64,7 +64,7 @@ namespace Ogre {
         static CmdImageAdjust   msImageCmd;
 
     protected:
-        Image2                  mColourImage;
+        Image                   mColourImage;
         bool                    mColourImageLoaded;
         String                  mColourImageName;
 

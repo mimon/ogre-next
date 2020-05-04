@@ -35,28 +35,19 @@ namespace Ogre
     struct _OgreExport CbTexture : public CbBase
     {
         uint16                  texUnit;
-        TextureGpu              *texture;
+        bool                    bEnabled;
+        Texture                 *texture;
         HlmsSamplerblock const  *samplerBlock;
 
-        CbTexture( uint16 _texUnit, TextureGpu *_texture,
+        CbTexture( uint16 _texUnit, bool _bEnabled, Texture *_texture,
                    const HlmsSamplerblock *_samplerBlock = 0 );
     };
 
-    struct _OgreExport CbTextures : public CbBase
+    struct _OgreExport CbTextureDisableFrom : public CbBase
     {
-        uint16                      texUnit;
-        uint16                      hazardousTexIdx;
-        const DescriptorSetTexture  *descSet;
+        uint16 fromTexUnit;
 
-        CbTextures( uint16 _texUnit, uint16 _hazardousTexIdx, const DescriptorSetTexture *_descSet );
-    };
-
-    struct _OgreExport CbSamplers : public CbBase
-    {
-        uint16                      texUnit;
-        const DescriptorSetSampler *descSet;
-
-        CbSamplers( uint16 _texUnit, const DescriptorSetSampler *_descSet );
+        CbTextureDisableFrom( uint16 _fromTexUnit );
     };
 }
 

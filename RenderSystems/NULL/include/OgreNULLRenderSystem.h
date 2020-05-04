@@ -43,10 +43,7 @@ namespace Ogre
     class _OgreNULLExport NULLPixelFormatToShaderType : public PixelFormatToShaderType
     {
     public:
-        virtual const char* getPixelFormatType( PixelFormatGpu pixelFormat ) const { return 0; }
-        virtual const char* getDataType( PixelFormatGpu pixelFormat, uint32 textureType,
-                                         bool isMsaa,
-                                         ResourceAccess::ResourceAccess access ) const { return 0; }
+        virtual const char* getPixelFormatType( PixelFormat pixelFormat ) const { return 0; }
     };
 
     /**
@@ -59,11 +56,12 @@ namespace Ogre
 
         ConfigOptionMap mOptions;
 
+        vector<RenderTarget*>::type mRenderTargets;
+
         NULLPixelFormatToShaderType mPixelFormatToShaderType;
 
     public:
         NULLRenderSystem();
-        virtual ~NULLRenderSystem(void);
 
         virtual void shutdown(void);
 
@@ -80,13 +78,14 @@ namespace Ogre
 
         virtual void reinitialise(void);
 
-        virtual Window* _initialise( bool autoCreateWindow,
-                                     const String& windowTitle = "OGRE Render Window" );
+        virtual RenderWindow* _initialise(bool autoCreateWindow, const String& windowTitle = "OGRE Render Window");
 
-        virtual Window* _createRenderWindow( const String &name,
-                                             uint32 width, uint32 height,
-                                             bool fullScreen,
-                                             const NameValuePairList *miscParams = 0);
+        virtual RenderWindow* _createRenderWindow( const String &name,
+                                                   unsigned int width, unsigned int height,
+                                                   bool fullScreen,
+                                                   const NameValuePairList *miscParams = 0);
+
+        virtual MultiRenderTarget* createMultiRenderTarget(const String & name);
 
         virtual String getErrorDescription(long errorNumber) const;
 
@@ -103,19 +102,26 @@ namespace Ogre
         virtual void _setPointParameters(Real size, bool attenuationEnabled,
             Real constant, Real linear, Real quadratic, Real minSize, Real maxSize);
 
+        virtual void queueBindUAV( uint32 slot, TexturePtr texture,
+                                           ResourceAccess::ResourceAccess access = ResourceAccess::ReadWrite,
+                                           int32 mipmapLevel = 0, int32 textureArrayIndex = 0,
+                                           PixelFormat pixelFormat = PF_UNKNOWN );
+        virtual void queueBindUAV( uint32 slot, UavBufferPacked *buffer,
+                                   ResourceAccess::ResourceAccess access = ResourceAccess::ReadWrite,
+                                   size_t offset = 0, size_t sizeBytes = 0 );
+        virtual void clearUAVs(void);
         virtual void flushUAVs(void);
 
-        virtual void _setCurrentDeviceFromTexture( TextureGpu *texture );
-        virtual void _setTexture( size_t unit,  TextureGpu *texPtr );
-        virtual void _setTextures( uint32 slotStart, const DescriptorSetTexture *set,
-                                   uint32 hazardousTexIdx );
-        virtual void _setTextures( uint32 slotStart, const DescriptorSetTexture2 *set );
-        virtual void _setSamplers( uint32 slotStart, const DescriptorSetSampler *set );
-        virtual void _setTexturesCS( uint32 slotStart, const DescriptorSetTexture *set );
-        virtual void _setTexturesCS( uint32 slotStart, const DescriptorSetTexture2 *set );
-        virtual void _setSamplersCS( uint32 slotStart, const DescriptorSetSampler *set );
-        virtual void _setUavCS( uint32 slotStart, const DescriptorSetUav *set );
+        virtual void _bindTextureUavCS( uint32 slot, Texture *texture,
+                                        ResourceAccess::ResourceAccess access,
+                                        int32 mipmapLevel, int32 textureArrayIndex,
+                                        PixelFormat pixelFormat );
+        virtual void _setTextureCS( uint32 slot, bool enabled, Texture *texPtr );
+        virtual void _setHlmsSamplerblockCS( uint8 texUnit, const HlmsSamplerblock *samplerblock );
 
+        virtual void _setTexture(size_t unit, bool enabled,  Texture *texPtr);
+
+        virtual void _setTextureCoordSet(size_t unit, size_t index);
         virtual void _setTextureCoordCalculation(size_t unit, TexCoordCalcMethod m,
                                                  const Frustum* frustum = 0);
         virtual void _setTextureBlendMode(size_t unit, const LayerBlendModeEx& bm);
@@ -123,17 +129,29 @@ namespace Ogre
 
         virtual void _setIndirectBuffer( IndirectBufferPacked *indirectBuffer );
 
-        virtual RenderPassDescriptor* createRenderPassDescriptor(void);
+        virtual DepthBuffer* _createDepthBufferFor( RenderTarget *renderTarget,
+                                                    bool exactMatchFormat );
 
         virtual void _beginFrame(void);
         virtual void _endFrame(void);
+        virtual void _setViewport(Viewport *vp);
 
         virtual void _setHlmsSamplerblock( uint8 texUnit, const HlmsSamplerblock *Samplerblock );
         virtual void _setPipelineStateObject( const HlmsPso *pso );
         virtual void _setComputePso( const HlmsComputePso *pso );
 
         virtual VertexElementType getColourVertexElementType(void) const;
-        virtual void _convertProjectionMatrix(const Matrix4& matrix, Matrix4& dest) {}
+        virtual void _convertProjectionMatrix(const Matrix4& matrix,
+            Matrix4& dest, bool forGpuProgram = false) {}
+        virtual void _makeProjectionMatrix(const Radian& fovy, Real aspect, Real nearPlane, Real farPlane,
+            Matrix4& dest, bool forGpuProgram = false) {}
+
+        virtual void _makeProjectionMatrix(Real left, Real right, Real bottom, Real top,
+            Real nearPlane, Real farPlane, Matrix4& dest, bool forGpuProgram = false) {}
+        virtual void _makeOrthoMatrix(const Radian& fovy, Real aspect, Real nearPlane, Real farPlane,
+            Matrix4& dest, bool forGpuProgram = false) {}
+        virtual void _applyObliqueDepthProjection(Matrix4& matrix, const Plane& plane,
+            bool forGpuProgram) {}
 
         virtual void _dispatch( const HlmsComputePso &pso );
 
@@ -152,14 +170,17 @@ namespace Ogre
             GpuProgramParametersSharedPtr params, uint16 variabilityMask);
         virtual void bindGpuProgramPassIterationParameters(GpuProgramType gptype);
 
-        virtual void clearFrameBuffer( RenderPassDescriptor *renderPassDesc,
-                                       TextureGpu *anyTarget, uint8 mipLevel );
+        virtual void clearFrameBuffer(unsigned int buffers,
+            const ColourValue& colour = ColourValue::Black,
+            Real depth = 1.0f, unsigned short stencil = 0);
+        virtual void discardFrameBuffer( unsigned int buffers );
 
         virtual Real getHorizontalTexelOffset(void);
         virtual Real getVerticalTexelOffset(void);
         virtual Real getMinimumDepthInputValue(void);
         virtual Real getMaximumDepthInputValue(void);
 
+        virtual void _setRenderTarget( RenderTarget *target, uint8 viewportRenderTargetFlags );
         virtual void preExtraThreadsStarted();
         virtual void postExtraThreadsStarted();
         virtual void registerThread();
@@ -167,8 +188,6 @@ namespace Ogre
         virtual unsigned int getDisplayMonitorCount() const     { return 1; }
 
         virtual const PixelFormatToShaderType* getPixelFormatToShaderType(void) const;
-
-        virtual void flushCommands(void);
 
         virtual void beginProfileEvent( const String &eventName );
         virtual void endProfileEvent( void );
@@ -182,7 +201,7 @@ namespace Ogre
         virtual bool hasAnisotropicMipMapFilter() const         { return true; }
 
         virtual void setClipPlanesImpl(const PlaneList& clipPlanes);
-        virtual void initialiseFromRenderSystemCapabilities(RenderSystemCapabilities* caps, Window *primary);
+        virtual void initialiseFromRenderSystemCapabilities(RenderSystemCapabilities* caps, RenderTarget* primary);
     };
 }
 

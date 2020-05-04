@@ -30,16 +30,14 @@ Copyright (c) 2000-2016 Torus Knot Software Ltd
 #define _OgreGL3PlusPixelFormatToShaderType_H_
 
 #include "OgreGL3PlusPrerequisites.h"
-#include "OgrePixelFormatGpu.h"
+#include "OgrePixelFormat.h"
 
 namespace Ogre
 {
     class _OgreGL3PlusExport GL3PlusPixelFormatToShaderType : public PixelFormatToShaderType
     {
     public:
-        virtual const char* getPixelFormatType( PixelFormatGpu pixelFormat ) const;
-        virtual const char* getDataType( PixelFormatGpu pixelFormat, uint32 textureType,
-                                         bool isMsaa, ResourceAccess::ResourceAccess access ) const;
+        virtual const char* getPixelFormatType( PixelFormat pixelFormat ) const;
     };
 }
 

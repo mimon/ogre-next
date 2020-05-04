@@ -36,11 +36,6 @@ THE SOFTWARE.
 #include "OgreCommon.h"
 #include "Threading/OgreThreadHeaders.h"
 #include <ctime>
-
-#include "ogrestd/list.h"
-#include "ogrestd/map.h"
-#include "ogrestd/unordered_set.h"
-
 #include "OgreHeaderPrefix.h"
 
 // If X11/Xlib.h gets included before this header (for example it happens when
@@ -91,7 +86,7 @@ namespace Ogre {
     class _OgreExport ResourceGroupListener
     {
     public:
-        virtual ~ResourceGroupListener();
+        virtual ~ResourceGroupListener() {}
 
         /** This event is fired when a resource group begins parsing scripts.
         @note
@@ -195,28 +190,13 @@ namespace Ogre {
                 By overriding this class' methods, you can change how resources
                 are loaded and the behavior for resource name collisions.
     */
-    class _OgreExport ResourceLoadingListener
+    class ResourceLoadingListener
     {
     public:
-        virtual ~ResourceLoadingListener();
+        virtual ~ResourceLoadingListener() {}
 
         /** This event is called when a resource beings loading. */
         virtual DataStreamPtr resourceLoading(const String &name, const String &group, Resource *resource) = 0;
-
-        /// Gets called when a groupless manager (like TextureGpuManager) wants to check if there's
-        /// a resource with that name provided by this listener.
-        /// This function is called from main thread.
-        virtual bool grouplessResourceExists( const String &name ) = 0;
-
-        /// Gets called when a groupless manager (like TextureGpuManager) loads a resource.
-        /// WARNING: This function is likely going to be called from a worker thread.
-        virtual DataStreamPtr grouplessResourceLoading( const String &name ) = 0;
-        /// Similar to resourceStreamOpened, gets called when a groupless manager has already
-        /// opened a resource and you may want to modify the stream.
-        /// If grouplessResourceLoading has been called, then this function won't.
-        /// WARNING: This function is likely going to be called from a worker thread.
-        virtual DataStreamPtr grouplessResourceOpened( const String &name, Archive *archive,
-                                                       DataStreamPtr &dataStream ) = 0;
 
         /** This event is called when a resource stream has been opened, but not processed yet. 
         @remarks
@@ -798,10 +778,6 @@ namespace Ogre {
         DataStreamPtr openResource(const String& resourceName, 
             const String& groupName = DEFAULT_RESOURCE_GROUP_NAME,
             bool searchGroupsIfNotFound = true, Resource* resourceBeingLoaded = 0);
-
-        Archive* _getArchiveToResource( const String& resourceName,
-                                        const String& groupName = DEFAULT_RESOURCE_GROUP_NAME,
-                                        bool searchGroupsIfNotFound = true );
 
         /** Open all resources matching a given pattern (which can contain
             the character '*' as a wildcard), and return a collection of 

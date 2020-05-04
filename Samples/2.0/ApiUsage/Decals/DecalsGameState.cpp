@@ -11,17 +11,18 @@
 #include "OgreMesh2.h"
 
 #include "OgreCamera.h"
+#include "OgreRenderWindow.h"
 
 #include "OgreHlmsPbsDatablock.h"
 #include "OgreHlmsSamplerblock.h"
 
 #include "OgreRoot.h"
 #include "OgreHlmsManager.h"
+#include "OgreHlmsTextureManager.h"
 #include "OgreHlmsPbs.h"
 
-#include "OgreTextureGpuManager.h"
-
 #include "OgreDecal.h"
+#include "OgreTextureManager.h"
 #include "OgreWireAabb.h"
 
 using namespace Demo;
@@ -115,14 +116,14 @@ namespace Demo
 
         createDecalDebugData();
 
-        sceneManager->setForwardClustered( true, 16, 8, 24, 96, 4, 0, 2, 50 );
+        sceneManager->setForwardClustered( true, 16, 8, 24, 96, 4, 2, 50 );
         //sceneManager->setForwardClustered( true, 128, 64, 8, 96, 4, 2, 50 );
 
         {
             const Ogre::uint32 decalDiffuseId = 1;
             const Ogre::uint32 decalNormalId = 1;
-            Ogre::Root *root = mGraphicsSystem->getRoot();
-            Ogre::TextureGpuManager *textureManager = root->getRenderSystem()->getTextureGpuManager();
+            Ogre::HlmsManager *hlmsManager = mGraphicsSystem->getRoot()->getHlmsManager();
+            Ogre::HlmsTextureManager *hlmsTextureManager = hlmsManager->getTextureManager();
 
             Ogre::WireAabb *wireAabb = sceneManager->createWireAabb();
 
@@ -130,34 +131,26 @@ namespace Demo
             Ogre::SceneNode *sceneNode = sceneManager->getRootSceneNode()->createChildSceneNode();
             sceneNode->attachObject( decal );
             sceneNode->setPosition( Ogre::Vector3( 0, 0.4, 0 ) );
-            sceneNode->setOrientation( Ogre::Quaternion( Ogre::Degree( 45.0f ),
-                                                         Ogre::Vector3::UNIT_Y ) );
+            sceneNode->setOrientation( Ogre::Quaternion( Ogre::Degree( 45.0f ), Ogre::Vector3::UNIT_Y ) );
             sceneNode->setScale( Ogre::Vector3( 10.0f ) );
             wireAabb->track( decal );
 
-            //Create them and load them together to encourage loading them in burst in
-            //background thread. Hopefully the information may already be fully available
-            //by the time we call decal->setXXXTexture
-            Ogre::TextureGpu *textureDiff, *textureNorm = 0;
-            textureDiff = textureManager->createOrRetrieveTexture(
-                              "floor_diffuse.PNG", Ogre::GpuPageOutStrategy::Discard,
-                              Ogre::CommonTextureTypes::Diffuse,
-                              Ogre::ResourceGroupManager::AUTODETECT_RESOURCE_GROUP_NAME,
-                              decalDiffuseId );
-            textureNorm = textureManager->createOrRetrieveTexture(
-                              "floor_bump.PNG", Ogre::GpuPageOutStrategy::Discard,
-                              Ogre::CommonTextureTypes::NormalMap,
-                              Ogre::ResourceGroupManager::AUTODETECT_RESOURCE_GROUP_NAME,
-                              decalNormalId );
+            Ogre::HlmsTextureManager::TextureLocation texLocation;
+            texLocation = hlmsTextureManager->createOrRetrieveTexture( "floor_diffuse.png",
+                                                                       "floor_diffuse.PNG",
+                                                                       Ogre::HlmsTextureManager::
+                                                                       TEXTURE_TYPE_DIFFUSE,
+                                                                       decalDiffuseId );
+            decal->setDiffuseTexture( texLocation.texture, texLocation.xIdx );
+            sceneManager->setDecalsDiffuse( texLocation.texture );
 
-            textureDiff->scheduleTransitionTo( Ogre::GpuResidency::Resident );
-            textureNorm->scheduleTransitionTo( Ogre::GpuResidency::Resident );
-
-            decal->setDiffuseTexture( textureDiff );
-            decal->setNormalTexture( textureNorm );
-            //For the SceneManager, any of the textures belonging to the same pool will do!
-            sceneManager->setDecalsDiffuse( textureDiff );
-            sceneManager->setDecalsNormals( textureNorm );
+            texLocation = hlmsTextureManager->createOrRetrieveTexture( "floor_bump.png",
+                                                                       "floor_bump.PNG",
+                                                                       Ogre::HlmsTextureManager::
+                                                                       TEXTURE_TYPE_NORMALS,
+                                                                       decalNormalId );
+            decal->setNormalTexture( texLocation.texture, texLocation.xIdx );
+            sceneManager->setDecalsNormals( texLocation.texture );
 
             g_decalNode = sceneNode;
             /*Ogre::Light *light = sceneManager->createLight();
@@ -253,6 +246,8 @@ namespace Demo
         {
             mNumSpheres = 0;
             Ogre::HlmsManager *hlmsManager = mGraphicsSystem->getRoot()->getHlmsManager();
+            Ogre::HlmsTextureManager *hlmsTextureManager = hlmsManager->getTextureManager();
+
             assert( dynamic_cast<Ogre::HlmsPbs*>( hlmsManager->getHlms( Ogre::HLMS_PBS ) ) );
 
             Ogre::HlmsPbs *hlmsPbs = static_cast<Ogre::HlmsPbs*>( hlmsManager->getHlms(Ogre::HLMS_PBS) );
@@ -263,9 +258,6 @@ namespace Demo
             const float armsLength = 1.0f;
             const float startX = (numX-1) / 2.0f;
             const float startZ = (numZ-1) / 2.0f;
-
-            Ogre::Root *root = mGraphicsSystem->getRoot();
-            Ogre::TextureGpuManager *textureMgr = root->getRenderSystem()->getTextureGpuManager();
 
             for( int x=0; x<numX; ++x )
             {
@@ -279,14 +271,11 @@ namespace Demo
                                                           Ogre::HlmsBlendblock(),
                                                           Ogre::HlmsParamVec() ) );
 
-                    Ogre::TextureGpu *texture = textureMgr->createOrRetrieveTexture(
-                                                    "SaintPetersBasilica.dds",
-                                                    Ogre::GpuPageOutStrategy::Discard,
-                                                    Ogre::CommonTextureTypes::EnvMap,
-                                                    Ogre::ResourceGroupManager::
-                                                    AUTODETECT_RESOURCE_GROUP_NAME );
+                    Ogre::HlmsTextureManager::TextureLocation texLocation = hlmsTextureManager->
+                            createOrRetrieveTexture( "SaintPetersBasilica.dds",
+                                                     Ogre::HlmsTextureManager::TEXTURE_TYPE_ENV_MAP );
 
-                    datablock->setTexture( Ogre::PBSM_REFLECTION, texture );
+                    datablock->setTexture( Ogre::PBSM_REFLECTION, texLocation.xIdx, texLocation.texture );
                     datablock->setDiffuse( Ogre::Vector3( 0.0f, 1.0f, 0.0f ) );
 
                     datablock->setRoughness( std::max( 0.02f, x / Ogre::max( 1, (float)(numX-1) ) ) );

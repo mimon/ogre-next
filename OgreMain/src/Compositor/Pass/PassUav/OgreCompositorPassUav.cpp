@@ -37,20 +37,25 @@ THE SOFTWARE.
 #include "Compositor/OgreCompositorWorkspaceListener.h"
 #include "Vao/OgreUavBufferPacked.h"
 
+#include "OgreRenderTexture.h"
 #include "OgreRenderSystem.h"
-#include "OgreTextureGpuManager.h"
-#include "OgreRoot.h"
-#include "OgreHlmsManager.h"
-#include "OgreDescriptorSetUav.h"
+#include "OgreTextureManager.h"
+#include "OgreHardwarePixelBuffer.h"
 
 namespace Ogre
 {
     void CompositorPassUavDef::setUav( uint32 slot, bool isExternal, const String &textureName,
-                                       ResourceAccess::ResourceAccess access,
-                                       int32 mipmapLevel, PixelFormatGpu pixelFormat )
+                                       uint32 mrtIndex, ResourceAccess::ResourceAccess access,
+                                       int32 mipmapLevel, PixelFormat pixelFormat )
     {
-        if( !isExternal )
+        IdString internalName;
+        String externalName;
+        if( isExternal )
+            externalName = textureName;
+        else
         {
+            internalName = textureName;
+
             if( textureName.find( "global_" ) == 0 )
             {
                 mParentNodeDef->addTextureSourceName( textureName, 0,
@@ -58,14 +63,11 @@ namespace Ogre
             }
         }
 
+        /// User is actually clearing out a slot.
         if( textureName.empty() )
-        {
-            OGRE_EXCEPT( Exception::ERR_INVALIDPARAMS,
-                         "Cannot supply empty name for UAV texture",
-                         "CompositorPassUavDef::setUav" );
-        }
+            internalName = IdString();
 
-        mTextureSources.push_back( TextureSource( slot, textureName, isExternal,
+        mTextureSources.push_back( TextureSource( slot, internalName, externalName, mrtIndex,
                                                   access, mipmapLevel, pixelFormat ) );
     }
     //-----------------------------------------------------------------------------------
@@ -80,97 +82,81 @@ namespace Ogre
     //-----------------------------------------------------------------------------------
     CompositorPassUav::CompositorPassUav( const CompositorPassUavDef *definition,
                                           CompositorNode *parentNode,
-                                          const RenderTargetViewDef *rtv ) :
-                CompositorPass( definition, parentNode ),
-                mDefinition( definition ),
-                mDescriptorSetUav( 0 )
+                                          const CompositorChannel &target ) :
+                CompositorPass( definition, target, parentNode ),
+                mDefinition( definition )
     {
-        initialize( rtv );
     }
     //-----------------------------------------------------------------------------------
-    CompositorPassUav::~CompositorPassUav()
+    void CompositorPassUav::execute( const Camera *lodCamera )
     {
-        destroyDescriptorSetUav();
-    }
-    //-----------------------------------------------------------------------------------
-    uint32 CompositorPassUav::calculateNumberUavSlots(void) const
-    {
-        uint32 retVal = 0;
+        //Execute a limited number of times?
+        if( mNumPassesLeft != std::numeric_limits<uint32>::max() )
+        {
+            if( !mNumPassesLeft )
+                return;
+            --mNumPassesLeft;
+        }
+
+        CompositorWorkspaceListener *listener = mParentNode->getWorkspace()->getListener();
+        if( listener )
+            listener->passEarlyPreExecute( this );
+
+        //Call beginUpdate if we're the first to use this RT
+        if( mDefinition->mBeginRtUpdate )
+            mTarget->_beginUpdate();
+
+        //Fire the listener in case it wants to change anything
+        if( listener )
+            listener->passPreExecute( this );
+
+        //Do not execute resource transitions. This pass shouldn't have them.
+        //The transitions are made when the bindings are needed
+        //(<sarcasm>we'll have fun with the validation layers later</sarcasm>).
+        //executeResourceTransitions();
+        assert( mResourceTransitions.empty() );
+
+        RenderSystem *renderSystem = mParentNode->getRenderSystem();
+
+        if( mDefinition->mStartingSlot != std::numeric_limits<uint8>::max() )
+            renderSystem->setUavStartingSlot( mDefinition->mStartingSlot );
+
+        if( !mDefinition->mKeepPreviousUavs )
+            renderSystem->clearUAVs();
 
         {
             const CompositorPassUavDef::TextureSources &textureSources =
                     mDefinition->getTextureSources();
             CompositorPassUavDef::TextureSources::const_iterator itor = textureSources.begin();
             CompositorPassUavDef::TextureSources::const_iterator end  = textureSources.end();
-
             while( itor != end )
             {
-                retVal = std::max( retVal, itor->uavSlot + 1u );
-                ++itor;
-            }
-        }
+                TexturePtr texture;
 
-        {
-            const CompositorPassUavDef::BufferSourceVec &bufferSources = mDefinition->getBufferSources();
-            CompositorPassUavDef::BufferSourceVec::const_iterator itor = bufferSources.begin();
-            CompositorPassUavDef::BufferSourceVec::const_iterator end  = bufferSources.end();
-            while( itor != end )
-            {
-                retVal = std::max( retVal, itor->uavSlot + 1u );
-                ++itor;
-            }
-        }
-
-        return retVal;
-    }
-    //-----------------------------------------------------------------------------------
-    void CompositorPassUav::setupDescriptorSetUav(void)
-    {
-        destroyDescriptorSetUav();
-
-        DescriptorSetUav descSetUav;
-        {
-            descSetUav.mUavs.resize( calculateNumberUavSlots() );
-
-            const CompositorPassUavDef::TextureSources &textureSources =
-                    mDefinition->getTextureSources();
-            CompositorPassUavDef::TextureSources::const_iterator itor = textureSources.begin();
-            CompositorPassUavDef::TextureSources::const_iterator end  = textureSources.end();
-            while( itor != end )
-            {
-                TextureGpu *texture;
-
-                if( !itor->isExternal )
-                    texture = mParentNode->getDefinedTexture( itor->textureName );
-                else
+                if( itor->externalTextureName.empty() )
                 {
-                    RenderSystem *renderSystem = mParentNode->getRenderSystem();
-                    TextureGpuManager *textureManager = renderSystem->getTextureGpuManager();
-                    texture = textureManager->findTextureNoThrow( itor->textureName );
+                    texture = mParentNode->getDefinedTexture( itor->textureName, itor->mrtIndex );
+                }
+                else if( itor->textureName != IdString() )
+                {
+                    texture = TextureManager::getSingleton().getByName(
+                                itor->externalTextureName,
+                                ResourceGroupManager::AUTODETECT_RESOURCE_GROUP_NAME );
+
+                    if( texture.isNull() )
+                    {
+                        OGRE_EXCEPT( Exception::ERR_ITEM_NOT_FOUND,
+                                     "Texture with name: " + itor->externalTextureName +
+                                     " does not exist. The texture must exist by the time the "
+                                     "workspace is executed. Are you trying to use a texture "
+                                     "defined by the compositor? If so you need to set it via "
+                                     "'uav' instead of 'uav_external'", "CompositorPassUav::execute" );
+                    }
                 }
 
-                if( !texture )
-                {
-                    OGRE_EXCEPT( Exception::ERR_ITEM_NOT_FOUND,
-                                 "Texture with name: " +
-                                 itor->textureName.getFriendlyText() +
-                                 " does not exist. The texture must exist by the time the "
-                                 "workspace is executed. Are you trying to use a texture "
-                                 "defined by the compositor? If so you need to set it via "
-                                 "'uav' instead of 'uav_external'", "CompositorPassUav::execute" );
-                }
+                renderSystem->queueBindUAV( itor->uavSlot, texture, itor->access,
+                                            itor->mipmapLevel, 0, itor->pixelFormat );
 
-                texture->addListener( this );
-
-                DescriptorSetUav::Slot slot( DescriptorSetUav::SlotTypeTexture );
-                DescriptorSetUav::TextureSlot &textureSlot = slot.getTexture();
-                textureSlot.texture             = texture;
-                textureSlot.access              = itor->access;
-                textureSlot.mipmapLevel         = itor->mipmapLevel;
-                textureSlot.textureArrayIndex   = 0;
-                textureSlot.pixelFormat         = itor->pixelFormat;
-
-                descSetUav.mUavs[itor->uavSlot] = slot;
                 ++itor;
             }
         }
@@ -186,57 +172,19 @@ namespace Ogre
                 if( itor->bufferName != IdString() )
                     uavBuffer = mParentNode->getDefinedBuffer( itor->bufferName );
 
-                DescriptorSetUav::Slot slot( DescriptorSetUav::SlotTypeBuffer );
-                DescriptorSetUav::BufferSlot &bufferSlot = slot.getBuffer();
-                bufferSlot.buffer       = uavBuffer;
-                bufferSlot.offset       = itor->offset;
-                bufferSlot.sizeBytes    = itor->sizeBytes;
-                bufferSlot.access       = itor->access;
+                renderSystem->queueBindUAV( itor->uavSlot, uavBuffer, itor->access,
+                                            itor->offset, itor->sizeBytes );
 
-                descSetUav.mUavs[itor->uavSlot] = slot;
                 ++itor;
             }
         }
 
-        if( !descSetUav.mUavs.empty() )
-        {
-            HlmsManager *hlmsManager = Root::getSingleton().getHlmsManager();
-            mDescriptorSetUav = hlmsManager->getDescriptorSetUav( descSetUav );
-        }
-    }
-    //-----------------------------------------------------------------------------------
-    void CompositorPassUav::execute( const Camera *lodCamera )
-    {
-        //Execute a limited number of times?
-        if( mNumPassesLeft != std::numeric_limits<uint32>::max() )
-        {
-            if( !mNumPassesLeft )
-                return;
-            --mNumPassesLeft;
-        }
+        if( listener )
+            listener->passPosExecute( this );
 
-        notifyPassEarlyPreExecuteListeners();
-
-        if( !mDescriptorSetUav )
-            setupDescriptorSetUav();
-
-        //Fire the listener in case it wants to change anything
-        notifyPassPreExecuteListeners();
-
-        //Do not execute resource transitions. This pass shouldn't have them.
-        //The transitions are made when the bindings are needed
-        //(<sarcasm>we'll have fun with the validation layers later</sarcasm>).
-        //executeResourceTransitions();
-        assert( mResourceTransitions.empty() );
-
-        RenderSystem *renderSystem = mParentNode->getRenderSystem();
-
-        if( mDefinition->mStartingSlot != std::numeric_limits<uint8>::max() )
-            renderSystem->setUavStartingSlot( mDefinition->mStartingSlot );
-
-        renderSystem->queueBindUAVs( mDescriptorSetUav );
-
-        notifyPassPosExecuteListeners();
+        //Call endUpdate if we're the last pass in a row to use this RT
+        if( mDefinition->mEndRtUpdate )
+            mTarget->_endUpdate();
     }
     //-----------------------------------------------------------------------------------
     void CompositorPassUav::_placeBarriersAndEmulateUavExecution(
@@ -250,45 +198,41 @@ namespace Ogre
             CompositorPassUavDef::TextureSources::const_iterator end  = textureSources.end();
             while( itor != end )
             {
-                TextureGpu *texture = 0;
+                TexturePtr texture;
 
-                if( !itor->isExternal )
+                if( itor->externalTextureName.empty() )
                 {
-                    texture = mParentNode->getDefinedTexture( itor->textureName );
+                    texture = mParentNode->getDefinedTexture( itor->textureName, itor->mrtIndex );
                 }
                 else if( itor->textureName != IdString() )
                 {
-                    RenderSystem *renderSystem = mParentNode->getRenderSystem();
-                    TextureGpuManager *textureManager = renderSystem->getTextureGpuManager();
-                    //TODO: Should we be using createOrRetrieve???
-                    texture = textureManager->findTextureNoThrow(
-                                itor->textureName/*,
-                                ResourceGroupManager::AUTODETECT_RESOURCE_GROUP_NAME*/ );
+                    texture = TextureManager::getSingleton().getByName(
+                                itor->externalTextureName,
+                                ResourceGroupManager::AUTODETECT_RESOURCE_GROUP_NAME );
+
+                    if( texture.isNull() )
+                    {
+                        OGRE_EXCEPT( Exception::ERR_ITEM_NOT_FOUND,
+                                     "Texture with name: " + itor->externalTextureName +
+                                     " does not exist. The texture must exist by the time the workspace"
+                                     " is executed. Are you trying to use a texture defined by the "
+                                     "compositor? If so you need to set it via 'uav' instead of "
+                                     "'uav_external'",
+                                     "CompositorPassUav::_placeBarriersAndEmulateUavExecution" );
+                    }
                 }
 
-                if( !texture )
-                {
-                    OGRE_EXCEPT( Exception::ERR_ITEM_NOT_FOUND,
-                                 "Texture with name: " +
-                                 itor->textureName.getFriendlyText() +
-                                 " does not exist. The texture must exist by the time the "
-                                 "workspace is executed. Are you trying to use a texture "
-                                 "defined by the compositor? If so you need to set it via "
-                                 "'uav' instead of 'uav_external'",
-                                 "CompositorPassUav::_placeBarriersAndEmulateUavExecution" );
-                }
-
-                if( !texture->isUav() )
+                if( !(texture->getUsage() & TU_UAV) )
                 {
                     OGRE_EXCEPT( Exception::ERR_INVALIDPARAMS,
-                                 "Texture " + texture->getNameStr() +
-                                 " must have been created with TextureFlags:Uav to be bound as UAV",
+                                 "Texture " + texture->getName() +
+                                 " must have been created with TU_UAV to be bound as UAV",
                                  "CompositorPassUav::_placeBarriersAndEmulateUavExecution" );
                 }
 
                 //Only "simulate the bind" of UAVs. We will evaluate the actual resource
                 //transition when the UAV is actually used in the subsequent passes.
-                boundUavs[itor->uavSlot].rttOrBuffer = texture;
+                boundUavs[itor->uavSlot].rttOrBuffer = texture->getBuffer()->getRenderTarget();
                 boundUavs[itor->uavSlot].boundAccess = itor->access;
 
                 ++itor;
@@ -315,42 +259,7 @@ namespace Ogre
             }
         }
 
-        //Take the chance to create all the mDescriptorSetUav
-        setupDescriptorSetUav();
-
         //Do not use base class functionality at all.
         //CompositorPass::_placeBarriersAndEmulateUavExecution();
-    }
-    //-----------------------------------------------------------------------------------
-    void CompositorPassUav::destroyDescriptorSetUav()
-    {
-        if( mDescriptorSetUav )
-        {
-            HlmsManager *hlmsManager = Root::getSingleton().getHlmsManager();
-            FastArray<DescriptorSetUav::Slot>::const_iterator itor = mDescriptorSetUav->mUavs.begin();
-            FastArray<DescriptorSetUav::Slot>::const_iterator end  = mDescriptorSetUav->mUavs.end();
-
-            while( itor != end )
-            {
-                if( itor->isTexture() )
-                    itor->getTexture().texture->removeListener( this );
-
-                ++itor;
-            }
-
-            hlmsManager->destroyDescriptorSetUav( mDescriptorSetUav );
-            mDescriptorSetUav = 0;
-        }
-    }
-    //-----------------------------------------------------------------------------------
-    void CompositorPassUav::notifyRecreated( const UavBufferPacked *oldBuffer, UavBufferPacked *newBuffer )
-    {
-        destroyDescriptorSetUav();
-    }
-    //-----------------------------------------------------------------------------------
-    void CompositorPassUav::notifyTextureChanged( TextureGpu *texture,
-                                                  TextureGpuListener::Reason reason, void *extraData )
-    {
-        destroyDescriptorSetUav();
     }
 }

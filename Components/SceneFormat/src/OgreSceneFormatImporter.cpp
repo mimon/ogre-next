@@ -39,6 +39,7 @@ THE SOFTWARE.
 #include "OgreEntity.h"
 #include "OgreDecal.h"
 #include "OgreHlms.h"
+#include "OgreHlmsTextureManager.h"
 
 #include "OgreHlmsPbs.h"
 #include "InstantRadiosity/OgreInstantRadiosity.h"
@@ -47,8 +48,7 @@ THE SOFTWARE.
 #include "Cubemaps/OgreParallaxCorrectedCubemap.h"
 #include "Compositor/OgreCompositorManager2.h"
 
-#include "OgreTextureFilters.h"
-#include "OgreTextureGpuManager.h"
+#include "OgreTextureManager.h"
 
 #include "OgreMeshSerializer.h"
 #include "OgreMesh2Serializer.h"
@@ -1016,15 +1016,15 @@ namespace Ogre
 
         DecalTex decalTex[3] =
         {
-            DecalTex( 0, 0, "diffuse" ),
-            DecalTex( 0, 0, "normal" ),
-            DecalTex( 0, 0, "emissive" ),
+            DecalTex( TexturePtr(), 0, "diffuse" ),
+            DecalTex( TexturePtr(), 0, "normal" ),
+            DecalTex( TexturePtr(), 0, "emissive" ),
         };
 
         char tmpBuffer[32];
         LwString texName( LwString::FromEmptyPointer( tmpBuffer, sizeof(tmpBuffer) ) );
-        TextureGpuManager *textureManager =
-                mSceneManager->getDestinationRenderSystem()->getTextureGpuManager();
+        HlmsManager *hlmsManager = mRoot->getHlmsManager();
+        HlmsTextureManager *hlmsTextureManager = hlmsManager->getTextureManager();
 
         for( int i=0; i<3; ++i )
         {
@@ -1036,21 +1036,18 @@ namespace Ogre
                 tmpIt->value[0].IsString() && tmpIt->value[1].IsString() && tmpIt->value[2].IsUint() )
             {
                 const char *aliasName = tmpIt->value[0].GetString();
-                const char *textureName = tmpIt->value[1].GetString();
+                //Real texture name is lost in 2.1. Needs 2.2
+                //const char *textureName = tmpIt->value[1].GetString();
                 const uint32 poolId = tmpIt->value[2].GetUint();
 
-                uint32 textureFlags = TextureFlags::AutomaticBatching;
-                uint32 filters = TextureFilter::TypeGenerateDefaultMipmaps;
-                if( i != 1 )
-                    textureFlags |= TextureFlags::PrefersLoadingFromFileAsSRGB;
-                else
-                    filters |= TextureFilter::TypePrepareForNormalMapping;
-
-                decalTex[i].texture = textureManager->createOrRetrieveTexture(
-                                          textureName + additionalExtension, aliasName,
-                                          GpuPageOutStrategy::Discard, textureFlags,
-                                          TextureTypes::Type2D, "SceneFormatImporter", filters, poolId );
-                decalTex[i].xIdx    = static_cast<uint16>(decalTex[i].texture->getInternalSliceStart());
+                HlmsTextureManager::TextureLocation texLocation =
+                        hlmsTextureManager->createOrRetrieveTexture(
+                            //aliasName, textureName + additionalExtension,
+                            aliasName, aliasName + additionalExtension,
+                            i != 1 ? HlmsTextureManager::TEXTURE_TYPE_DIFFUSE :
+                                     HlmsTextureManager::TEXTURE_TYPE_NORMALS, poolId );
+                decalTex[i].texture = texLocation.texture;
+                decalTex[i].xIdx    = texLocation.xIdx;
             }
 
             texName.clear();
@@ -1063,35 +1060,21 @@ namespace Ogre
                 const char *textureName = tmpIt->value[0].GetString();
                 const uint32 arrayIdx = tmpIt->value[1].GetUint();
 
-                //Open OITD directly
-                decalTex[i].texture = textureManager->createOrRetrieveTexture(
-                                          textureName, GpuPageOutStrategy::Discard,
-                                          0, TextureTypes::Type2DArray, "SceneFormatImporter", 0, 0 );
+                TexturePtr texture =
+                        TextureManager::getSingleton().load( textureName, "SceneFormatImporter",
+                                                             TEX_TYPE_2D_ARRAY, MIP_DEFAULT, 1.0f,
+                                                             false, PF_UNKNOWN, i != 1 );
+                decalTex[i].texture = texture;
                 decalTex[i].xIdx    = static_cast<uint16>( arrayIdx );
             }
         }
 
         if( decalTex[0].texture )
-        {
-            if( decalTex[0].texture->hasAutomaticBatching() )
-                decal->setDiffuseTexture( decalTex[0].texture );
-            else
-                decal->setDiffuseTextureRaw( decalTex[0].texture, decalTex[0].xIdx );
-        }
+            decal->setDiffuseTexture( decalTex[0].texture, decalTex[0].xIdx );
         if( decalTex[1].texture )
-        {
-            if( decalTex[1].texture->hasAutomaticBatching() )
-                decal->setNormalTexture( decalTex[1].texture );
-            else
-                decal->setNormalTextureRaw( decalTex[1].texture, decalTex[1].xIdx );
-        }
+            decal->setNormalTexture( decalTex[1].texture, decalTex[1].xIdx );
         if( decalTex[2].texture )
-        {
-            if( decalTex[2].texture->hasAutomaticBatching() )
-                decal->setEmissiveTexture( decalTex[2].texture );
-            else
-                decal->setEmissiveTextureRaw( decalTex[2].texture, decalTex[2].xIdx );
-        }
+            decal->setEmissiveTexture( decalTex[2].texture, decalTex[2].xIdx );
     }
     //-----------------------------------------------------------------------------------
     void SceneFormatImporter::importDecals( const rapidjson::Value &json )
@@ -1154,7 +1137,7 @@ namespace Ogre
                                         reservedRqId, reservedProxyMask );
 
         uint32 maxWidth = 0, maxHeight = 0;
-        PixelFormatGpu blendPixelFormat = PFG_UNKNOWN;
+        PixelFormat blendPixelFormat = PF_UNKNOWN;
         tmpIt = pccValue.FindMember( "max_width" );
         if( tmpIt != pccValue.MemberEnd() && tmpIt->value.IsUint() )
             maxWidth = tmpIt->value.GetUint();
@@ -1163,9 +1146,9 @@ namespace Ogre
             maxHeight = tmpIt->value.GetUint();
         tmpIt = pccValue.FindMember( "pixel_format" );
         if( tmpIt != pccValue.MemberEnd() && tmpIt->value.IsString() )
-            blendPixelFormat = PixelFormatGpuUtils::getFormatFromName( tmpIt->value.GetString() );
+            blendPixelFormat = PixelUtil::getFormatFromName( tmpIt->value.GetString(), false, true );
 
-        if( maxWidth != 0 && maxHeight != 0 && blendPixelFormat != PFG_UNKNOWN )
+        if( maxWidth != 0 && maxHeight != 0 && blendPixelFormat != PF_UNKNOWN )
             mParallaxCorrectedCubemap->setEnabled( true, maxWidth, maxHeight, blendPixelFormat );
 
         tmpIt = pccValue.FindMember( "paused" );
@@ -1191,7 +1174,7 @@ namespace Ogre
                 CubemapProbe *probe = mParallaxCorrectedCubemap->createProbe();
 
                 uint32 width = 0, height = 0;
-                PixelFormatGpu pixelFormat = PFG_UNKNOWN;
+                PixelFormat pixelFormat = PF_UNKNOWN;
                 uint8 msaa = 0;
                 bool useManual = true;
                 bool isStatic = false;
@@ -1207,7 +1190,7 @@ namespace Ogre
                     msaa = static_cast<uint8>( tmpIt->value.GetUint() );
                 tmpIt = jsonProbe.FindMember( "pixel_format" );
                 if( tmpIt != jsonProbe.MemberEnd() && tmpIt->value.IsString() )
-                    pixelFormat = PixelFormatGpuUtils::getFormatFromName( tmpIt->value.GetString() );
+                    pixelFormat = PixelUtil::getFormatFromName( tmpIt->value.GetString(), false, true );
                 tmpIt = jsonProbe.FindMember( "use_manual" );
                 if( tmpIt != jsonProbe.MemberEnd() && tmpIt->value.IsBool() )
                     useManual = tmpIt->value.GetBool();
@@ -1215,7 +1198,7 @@ namespace Ogre
                 if( tmpIt != jsonProbe.MemberEnd() && tmpIt->value.IsBool() )
                     isStatic = tmpIt->value.GetBool();
 
-                if( width != 0 && height != 0 && pixelFormat != PFG_UNKNOWN )
+                if( width != 0 && height != 0 && pixelFormat != PF_UNKNOWN )
                 {
                     probe->setTextureParams( width, height, useManual, pixelFormat, isStatic, msaa );
                     probe->initWorkspace();
@@ -1309,13 +1292,9 @@ namespace Ogre
             tmpIt = json.FindMember( "area_light_masks" );
             if( tmpIt != json.MemberEnd() && tmpIt->value.IsString() )
             {
-                TextureGpuManager *textureGpuManager =
-                        mSceneManager->getDestinationRenderSystem()->getTextureGpuManager();
-                TextureGpu *areaLightMask = textureGpuManager->createOrRetrieveTexture(
-                                                String( tmpIt->value.GetString() ) + ".oitd",
-                                                GpuPageOutStrategy::Discard, 0,
-                                                TextureTypes::Type2DArray, "SceneFormatImporter" );
-                areaLightMask->scheduleTransitionTo( GpuResidency::Resident );
+                TexturePtr areaLightMask = TextureManager::getSingleton().load(
+                                               String( tmpIt->value.GetString() ) + ".oitd",
+                                               "SceneFormatImporter", TEX_TYPE_2D_ARRAY );
                 HlmsPbs *hlmsPbs = getPbs();
                 hlmsPbs->setAreaLightMasks( areaLightMask );
             }
@@ -1323,13 +1302,13 @@ namespace Ogre
 
         if( importFlags & SceneFlags::Decals )
         {
-            TextureGpuManager *textureManager =
-                    mSceneManager->getDestinationRenderSystem()->getTextureGpuManager();
+            HlmsManager *hlmsManager = mRoot->getHlmsManager();
+            HlmsTextureManager *hlmsTextureManager = hlmsManager->getTextureManager();
 
             char tmpBuffer[32];
             LwString keyName( LwString::FromEmptyPointer( tmpBuffer, sizeof( tmpBuffer ) ) );
             const char *texTypes[3] = { "diffuse", "normals", "emissive" };
-            TextureGpu *textures[3] = { 0, 0, 0 };
+            TexturePtr textures[3];
 
             for( int i=0; i<3; ++i )
             {
@@ -1338,10 +1317,11 @@ namespace Ogre
                 tmpIt = json.FindMember( keyName.c_str() );
                 if( tmpIt != json.MemberEnd() && tmpIt->value.IsString() )
                 {
-                    //Most settings shouldn't matter because that alias should've been loaded by now
-                    textures[i] = textureManager->createOrRetrieveTexture(
-                                      tmpIt->value.GetString(), GpuPageOutStrategy::Discard,
-                                      CommonTextureTypes::Diffuse, "SceneFormatImporter" );
+                    //TextureType shouldn't matter because that alias should've been loaded by now
+                    HlmsTextureManager::TextureLocation texLocation =
+                            hlmsTextureManager->createOrRetrieveTexture(
+                                tmpIt->value.GetString(), HlmsTextureManager::TEXTURE_TYPE_DIFFUSE );
+                    textures[i] = texLocation.texture;
                 }
 
                 keyName.clear();
@@ -1349,9 +1329,9 @@ namespace Ogre
                 tmpIt = json.FindMember( keyName.c_str() );
                 if( tmpIt != json.MemberEnd() && tmpIt->value.IsString() )
                 {
-                    textures[i] = textureManager->createOrRetrieveTexture(
-                                      tmpIt->value.GetString(), GpuPageOutStrategy::Discard,
-                                      0, TextureTypes::Type2DArray, "SceneFormatImporter", 0, 0 );
+                    textures[i] = TextureManager::getSingleton().load(
+                                      tmpIt->value.GetString(),
+                                      "SceneFormatImporter", TEX_TYPE_2D_ARRAY );
                 }
             }
 
@@ -1410,16 +1390,6 @@ namespace Ogre
         itor = d.FindMember( "use_binary_floating_point" );
         if( itor != d.MemberEnd() && itor->value.IsBool() )
             mUseBinaryFloatingPoint = itor->value.GetBool();
-
-        itor = d.FindMember( "MovableObject_msDefaultVisibilityFlags" );
-        if( itor != d.MemberEnd() && itor->value.IsUint() )
-            MovableObject::setDefaultVisibilityFlags( itor->value.GetUint() );
-        itor = d.FindMember( "MovableObject_msDefaultQueryFlags" );
-        if( itor != d.MemberEnd() && itor->value.IsUint() )
-            MovableObject::setDefaultQueryFlags( itor->value.GetUint() );
-        itor = d.FindMember( "MovableObject_msDefaultLightMask" );
-        if( itor != d.MemberEnd() && itor->value.IsUint() )
-            MovableObject::setDefaultLightMask( itor->value.GetUint() );
 
         if( importFlags & SceneFlags::SceneNodes )
         {
@@ -1558,9 +1528,9 @@ namespace Ogre
                 //Add null terminator just in case (to prevent bad input)
                 fileData.back() = '\0';
 
-                TextureGpuManager *textureManager =
-                        mSceneManager->getDestinationRenderSystem()->getTextureGpuManager();
-                textureManager->importTextureMetadataCache( stream->getName(), &fileData[0], true );
+                HlmsManager *hlmsManager = mRoot->getHlmsManager();
+                HlmsTextureManager *hlmsTextureManager = hlmsManager->getTextureManager();
+                hlmsTextureManager->importTextureMetadataCache( stream->getName(), &fileData[0] );
             }
         }
 

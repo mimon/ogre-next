@@ -11,13 +11,14 @@
 #include "OgreMesh2.h"
 
 #include "OgreCamera.h"
-#include "OgreWindow.h"
+#include "OgreRenderWindow.h"
 
 #include "OgreHlmsPbsDatablock.h"
 #include "OgreHlmsSamplerblock.h"
 
 #include "OgreRoot.h"
 #include "OgreHlmsManager.h"
+#include "OgreHlmsTextureManager.h"
 #include "OgreHlmsPbs.h"
 
 #include "Compositor/OgreCompositorManager2.h"
@@ -28,9 +29,9 @@
 
 #include "Compositor/Pass/PassQuad/OgreCompositorPassQuadDef.h"
 
-#include "OgreTextureGpuManager.h"
-#include "OgreStagingTexture.h"
-#include "OgreDepthBuffer.h"
+#include "OgreTexture.h"
+#include "OgreTextureManager.h"
+#include "OgreHardwarePixelBuffer.h"
 
 #define COMPOSITORS_PER_PAGE 8
 
@@ -66,92 +67,78 @@ namespace Demo
     //-----------------------------------------------------------------------------------
     void PostprocessingGameState::createCustomTextures(void)
     {
-        TextureGpuManager *textureManager =
-                mGraphicsSystem->getRoot()->getRenderSystem()->getTextureGpuManager();
-        TextureGpu *tex = textureManager->createTexture( "HalftoneVolume",
-                                                         GpuPageOutStrategy::SaveToSystemRam,
-                                                         TextureFlags::ManualTexture,
-                                                         TextureTypes::Type3D );
-        tex->setResolution( 64u, 64u, 64u );
-        tex->setPixelFormat( PFG_R8_UNORM );
+        TexturePtr tex = TextureManager::getSingleton().createManual(
+            "HalftoneVolume",
+            "General",
+            TEX_TYPE_3D,
+            64,64,64,
+            0,
+            PF_L8,
+            TU_DYNAMIC_WRITE_ONLY
+        );
 
+        if(!tex.isNull())
         {
-            tex->_transitionTo( GpuResidency::Resident, (uint8*)0 );
-            tex->_setNextResidencyStatus( GpuResidency::Resident );
-            StagingTexture *stagingTexture = textureManager->getStagingTexture( 64u, 64u,
-                                                                                64u, 1u,
-                                                                                tex->getPixelFormat() );
-            stagingTexture->startMapRegion();
-            TextureBox texBox = stagingTexture->mapRegion( 64u, 64u, 64u, 1u,
-                                                           tex->getPixelFormat() );
-            size_t height = tex->getHeight();
-            size_t width = tex->getWidth();
-            size_t depth = tex->getDepth();
+            v1::HardwarePixelBufferSharedPtr ptr = tex->getBuffer(0,0);
+            ptr->lock( v1::HardwareBuffer::HBL_DISCARD );
+            const PixelBox &pb = ptr->getCurrentLock();
+            Ogre::uint8 *data = static_cast<Ogre::uint8*>(pb.data);
 
-            for( size_t z = 0; z < depth; ++z )
+            size_t height = pb.getHeight();
+            size_t width = pb.getWidth();
+            size_t depth = pb.getDepth();
+            size_t rowPitch = pb.rowPitch;
+            size_t slicePitch = pb.slicePitch;
+
+            for (size_t z = 0; z < depth; ++z)
             {
-                for( size_t y = 0; y < height; ++y )
+                for (size_t y = 0; y < height; ++y)
                 {
-                    uint8 *data = reinterpret_cast<uint8*>( texBox.at( 0, y, z ) );
-                    for( size_t x = 0; x < width; ++x )
+                    for(size_t x = 0; x < width; ++x)
                     {
                         float fx = 32-(float)x+0.5f;
                         float fy = 32-(float)y+0.5f;
                         float fz = 32-((float)z)/3+0.5f;
                         float distanceSquare = fx*fx+fy*fy+fz*fz;
-                        data[x] =  0x00;
+                        data[slicePitch*z + rowPitch*y + x] =  0x00;
                         if (distanceSquare < 1024.0f)
-                            data[x] +=  0xFF;
+                            data[slicePitch*z + rowPitch*y + x] +=  0xFF;
                     }
                 }
             }
-
-            stagingTexture->stopMapRegion();
-            stagingTexture->upload( texBox, tex, 0, 0, 0, true );
-            tex->notifyDataIsReady();
-
-            textureManager->removeStagingTexture( stagingTexture );
-            stagingTexture = 0;
+            ptr->unlock();
         }
 
-        Ogre::Window *renderWindow = mGraphicsSystem->getRenderWindow();
+        Ogre::RenderWindow *renderWindow = mGraphicsSystem->getRenderWindow();
 
-        tex = textureManager->createTexture( "DitherTex",
-                                             GpuPageOutStrategy::SaveToSystemRam,
-                                             TextureFlags::ManualTexture,
-                                             TextureTypes::Type2D );
-        tex->setResolution( renderWindow->getWidth(), renderWindow->getHeight() );
-        tex->setPixelFormat( PFG_R8_UNORM );
+        TexturePtr tex2 = TextureManager::getSingleton().createManual(
+            "DitherTex",
+            "General",
+            TEX_TYPE_2D,
+            renderWindow->getWidth(), renderWindow->getHeight() , 1,
+            0,
+            PF_L8,
+            TU_DYNAMIC_WRITE_ONLY
+        );
 
+        v1::HardwarePixelBufferSharedPtr ptr2 = tex2->getBuffer(0,0);
+        ptr2->lock( v1::HardwareBuffer::HBL_DISCARD );
+        const PixelBox &pb2 = ptr2->getCurrentLock();
+        Ogre::uint8 *data2 = static_cast<Ogre::uint8*>(pb2.data);
+
+        size_t height2 = pb2.getHeight();
+        size_t width2 = pb2.getWidth();
+        size_t rowPitch2 = pb2.rowPitch;
+
+        for (size_t y = 0; y < height2; ++y)
         {
-            tex->_transitionTo( GpuResidency::Resident, (uint8*)0 );
-            tex->_setNextResidencyStatus( GpuResidency::Resident );
-            StagingTexture *stagingTexture = textureManager->getStagingTexture( tex->getWidth(),
-                                                                                tex->getHeight(),
-                                                                                tex->getDepth(),
-                                                                                tex->getNumSlices(),
-                                                                                tex->getPixelFormat() );
-            stagingTexture->startMapRegion();
-            TextureBox texBox = stagingTexture->mapRegion( tex->getWidth(), tex->getHeight(),
-                                                           tex->getDepth(), tex->getNumSlices(),
-                                                           tex->getPixelFormat() );
-            size_t height = tex->getHeight();
-            size_t width = tex->getWidth();
-
-            for( size_t y = 0; y < height; ++y )
+            for(size_t x = 0; x < width2; ++x)
             {
-                uint8 *data = reinterpret_cast<uint8*>( texBox.at( 0, y, 0 ) );
-                for( size_t x = 0; x < width; ++x )
-                    data[x] = Ogre::Math::RangeRandom(64.0,192);
+                data2[rowPitch2*y + x] = Ogre::Math::RangeRandom(64.0,192);
             }
-
-            stagingTexture->stopMapRegion();
-            stagingTexture->upload( texBox, tex, 0, 0, 0, true );
-            tex->notifyDataIsReady();
-
-            textureManager->removeStagingTexture( stagingTexture );
-            stagingTexture = 0;
         }
+
+        ptr2->unlock();
     }
     //-----------------------------------------------------------------------------------
     void PostprocessingGameState::togglePostprocess( IdString nodeName )
@@ -381,10 +368,10 @@ namespace Demo
         workspaceDef->connectExternal( 0, "FinalComposition", 0 );
 
         SceneManager *sceneManager = mGraphicsSystem->getSceneManager();
-        Window *renderWindow = mGraphicsSystem->getRenderWindow();
+        RenderWindow *renderWindow = mGraphicsSystem->getRenderWindow();
         Camera *camera = mGraphicsSystem->getCamera();
         CompositorWorkspace *workspace = compositorManager->addWorkspace( sceneManager,
-                                                                          renderWindow->getTexture(),
+                                                                          renderWindow,
                                                                           camera,
                                                                           workspaceName, true );
 
@@ -415,23 +402,12 @@ namespace Demo
                 TextureDefinitionBase::TextureDefinition *texDef = bloomDef->addTextureDefinition( "rt0" );
                 texDef->widthFactor     = 0.25f;
                 texDef->heightFactor    = 0.25f;
-                texDef->format = Ogre::PFG_RGBA8_UNORM_SRGB;
-
-                RenderTargetViewDef *rtv = bloomDef->addRenderTextureView( "rt0" );
-                RenderTargetViewEntry attachment;
-                attachment.textureName = "rt0";
-                rtv->colourAttachments.push_back( attachment );
-                rtv->depthBufferId = Ogre::DepthBuffer::POOL_NO_DEPTH;
+                texDef->formatList.push_back( Ogre::PF_R8G8B8 );
 
                 texDef = bloomDef->addTextureDefinition( "rt1" );
                 texDef->widthFactor     = 0.25f;
                 texDef->heightFactor    = 0.25f;
-                texDef->format = Ogre::PFG_RGBA8_UNORM_SRGB;
-
-                rtv = bloomDef->addRenderTextureView( "rt1" );
-                attachment.textureName = "rt1";
-                rtv->colourAttachments.push_back( attachment );
-                rtv->depthBufferId = Ogre::DepthBuffer::POOL_NO_DEPTH;
+                texDef->formatList.push_back( Ogre::PF_R8G8B8 );
             }
 
             bloomDef->setNumTargetPass( 4 );
@@ -443,7 +419,7 @@ namespace Demo
                     CompositorPassQuadDef *passQuad;
                     passQuad = static_cast<CompositorPassQuadDef*>( targetDef->addPass( PASS_QUAD ) );
                     passQuad->mMaterialName = "Postprocess/BrightPass2";
-                    passQuad->addQuadTextureSource( 0, "rt_input" );
+                    passQuad->addQuadTextureSource( 0, "rt_input", 0 );
                 }
             }
             {
@@ -453,7 +429,7 @@ namespace Demo
                     CompositorPassQuadDef *passQuad;
                     passQuad = static_cast<CompositorPassQuadDef*>( targetDef->addPass( PASS_QUAD ) );
                     passQuad->mMaterialName = "Postprocess/BlurV";
-                    passQuad->addQuadTextureSource( 0, "rt0" );
+                    passQuad->addQuadTextureSource( 0, "rt0", 0 );
                 }
             }
             {
@@ -463,7 +439,7 @@ namespace Demo
                     CompositorPassQuadDef *passQuad;
                     passQuad = static_cast<CompositorPassQuadDef*>( targetDef->addPass( PASS_QUAD ) );
                     passQuad->mMaterialName = "Postprocess/BluH";
-                    passQuad->addQuadTextureSource( 0, "rt1" );
+                    passQuad->addQuadTextureSource( 0, "rt1", 0 );
                 }
             }
             {
@@ -473,8 +449,8 @@ namespace Demo
                     CompositorPassQuadDef *passQuad;
                     passQuad = static_cast<CompositorPassQuadDef*>( targetDef->addPass( PASS_QUAD ) );
                     passQuad->mMaterialName = "Postprocess/BloomBlend2";
-                    passQuad->addQuadTextureSource( 0, "rt_input" );
-                    passQuad->addQuadTextureSource( 1, "rt0" );
+                    passQuad->addQuadTextureSource( 0, "rt_input", 0 );
+                    passQuad->addQuadTextureSource( 1, "rt0", 0 );
                 }
             }
 
@@ -504,7 +480,7 @@ namespace Demo
                     CompositorPassQuadDef *passQuad;
                     passQuad = static_cast<CompositorPassQuadDef*>( targetDef->addPass( PASS_QUAD ) );
                     passQuad->mMaterialName = "Postprocess/Glass";
-                    passQuad->addQuadTextureSource( 0, "rt_input" );
+                    passQuad->addQuadTextureSource( 0, "rt_input", 0 );
                 }
             }
 
@@ -532,13 +508,7 @@ namespace Demo
                                                             motionBlurDef->addTextureDefinition( "sum" );
                 texDef->width   = 0;
                 texDef->height  = 0;
-                texDef->format = Ogre::PFG_RGBA8_UNORM_SRGB;
-
-                RenderTargetViewDef *rtv = motionBlurDef->addRenderTextureView( "sum" );
-                RenderTargetViewEntry attachment;
-                attachment.textureName = "sum";
-                rtv->colourAttachments.push_back( attachment );
-                rtv->depthBufferId = Ogre::DepthBuffer::POOL_NO_DEPTH;
+                texDef->formatList.push_back( Ogre::PF_R8G8B8 );
             }
 
             motionBlurDef->setNumTargetPass( 3 );
@@ -551,7 +521,7 @@ namespace Demo
                     passQuad = static_cast<CompositorPassQuadDef*>( targetDef->addPass( PASS_QUAD ) );
                     passQuad->mNumInitialPasses = 1;
                     passQuad->mMaterialName = "Ogre/Copy/4xFP32";
-                    passQuad->addQuadTextureSource( 0, "rt_input" );
+                    passQuad->addQuadTextureSource( 0, "rt_input", 0 );
                 }
             }
             /// Do the motion blur
@@ -562,8 +532,8 @@ namespace Demo
                     CompositorPassQuadDef *passQuad;
                     passQuad = static_cast<CompositorPassQuadDef*>( targetDef->addPass( PASS_QUAD ) );
                     passQuad->mMaterialName = "Postprocess/Combine";
-                    passQuad->addQuadTextureSource( 0, "rt_input" );
-                    passQuad->addQuadTextureSource( 1, "sum" );
+                    passQuad->addQuadTextureSource( 0, "rt_input", 0 );
+                    passQuad->addQuadTextureSource( 1, "sum", 0 );
                 }
             }
             /// Copy back sum texture for the next frame
@@ -574,7 +544,7 @@ namespace Demo
                     CompositorPassQuadDef *passQuad;
                     passQuad = static_cast<CompositorPassQuadDef*>( targetDef->addPass( PASS_QUAD ) );
                     passQuad->mMaterialName = "Ogre/Copy/4xFP32";
-                    passQuad->addQuadTextureSource( 0, "rt_output" );
+                    passQuad->addQuadTextureSource( 0, "rt_output", 0 );
                 }
             }
 

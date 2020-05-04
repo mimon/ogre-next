@@ -28,7 +28,7 @@ THE SOFTWARE.
 #ifndef _OgreOITDCodec_H_
 #define _OgreOITDCodec_H_
 
-#include "OgreImageCodec2.h"
+#include "OgreImageCodec.h"
 
 namespace Ogre
 {
@@ -53,7 +53,7 @@ namespace Ogre
         rows aligned to 4 bytes, whereas Version 0 has no alignment restrictions.
         Version 0 is only used out of necessity, and is not generally recommended.
     */
-    class _OgreExport OITDCodec : public ImageCodec2
+    class _OgreExport OITDCodec : public ImageCodec
     {
     private:
         String mType;

@@ -36,13 +36,11 @@ THE SOFTWARE.
 #include "Vao/OgreIndirectBufferPacked.h"
 #include "OgreTimer.h"
 #include "OgreCommon.h"
-#include "OgreStringConverter.h"
 #include "OgreLogManager.h"
-#include "OgreRoot.h"
 
 namespace Ogre
 {
-    VaoManager::VaoManager( const NameValuePairList *params ) :
+    VaoManager::VaoManager() :
         mTimer( 0 ),
         mDefaultStagingBufferUnfencedTime( 300000 - 1000 ), //4 minutes, 59 seconds
         mDefaultStagingBufferLifetime( 300000 ), //5 minutes
@@ -62,19 +60,6 @@ namespace Ogre
         mUavBufferMaxSize( 16 * 1024 * 1024 )    //Minimum guaranteed by GL.
     {
         mTimer = OGRE_NEW Timer();
-
-        if( params )
-        {
-            NameValuePairList::const_iterator itor =
-                    params->find( "VaoManager::mDynamicBufferMultiplier" );
-            if( itor != params->end() )
-            {
-                const uint32 newBufMult = StringConverter::parseUnsignedInt( itor->second,
-                                                                             mDynamicBufferMultiplier );
-                mDynamicBufferMultiplier = static_cast<uint8>( newBufMult );
-                OGRE_ASSERT_LOW( mDynamicBufferMultiplier > 0u );
-            }
-        }
     }
     //-----------------------------------------------------------------------------------
     VaoManager::~VaoManager()
@@ -244,7 +229,7 @@ namespace Ogre
         mBuffers[ BP_TYPE_CONST ].erase( itor );
     }
     //-----------------------------------------------------------------------------------
-    TexBufferPacked* VaoManager::createTexBuffer( PixelFormatGpu pixelFormat, size_t sizeBytes,
+    TexBufferPacked* VaoManager::createTexBuffer( PixelFormat pixelFormat, size_t sizeBytes,
                                                   BufferType bufferType,
                                                   void *initialData, bool keepAsShadow )
     {
@@ -534,21 +519,6 @@ namespace Ogre
         mDelayedDestroyBuffers.erase( mDelayedDestroyBuffers.begin(), itor );
     }
     //-----------------------------------------------------------------------------------
-    void VaoManager::_destroyAllDelayedBuffers(void)
-    {
-        DelayedBufferVec::iterator itor = mDelayedDestroyBuffers.begin();
-        DelayedBufferVec::iterator end  = mDelayedDestroyBuffers.end();
-
-        while( itor != end )
-        {
-            callDestroyBufferImpl( itor->bufferPacked );
-            OGRE_DELETE itor->bufferPacked;
-            ++itor;
-        }
-
-        mDelayedDestroyBuffers.clear();
-    }
-    //-----------------------------------------------------------------------------------
     inline void VaoManager::callDestroyBufferImpl( BufferPacked *bufferPacked )
     {
         switch( bufferPacked->getBufferPackedType() )
@@ -580,35 +550,8 @@ namespace Ogre
         }
     }
     //-----------------------------------------------------------------------------------
-    void VaoManager::switchVboPoolIndex( size_t oldPoolIdx, size_t newPoolIdx )
-    {
-        for( int i=0; i<NUM_BUFFER_PACKED_TYPES; ++i )
-        {
-            BufferPackedSet::const_iterator itor = mBuffers[i].begin();
-            BufferPackedSet::const_iterator end  = mBuffers[i].end();
-
-            while( itor != end )
-            {
-                switchVboPoolIndexImpl( oldPoolIdx, newPoolIdx, *itor );
-                ++itor;
-            }
-        }
-
-        {
-            DelayedBufferVec::const_iterator itor = mDelayedDestroyBuffers.begin();
-            DelayedBufferVec::const_iterator end  = mDelayedDestroyBuffers.end();
-
-            while( itor != end )
-            {
-                switchVboPoolIndexImpl( oldPoolIdx, newPoolIdx, itor->bufferPacked );
-                ++itor;
-            }
-        }
-    }
-    //-----------------------------------------------------------------------------------
     void VaoManager::_update(void)
     {
-        Root::getSingleton()._renderingFrameEnded();
         ++mFrameCount;
     }
     //-----------------------------------------------------------------------------------

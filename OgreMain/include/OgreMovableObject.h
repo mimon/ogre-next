@@ -31,6 +31,8 @@ THE SOFTWARE.
 
 // Precompiler options
 #include "OgrePrerequisites.h"
+#include "OgreAxisAlignedBox.h"
+#include "OgreSphere.h"
 #include "OgreAnimable.h"
 #include "OgreSceneNode.h"
 #include "Math/Array/OgreObjectData.h"
@@ -70,7 +72,7 @@ namespace Ogre {
         {
         public:
             Listener(void) {}
-            virtual ~Listener();
+            virtual ~Listener() {}
             /** MovableObject is being destroyed */
             virtual void objectDestroyed(MovableObject*) {}
             /** MovableObject has been attached to a node */
@@ -126,8 +128,6 @@ namespace Ogre {
         static uint32 msDefaultQueryFlags;
         /// Default visibility flags
         static uint32 msDefaultVisibilityFlags;
-        /// Default light mask
-        static uint32 msDefaultLightMask;
 
     protected:
         Aabb updateSingleWorldAabb();
@@ -288,9 +288,8 @@ namespace Ogre {
             An array of all frustums that are used at least once as cubemaps
             (@See SceneManager::createCamera)
         */
-        static void cullLights( const size_t numNodes, ObjectData t, uint32 sceneLightMask,
-                                LightListInfo &outGlobalLightList,
-                                const FrustumVec &frustums, const FrustumVec &cubemapFrustums );
+        static void cullLights( const size_t numNodes, ObjectData t, LightListInfo &outGlobalLightList,
+                                const FrustumVec &frustums , const FrustumVec &cubemapFrustums );
 
         /** @See SceneManager::buildLightList
         @remarks
@@ -556,14 +555,6 @@ namespace Ogre {
         */
         inline void setLightMask(uint32 lightMask);
 
-        /** Set the default light mask for all future MovableObject instances.
-        */
-        static void setDefaultLightMask(uint32 mask) { msDefaultLightMask = mask; }
-
-        /** Get the default light mask for all future MovableObject instances.
-        */
-        static uint32 getDefaultLightMask() { return msDefaultLightMask; }
-
         /** Returns a pointer to the current list of lights for this object.
         @remarks
             You should not modify this list outside of MovableObject::Listener::objectQueryLights
@@ -634,8 +625,6 @@ namespace Ogre {
         NullEntity() : MovableObject( 0 )
         {
         }
-
-        virtual ~NullEntity();
 
         virtual const String& getMovableType(void) const
         {

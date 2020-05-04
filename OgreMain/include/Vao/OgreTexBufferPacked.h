@@ -30,7 +30,7 @@ THE SOFTWARE.
 #define _Ogre_TexBufferPacked_H_
 
 #include "Vao/OgreBufferPacked.h"
-#include "OgrePixelFormatGpu.h"
+#include "OgrePixelFormat.h"
 
 namespace Ogre
 {
@@ -39,13 +39,13 @@ namespace Ogre
     class _OgreExport TexBufferPacked : public BufferPacked
     {
     protected:
-        PixelFormatGpu mPixelFormat;
+        PixelFormat mPixelFormat;
 
     public:
         TexBufferPacked( size_t internalBufferStartBytes, size_t numElements, uint32 bytesPerElement,
                          uint32 numElementsPadding, BufferType bufferType,
                          void *initialData, bool keepAsShadow,
-                         VaoManager *vaoManager, BufferInterface *bufferInterface, PixelFormatGpu pf ) :
+                         VaoManager *vaoManager, BufferInterface *bufferInterface, PixelFormat pf ) :
             BufferPacked( internalBufferStartBytes, numElements, bytesPerElement, numElementsPadding,
                           bufferType, initialData, keepAsShadow, vaoManager, bufferInterface ),
             mPixelFormat( pf )
@@ -79,11 +79,7 @@ namespace Ogre
         virtual void bindBufferHS( uint16 slot, size_t offset=0, size_t sizeBytes=0 ) = 0;
         virtual void bindBufferCS( uint16 slot, size_t offset=0, size_t sizeBytes=0 ) = 0;
 
-        /// To be overriden only by GL3+. Does the same as bindBufferXX but
-        /// assumes the current GL_TEXTURE slot is already set.
-        virtual void _bindBufferDirectly( size_t offset, size_t sizeBytes ) {}
-
-        PixelFormatGpu getPixelFormat(void) const       { return mPixelFormat; }
+        PixelFormat getPixelFormat(void) const           { return mPixelFormat; }
     };
 }
 

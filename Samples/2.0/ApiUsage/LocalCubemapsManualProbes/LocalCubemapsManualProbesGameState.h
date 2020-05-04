@@ -5,11 +5,11 @@
 #include "OgrePrerequisites.h"
 #include "TutorialGameState.h"
 
+#include "OgreTexture.h"
+
 namespace Ogre
 {
     class ParallaxCorrectedCubemap;
-    class ParallaxCorrectedCubemapAuto;
-    class ParallaxCorrectedCubemapBase;
     class HlmsPbsDatablock;
 }
 
@@ -19,13 +19,8 @@ namespace Demo
     {
         Ogre::SceneNode     *mLightNodes[3];
 
-        Ogre::ParallaxCorrectedCubemapBase  *mParallaxCorrectedCubemap;
-        Ogre::ParallaxCorrectedCubemapAuto  *mParallaxCorrectedCubemapAuto;
-        Ogre::ParallaxCorrectedCubemap      *mParallaxCorrectedCubemapOrig;
+        Ogre::ParallaxCorrectedCubemap  *mParallaxCorrectedCubemap;
         Ogre::HlmsPbsDatablock          *mMaterials[4*4];
-        bool                            mPerPixelReflections;
-        /// True if we were using manual probes before mPerPixelReflections became true
-        bool                            mWasManualProbe;
 
         virtual void generateDebugText( float timeSinceLast, Ogre::String &outText );
 

@@ -88,8 +88,7 @@ namespace Ogre
         void setResourcesToJob(void);
     public:
         CompositorPassCompute( const CompositorPassComputeDef *definition, Camera *defaultCamera,
-                               CompositorNode *parentNode, const RenderTargetViewDef *rtv );
-        virtual ~CompositorPassCompute();
+                               CompositorNode *parentNode, const CompositorChannel &target );
 
         virtual void execute( const Camera *lodCamera );
 

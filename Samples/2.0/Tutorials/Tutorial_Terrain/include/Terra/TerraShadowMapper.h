@@ -10,16 +10,16 @@
 
 namespace Ogre
 {
-    typedef TextureGpu* CompositorChannel;
+    struct CompositorChannel;
 
     class ShadowMapper
     {
-        Ogre::TextureGpu    *m_heightMapTex;
+        Ogre::TexturePtr    m_heightMapTex;
 
         ConstBufferPacked   *m_shadowStarts;
         ConstBufferPacked   *m_shadowPerGroupData;
         CompositorWorkspace *m_shadowWorkspace;
-        TextureGpu          *m_shadowMapTex;
+        TexturePtr          m_shadowMapTex;
         HlmsComputeJob      *m_shadowJob;
         ShaderParams::Param *m_jobParamDelta;
         ShaderParams::Param *m_jobParamXYStep;
@@ -79,15 +79,15 @@ namespace Ogre
         */
         void setGaussianFilterParams( uint8 kernelRadius, float gaussianDeviationFactor=0.5f );
 
-        void createShadowMap( IdType id, TextureGpu *heightMapTex );
+        void createShadowMap( IdType id, TexturePtr &heightMapTex );
         void destroyShadowMap(void);
         void updateShadowMap( const Vector3 &lightDir, const Vector2 &xzDimensions, float heightScale );
 
-        void fillUavDataForCompositorChannel( TextureGpu **outChannel,
+        void fillUavDataForCompositorChannel( CompositorChannel &outChannel,
                                               ResourceLayoutMap &outInitialLayouts,
                                               ResourceAccessMap &outInitialUavAccess ) const;
 
-        Ogre::TextureGpu* getShadowMapTex(void) const           { return m_shadowMapTex; }
+        Ogre::TexturePtr getShadowMapTex(void) const            { return m_shadowMapTex; }
     };
 }
 

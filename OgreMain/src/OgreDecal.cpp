@@ -39,10 +39,7 @@ THE SOFTWARE.
 namespace Ogre
 {
     Decal::Decal( IdType id, ObjectMemoryManager *objectMemoryManager, SceneManager *manager ) :
-        MovableObject( id, objectMemoryManager, manager, ForwardPlusBase::MinDecalRq ),
-        mDiffuseTexture( 0 ),
-        mNormalTexture( 0 ),
-        mEmissiveTexture( 0 ),
+        MovableObject( id, objectMemoryManager, manager, 0u ),
         mDiffuseIdx( 0 ),
         mNormalMapIdx( 0 ),
         mEmissiveIdx( 0 ),
@@ -66,132 +63,37 @@ namespace Ogre
     //-----------------------------------------------------------------------------------
     Decal::~Decal()
     {
-        if( mDiffuseTexture && mDiffuseTexture->hasAutomaticBatching() )
-        {
-            mDiffuseTexture->removeListener( this );
-            mDiffuseTexture = 0;
-        }
-
-        if( mNormalTexture && mNormalTexture->hasAutomaticBatching() )
-        {
-            mNormalTexture->removeListener( this );
-            mNormalTexture= 0;
-        }
-
-        if( mEmissiveTexture && mEmissiveTexture->hasAutomaticBatching() )
-        {
-            mEmissiveTexture->removeListener( this );
-            mEmissiveTexture= 0;
-        }
     }
     //-----------------------------------------------------------------------------------
-    void Decal::setDiffuseTexture( TextureGpu *diffuseTex )
+    void Decal::setDiffuseTexture( const TexturePtr &diffuseTex, uint16 diffuseIdx )
     {
-        if( mDiffuseTexture && mDiffuseTexture->hasAutomaticBatching() )
-            mDiffuseTexture->removeListener( this );
-        if( diffuseTex )
-        {
-            OGRE_ASSERT_LOW( diffuseTex->hasAutomaticBatching() &&
-                             "If the texture does is not AutomaticBatching, the use Raw calls!" );
-            OGRE_ASSERT_LOW( diffuseTex->getTextureType() == TextureTypes::Type2D );
-            diffuseTex->addListener( this );
-            diffuseTex->scheduleTransitionTo( GpuResidency::Resident );
-            mDiffuseTexture = diffuseTex;
-            mDiffuseIdx = static_cast<uint16>( diffuseTex->getInternalSliceStart() );
-        }
-        else
-        {
-            mDiffuseTexture = 0;
-            mDiffuseIdx = 0;
-        }
+        mDiffuseTexture = diffuseTex;
+        mDiffuseIdx = diffuseIdx;
     }
     //-----------------------------------------------------------------------------------
-    TextureGpu* Decal::getDiffuseTexture(void) const
+    const TexturePtr& Decal::getDiffuseTexture(void) const
     {
         return mDiffuseTexture;
     }
     //-----------------------------------------------------------------------------------
-    void Decal::setNormalTexture( TextureGpu *normalTex )
+    void Decal::setNormalTexture( const TexturePtr &normalTex, uint16 normalIdx )
     {
-        if( mNormalTexture && mNormalTexture->hasAutomaticBatching() )
-            mNormalTexture->removeListener( this );
-        if( normalTex )
-        {
-            OGRE_ASSERT_LOW( normalTex->hasAutomaticBatching() &&
-                             "If the texture does is not AutomaticBatching, the use Raw calls!" );
-            OGRE_ASSERT_LOW( normalTex->getTextureType() == TextureTypes::Type2D );
-            normalTex->addListener( this );
-            normalTex->scheduleTransitionTo( GpuResidency::Resident );
-            mNormalTexture = normalTex;
-            mNormalMapIdx = static_cast<uint16>( normalTex->getInternalSliceStart() );
-        }
-        else
-        {
-            mNormalTexture = 0;
-            mNormalMapIdx = 0;
-        }
+        mNormalTexture = normalTex;
+        mNormalMapIdx = normalIdx;
     }
     //-----------------------------------------------------------------------------------
-    TextureGpu* Decal::getNormalTexture(void) const
+    const TexturePtr& Decal::getNormalTexture(void) const
     {
         return mNormalTexture;
     }
     //-----------------------------------------------------------------------------------
-    void Decal::setEmissiveTexture( TextureGpu *emissiveTex )
+    void Decal::setEmissiveTexture( const TexturePtr &emissiveTex, uint16 emissiveIdx )
     {
-        if( mEmissiveTexture && mEmissiveTexture->hasAutomaticBatching() )
-            mEmissiveTexture->removeListener( this );
-        if( emissiveTex )
-        {
-            OGRE_ASSERT_LOW( emissiveTex->hasAutomaticBatching() &&
-                             "If the texture does is not AutomaticBatching, the use Raw calls!" );
-            OGRE_ASSERT_LOW( emissiveTex->getTextureType() == TextureTypes::Type2D );
-            emissiveTex->addListener( this );
-            emissiveTex->scheduleTransitionTo( GpuResidency::Resident );
-            mEmissiveTexture = emissiveTex;
-            mEmissiveIdx = static_cast<uint16>( emissiveTex->getInternalSliceStart() );
-        }
-        else
-        {
-            mEmissiveTexture = 0;
-            mEmissiveIdx = 0;
-        }
-    }
-    //-----------------------------------------------------------------------------------
-    void Decal::setDiffuseTextureRaw( TextureGpu *diffuseTex, uint32 sliceIdx )
-    {
-        if( mDiffuseTexture && mDiffuseTexture->hasAutomaticBatching() )
-            mDiffuseTexture->removeListener( this );
-        OGRE_ASSERT_LOW( (!diffuseTex || !diffuseTex->hasAutomaticBatching()) &&
-                         "Only use Raw call if texture is not AutomaticBatching!" );
-        OGRE_ASSERT_LOW( diffuseTex->getTextureType() == TextureTypes::Type2DArray );
-        mDiffuseTexture = diffuseTex;
-        mDiffuseIdx = sliceIdx;
-    }
-    //-----------------------------------------------------------------------------------
-    void Decal::setNormalTextureRaw( TextureGpu *normalTex, uint32 sliceIdx )
-    {
-        if( mNormalTexture && mNormalTexture->hasAutomaticBatching() )
-            mNormalTexture->removeListener( this );
-        OGRE_ASSERT_LOW( (!normalTex || !normalTex->hasAutomaticBatching()) &&
-                         "Only use Raw call if texture is not AutomaticBatching!" );
-        OGRE_ASSERT_LOW( normalTex->getTextureType() == TextureTypes::Type2DArray );
-        mNormalTexture = normalTex;
-        mNormalMapIdx = sliceIdx;
-    }
-    //-----------------------------------------------------------------------------------
-    void Decal::setEmissiveTextureRaw( TextureGpu *emissiveTex, uint32 sliceIdx )
-    {
-        if( mEmissiveTexture && mEmissiveTexture->hasAutomaticBatching() )
-            mEmissiveTexture->removeListener( this );
-        OGRE_ASSERT_LOW( (!emissiveTex || !emissiveTex->hasAutomaticBatching()) &&
-                         "Only use Raw call if texture is not AutomaticBatching!" );
-        OGRE_ASSERT_LOW( emissiveTex->getTextureType() == TextureTypes::Type2DArray );
         mEmissiveTexture = emissiveTex;
-        mEmissiveIdx = sliceIdx;
+        mEmissiveIdx = emissiveIdx;
     }
     //-----------------------------------------------------------------------------------
-    TextureGpu* Decal::getEmissiveTexture(void) const
+    const TexturePtr& Decal::getEmissiveTexture(void) const
     {
         return mEmissiveTexture;
     }
@@ -232,41 +134,6 @@ namespace Ogre
         assert( queueID >= ForwardPlusBase::MinDecalRq && queueID <= ForwardPlusBase::MaxDecalRq &&
                 "RenderQueue IDs > 128 are reserved for other Forward+ objects" );
         MovableObject::setRenderQueueGroup( queueID );
-    }
-    //-----------------------------------------------------------------------------------
-    void Decal::notifyTextureChanged( TextureGpu *texture, TextureGpuListener::Reason reason,
-                                      void *extraData )
-    {
-        if( reason == TextureGpuListener::PoolTextureSlotChanged )
-        {
-            if( texture == mDiffuseTexture )
-                mDiffuseIdx = static_cast<uint16>( mDiffuseTexture->getInternalSliceStart() );
-            if( texture == mNormalTexture )
-                mNormalMapIdx = static_cast<uint16>( mNormalTexture->getInternalSliceStart() );
-            if( texture == mEmissiveTexture )
-                mEmissiveIdx = static_cast<uint16>( mEmissiveTexture->getInternalSliceStart() );
-        }
-        else if( reason == TextureGpuListener::Deleted )
-        {
-            if( texture == mDiffuseTexture )
-            {
-                mDiffuseIdx = 0;
-                mDiffuseTexture->removeListener( this );
-                mDiffuseTexture = 0;
-            }
-            if( texture == mNormalTexture )
-            {
-                mNormalMapIdx = 0;
-                mNormalTexture->removeListener( this );
-                mNormalTexture = 0;
-            }
-            if( texture == mEmissiveTexture )
-            {
-                mEmissiveIdx = 0;
-                mEmissiveTexture->removeListener( this );
-                mEmissiveTexture = 0;
-            }
-        }
     }
     //-----------------------------------------------------------------------
     //-----------------------------------------------------------------------

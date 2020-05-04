@@ -59,8 +59,6 @@ namespace Ogre
         /// Use __unsafe_unretained when possible to avoid unnecessary ARC overhead.
         id<MTLBuffer> getVboName(void) const                        { return mVboName; }
 
-        void _setVboPoolIndex( size_t newVboPool )                  { mVboPoolIdx = newVboPool; }
-
         /// Only use this function for the first upload
         void _firstUpload( const void *data, size_t elementStart, size_t elementCount );
 
@@ -71,9 +69,6 @@ namespace Ogre
                             size_t flushStartElem = 0, size_t flushSizeElem = 0 );
         virtual void advanceFrame(void);
         virtual void regressFrame(void);
-
-        virtual void copyTo( BufferInterface *dstBuffer, size_t dstOffsetBytes,
-                             size_t srcOffsetBytes, size_t sizeBytes );
     };
 }
 

@@ -59,6 +59,7 @@ namespace Ogre
         Vector2     uvOffset;
         Vector2     uvLength;
         uint8       arrayIdx;
+        uint8       mrtIndex;
 
         size_t      light;  //Render Nth closest light
         size_t      split;  //Split for that light (only for PSSM/CSM)
@@ -70,8 +71,7 @@ namespace Ogre
         Real                splitPadding;
         Real                splitBlend;
         Real                splitFade;
-        uint32              numSplits;
-        uint32              numStableSplits;
+        uint                numSplits;
 
     protected:
         IdString    texName;
@@ -79,26 +79,15 @@ namespace Ogre
         size_t      sharesSetupWith;
 
     public:
-        ShadowTextureDefinition( ShadowMapTechniques t, const String &texRefName,
-                                 const Vector2 &_uvOffset, const Vector2 &_uvLength, uint8 _arrayIdx,
-                                 size_t _light, size_t _split ) :
-            uvOffset( _uvOffset ),
-            uvLength( _uvLength ),
-            arrayIdx( _arrayIdx ),
-            light( _light ),
-            split( _split ),
-            shadowMapTechnique( t ),
-            pssmLambda( 0.95f ),
-            splitPadding( 1.0f ),
-            splitBlend( 0.125f ),
-            splitFade( 0.313f ),
-            numSplits( 3u ),
-            numStableSplits( 0u ),
-            texName( texRefName ),
-            texNameStr( texRefName ),
-            sharesSetupWith( -1 )
-        {
-        }
+        ShadowTextureDefinition( ShadowMapTechniques t, const String &texRefName, uint8 _mrtIndex,
+                                 const Vector2 &_uvOffset, const Vector2 &_uvLength,
+                                 uint8 _arrayIdx, size_t _light, size_t _split ) :
+                uvOffset( _uvOffset ), uvLength( _uvLength ),
+                arrayIdx( _arrayIdx ), mrtIndex( _mrtIndex ),
+                light(_light), split(_split), shadowMapTechnique(t),
+                pssmLambda( 0.95f ), splitPadding( 1.0f ), splitBlend( 0.125f ), splitFade( 0.313f ), numSplits( 3 ),
+                texName( texRefName ), texNameStr( texRefName ),
+                sharesSetupWith( -1 ) {}
 
         IdString getTextureName() const             { return texName; }
         String getTextureNameStr() const            { return texNameStr; }
@@ -185,7 +174,7 @@ namespace Ogre
             If the texture is an array texture, index to the slice that holds our shadow map.
         */
         ShadowTextureDefinition* addShadowTextureDefinition( size_t lightIdx, size_t split,
-                                                             const String &name,
+                                                             const String &name, uint8 mrtIndex,
                                                              const Vector2 &uvOffset,
                                                              const Vector2 &uvLength,
                                                              uint8 arrayIdx );

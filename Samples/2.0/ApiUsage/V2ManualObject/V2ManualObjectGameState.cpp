@@ -7,8 +7,7 @@
 #include "OgreManualObject2.h"
 
 #include "OgreCamera.h"
-
-#include <sstream>
+#include "OgreRenderWindow.h"
 
 using namespace Demo;
 

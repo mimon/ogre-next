@@ -10,7 +10,7 @@
 #include "OgreMaterialManager.h"
 #include "OgreTechnique.h"
 #include "OgrePass.h"
-#include "OgreWindow.h"
+#include "OgreRenderWindow.h"
 
 using namespace Demo;
 
@@ -65,7 +65,7 @@ namespace Demo
 
         mSceneNode->setPosition( origin + Ogre::Vector3::UNIT_X * mDisplacement );
 
-        Ogre::Window *renderWindow = mGraphicsSystem->getRenderWindow();
+        Ogre::RenderWindow *renderWindow = mGraphicsSystem->getRenderWindow();
         if( mLastWindowWidth != renderWindow->getWidth() ||
             mLastWindowHeight != renderWindow->getHeight() )
         {

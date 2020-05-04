@@ -30,7 +30,6 @@ THE SOFTWARE
 #include "OgreStringVector.h"
 #include "OgreException.h"
 #include "OgreResourceGroupManager.h"
-#include "OgreString.h"
 
 namespace Ogre
 {

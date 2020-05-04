@@ -12,6 +12,7 @@
 #include "OgreMesh2.h"
 
 #include "OgreCamera.h"
+#include "OgreRenderWindow.h"
 
 #include "OgreHlmsUnlitDatablock.h"
 #include "OgreHlmsSamplerblock.h"
@@ -72,7 +73,7 @@ namespace Demo
 
         mGraphicsSystem->getCamera()->setPosition( Ogre::Vector3( 0, 30, 100 ) );
 
-        sceneManager->setForwardClustered( true, 16, 8, 24, 96, 0, 0, 5, 500 );
+        sceneManager->setForwardClustered( true, 16, 8, 24, 96, 0, 5, 500 );
 
         Ogre::v1::MeshPtr planeMeshV1 = Ogre::v1::MeshManager::getSingleton().createPlane( "Plane v1",
                                             Ogre::ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME,
@@ -395,7 +396,7 @@ namespace Demo
             }
             else
             {
-                sceneManager->setForwardClustered( true, 16, 8, 24, 96, 0, 0, 5, 500 );
+                sceneManager->setForwardClustered( true, 16, 8, 24, 96, 0, 5, 500 );
             }
 
             forwardPlus = sceneManager->getForwardPlus();

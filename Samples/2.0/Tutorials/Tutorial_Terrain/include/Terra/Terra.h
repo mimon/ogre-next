@@ -47,9 +47,8 @@ namespace Ogre
         std::vector<TerrainCell*>  m_collectedCells[2];
         size_t                     m_currentCell;
 
-        DescriptorSetTexture const  *m_descriptorSet;
-        Ogre::TextureGpu*   m_heightMapTex;
-        Ogre::TextureGpu*   m_normalMapTex;
+        Ogre::TexturePtr    m_heightMapTex;
+        Ogre::TexturePtr    m_normalMapTex;
 
         Vector3             m_prevLightDir;
         ShadowMapper        *m_shadowMapper;
@@ -58,16 +57,14 @@ namespace Ogre
         CompositorManager2      *m_compositorManager;
         Camera                  *m_camera;
 
-        void createDescriptorSet(void);
-        void destroyDescriptorSet(void);
         void destroyHeightmapTexture(void);
 
         /// Creates the Ogre texture based on the image data.
         /// Called by @see createHeightmap
-        void createHeightmapTexture( const Image2 &image, const String &imageName );
+        void createHeightmapTexture( const Ogre::Image &image, const String &imageName );
 
         /// Calls createHeightmapTexture, loads image data to our CPU-side buffers
-        void createHeightmap( Image2 &image, const String &imageName );
+        void createHeightmap( Image &image, const String &imageName );
 
         void createNormalTexture(void);
         void destroyNormalTexture(void);
@@ -114,8 +111,7 @@ namespace Ogre
         void update( const Vector3 &lightDir, float lightEpsilon=1e-6f );
 
         void load( const String &texName, const Vector3 center, const Vector3 &dimensions );
-        void load( Image2 &image, const Vector3 center, const Vector3 &dimensions,
-                   const String &imageName = BLANKSTRING );
+        void load( Image &image, const Vector3 center, const Vector3 &dimensions, const String &imageName = BLANKSTRING );
 
         /** Gets the interpolated height at the given location.
             If outside the bounds, it leaves the height untouched.
@@ -138,18 +134,14 @@ namespace Ogre
 
         const ShadowMapper* getShadowMapper(void) const { return m_shadowMapper; }
 
-        const Ogre::DescriptorSetTexture* getDescriptorSetTexture(void) const { return m_descriptorSet; }
-
-        Ogre::TextureGpu* getHeightMapTex(void) const   { return m_heightMapTex; }
-        Ogre::TextureGpu* getNormalMapTex(void) const   { return m_normalMapTex; }
-        TextureGpu* _getShadowMapTex(void) const;
+        Ogre::TexturePtr getHeightMapTex(void) const    { return m_heightMapTex; }
+        Ogre::TexturePtr getNormalMapTex(void) const    { return m_normalMapTex; }
+        Ogre::TexturePtr _getShadowMapTex(void) const;
 
         const Vector2& getXZDimensions(void) const      { return m_xzDimensions; }
         const Vector2& getXZInvDimensions(void) const   { return m_xzInvDimensions; }
         float getHeight(void) const                     { return m_height; }
         const Vector3& getTerrainOrigin(void) const     { return m_terrainOrigin; }
-
-        Vector2 getTerrainXZCenter(void) const;
     };
 }
 

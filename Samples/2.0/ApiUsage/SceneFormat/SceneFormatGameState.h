@@ -23,13 +23,12 @@ namespace Demo
 
         virtual void generateDebugText( float timeSinceLast, Ogre::String &outText );
 
-    public:
         void resetScene(void);
         void setupParallaxCorrectCubemaps(void);
         void destroyInstantRadiosity(void);
         void destroyParallaxCorrectCubemaps(void);
 
-        Ogre::TextureGpu* createRawDecalDiffuseTex();
+        Ogre::TexturePtr createRawDecalDiffuseTex();
         void generateScene(void);
         void exportScene(void);
         void importScene(void);

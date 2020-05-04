@@ -163,4 +163,10 @@ namespace Ogre {
 
         return fLength;
     }
+    //-----------------------------------------------------------------------
+    std::ostream& operator<< (std::ostream& o, const Plane& p)
+    {
+        o << "Plane(normal=" << p.normal << ", d=" << p.d << ")";
+        return o;
+    }
 } // namespace Ogre

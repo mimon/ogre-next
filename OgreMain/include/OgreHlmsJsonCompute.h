@@ -47,8 +47,7 @@ namespace Ogre
     /** HLMS stands for "High Level Material System". */
     class _OgreExport HlmsJsonCompute : public PassAlloc
     {
-        HlmsManager         *mHlmsManager;
-        TextureGpuManager   *mTextureManager;
+        HlmsManager *mHlmsManager;
 
         static uint8 parseAccess( const char *value );
         static ResourceAccess::ResourceAccess parseAccess( const rapidjson::Value &json );
@@ -56,18 +55,17 @@ namespace Ogre
         void loadParams( const rapidjson::Value &jsonArray, ShaderParams &shaderParams,
                          const String &jobName );
         void loadTexture( const rapidjson::Value &json, const HlmsJson::NamedBlocks &blocks,
-                          HlmsComputeJob *job, uint8 slotIdx, const String &resourceGroup );
+						  HlmsComputeJob *job, uint8 slotIdx );
 
         void loadBasedOnTextureOrUav( const rapidjson::Value &objValue, const String &jobName,
                                       HlmsComputeJob *job, int threadGroupsBasedOn );
     public:
-        HlmsJsonCompute( HlmsManager *hlmsManager, TextureGpuManager *textureManager );
+        HlmsJsonCompute( HlmsManager *hlmsManager );
 
-        void loadJobs( const rapidjson::Value &json, const HlmsJson::NamedBlocks &blocks,
-                       const String &resourceGroup );
+        void loadJobs( const rapidjson::Value &json, const HlmsJson::NamedBlocks &blocks );
 
         void loadJob( const rapidjson::Value &json, const HlmsJson::NamedBlocks &blocks,
-                      HlmsComputeJob *job, const String &jobName, const String &resourceGroup );
+                      HlmsComputeJob *job, const String &jobName );
         void saveJob( const HlmsComputeJob *job, String &outString );
     };
     /** @} */

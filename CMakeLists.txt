@@ -420,10 +420,10 @@ cmake_dependent_option(OGRE_BUILD_COMPONENT_HLMS_PBS_MOBILE
 "PBS Stands for Physically Based Shading and it's the default material for most entities and meshes. This is the 'mobile' version for OpenGL ES 2.0.
 If you're targetting only GL ES 3.0 and above; you shouldn't use this component and use the non-mobile instead. Although this component may work with
 ES 3.0, GL3+ and even DX11 render systems, the mobile version uses uniform variables and limited shader based instancing, whereas non-mobile uses
-uniform buffers, texture arrays and true hardware instancing for lower API overhead" FALSE "" FALSE)
+uniform buffers, texture arrays and true hardware instancing for lower API overhead" TRUE "" FALSE)
 cmake_dependent_option(OGRE_BUILD_COMPONENT_HLMS_UNLIT_MOBILE
 "Unlit material system supporting texture animations, multiple diffuse texture units (aka multitexturing) with Photoshop-like blend modes. This is the
-'mobile' version for OpenGL ES 2.0. If you're targetting only GL ES 3.0 and above; you shouldn't use this component and use the non-mobile instead." FALSE "" FALSE)
+'mobile' version for OpenGL ES 2.0. If you're targetting only GL ES 3.0 and above; you shouldn't use this component and use the non-mobile instead." TRUE "" FALSE)
 cmake_dependent_option(OGRE_BUILD_COMPONENT_HLMS_PBS
 "PBS Stands for Physically Based Shading and it's the default material for most entities and meshes. This is the 'desktop' version for OpenGL 3.3+ and D3D11." TRUE "" FALSE)
 cmake_dependent_option(OGRE_BUILD_COMPONENT_HLMS_UNLIT
@@ -449,9 +449,6 @@ cmake_dependent_option(OGRE_BUILD_XSIEXPORTER "Build the Softimage exporter" FAL
 option(OGRE_BUILD_TESTS "Build the unit tests & PlayPen" FALSE)
 option(OGRE_CONFIG_DOUBLE "Use doubles instead of floats in Ogre" FALSE)
 option(OGRE_CONFIG_NODE_INHERIT_TRANSFORM "Tells the node whether it should inherit full transform from it's parent node or derived position, orientation and scale" FALSE)
-
-
-set(OGRE_PLUGIN_LIB_PREFIX "" CACHE STRING "Prefix dynamically linked plugins, e.g. 'lib' (GCC and Clang only)")
 
 if (WINDOWS_STORE OR WINDOWS_PHONE)
 # WinRT can only use the standard allocator
@@ -492,7 +489,6 @@ option(OGRE_CONFIG_ENABLE_PVRTC "Build PVRTC codec." FALSE)
 option(OGRE_CONFIG_ENABLE_ETC "Build ETC codec." FALSE)
 option(OGRE_CONFIG_ENABLE_ASTC "Build ASTC codec." FALSE)
 option(OGRE_CONFIG_ENABLE_QUAD_BUFFER_STEREO "Enable stereoscopic 3D support" FALSE)
-cmake_dependent_option(OGRE_CONFIG_AMD_AGS "Enable AMD GPU Service library for D3D vendor extensions" TRUE "OGRE_BUILD_RENDERSYSTEM_D3D11 AND AMDAGS_FOUND" FALSE)
 cmake_dependent_option(OGRE_CONFIG_ENABLE_ZIP "Build ZIP archive support. If you disable this option, you cannot use ZIP archives resource locations. The samples won't work." TRUE "ZZip_FOUND" FALSE)
 option(OGRE_CONFIG_ENABLE_VIEWPORT_ORIENTATIONMODE "Include Viewport orientation mode support." FALSE)
 cmake_dependent_option(OGRE_CONFIG_ENABLE_GLES2_CG_SUPPORT "Enable Cg support to ES 2 render system" FALSE "OGRE_BUILD_RENDERSYSTEM_GLES2" FALSE)
@@ -503,9 +499,8 @@ cmake_dependent_option(OGRE_CONFIG_ENABLE_GLES3_SUPPORT "Enable OpenGL ES 3.x Fe
 option(OGRE_CONFIG_ENABLE_FINE_LIGHT_MASK_GRANULARITY "Forward+ will support setLightMask, for a fine granularity control over which lights affect which objects. Performance impact may vary (may be slower, may be faster if you filter a lot of lights)" FALSE)
 option(OGRE_CONFIG_ENABLE_TBB_SCHEDULER "Enable TBB's scheduler initialisation/shutdown." TRUE)
 cmake_dependent_option(OGRE_USE_BOOST "Use Boost extensions" FALSE "Boost_FOUND" FALSE)
-option(OGRE_CONFIG_ENABLE_LIGHT_OBB_RESTRAINT "Enable Light OBB restraints" FALSE)
 
-cmake_dependent_option( OGRE_BUILD_COMPONENT_SCENE_FORMAT "Component to export and import scenes (meshes, textures, items, entities)" TRUE "OGRE_CONFIG_ENABLE_JSON" FALSE )
+cmake_dependent_option( OGRE_BUILD_COMPONENT_SCENE_FORMAT "Component to export and import scenes (meshes, textures, items, entities)" FALSE "OGRE_CONFIG_ENABLE_JSON" FALSE )
 
 # Customise what to install
 option(OGRE_INSTALL_SAMPLES "Install Ogre demos." TRUE)
@@ -577,11 +572,9 @@ mark_as_advanced(
   OGRE_CONFIG_ENABLE_GLES3_SUPPORT
   OGRE_CONFIG_ENABLE_TBB_SCHEDULER
   OGRE_CONFIG_ENABLE_FINE_LIGHT_MASK_GRANULARITY
-  OGRE_CONFIG_ENABLE_LIGHT_OBB_RESTRAINT
   OGRE_USE_BOOST
   OGRE_INSTALL_SAMPLES_SOURCE
   OGRE_FULL_RPATH
-  OGRE_PLUGIN_LIB_PREFIX
   OGRE_PROFILING_PROVIDER
   OGRE_CONFIG_STATIC_LINK_CRT
   OGRE_LIB_DIRECTORY

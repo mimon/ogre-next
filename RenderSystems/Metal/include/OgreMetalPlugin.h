@@ -29,14 +29,13 @@ THE SOFTWARE.
 #define _OgreMetalPlugin_H_
 
 #include "OgrePlugin.h"
-#include "OgreMetalPrerequisites.h"
 
 namespace Ogre
 {
     class MetalRenderSystem;
 
     /** Plugin instance for Metal Manager */
-    class _OgreMetalExport MetalPlugin : public Plugin
+    class MetalPlugin : public Plugin
     {
     public:
         MetalPlugin();

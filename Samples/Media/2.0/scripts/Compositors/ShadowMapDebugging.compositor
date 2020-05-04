@@ -4,19 +4,13 @@ compositor_node ShadowMapDebuggingRenderingNode
 
 	target rt_renderwindow
 	{
+		pass clear
+		{
+			colour_value 0.2 0.4 0.6 1
+		}
+
 		pass render_scene
 		{
-			load
-			{
-				all				clear
-				clear_colour	0.2 0.4 0.6 1
-			}
-			store
-			{
-				colour	store_or_resolve
-				depth	dont_care
-				stencil	dont_care
-			}
 			overlays	on
 			shadows		ShadowMapDebuggingShadowNode
 		}
@@ -25,19 +19,9 @@ compositor_node ShadowMapDebuggingRenderingNode
 
 abstract target cubemap_target_shadow
 {
+	pass clear { colour_value 1 1 1 1 }
 	pass render_scene
 	{
-		load
-		{
-			all									clear
-			clear_colour_reverse_depth_aware	1 1 1 1
-		}
-		store
-		{
-			//We only care about the contents of the colour target with point shadows
-			depth			dont_care
-			stencil			dont_care
-		}
 		camera_cubemap_reorient true
 	}
 }
@@ -46,8 +30,8 @@ compositor_node_shadow ShadowMapDebuggingShadowNode
 {
 	technique pssm
 
-	texture atlas		2048 7168 PFG_D32_FLOAT
-	texture tmpCubemap	1024 1024 PFG_R32_FLOAT cubemap depth_format PFG_D32_FLOAT
+	texture atlas 2048 7168 PF_D32_FLOAT no_fsaa
+	texture tmpCubemap 1024 1024 PF_FLOAT32_R cubemap no_fsaa
 
 	num_splits		3
 	pssm_lambda		0.95
@@ -117,12 +101,12 @@ compositor_node_shadow ShadowMapDebuggingShadowNode2
 {
 	technique pssm
 
-	texture pssm0 2048 2048 PFG_D32_FLOAT
-	texture pssm1 1024 1024 PFG_D32_FLOAT
-	texture pssm2 1024 1024 PFG_D32_FLOAT
+	texture pssm0 2048 2048 PF_D32_FLOAT
+	texture pssm1 1024 1024 PF_D32_FLOAT
+	texture pssm2 1024 1024 PF_D32_FLOAT
 
-	texture spot0 2048 2048 PFG_D32_FLOAT
-	texture spot1 2048 2048 PFG_D32_FLOAT
+	texture spot0 2048 2048 PF_D32_FLOAT
+	texture spot1 2048 2048 PF_D32_FLOAT
 
 	num_splits		3
 	pssm_lambda		0.95
@@ -138,13 +122,12 @@ compositor_node_shadow ShadowMapDebuggingShadowNode2
 	{
 		shadow_map 0 1 2
 		{
+			pass clear
+			{
+				colour_value 1 1 1 1
+			}
 			pass render_scene
 			{
-				load
-				{
-					all									clear
-					clear_colour_reverse_depth_aware	1 1 1 1
-				}
 			}
 		}
 	}
@@ -153,13 +136,12 @@ compositor_node_shadow ShadowMapDebuggingShadowNode2
 	{
 		shadow_map 3 4
 		{
+			pass clear
+			{
+				colour_value 1 1 1 1
+			}
 			pass render_scene
 			{
-				load
-				{
-					all                             	clear
-					clear_colour_reverse_depth_aware	1 1 1 1
-				}
 			}
 		}
 	}
@@ -167,9 +149,9 @@ compositor_node_shadow ShadowMapDebuggingShadowNode2
 
 abstract compositor_node_shadow ShadowMapDebuggingEsmShadowNodeBase
 {
-	texture atlas				2048 4096 PFG_R16_UNORM uav depth_format PFG_D32_FLOAT
-	texture tmpGaussianFilter	2048 4096 PFG_R16_UNORM depth_pool 0 uav
-	texture tmpCubemap			 512  512 PFG_R16_UNORM cubemap depth_format PFG_D32_FLOAT
+	texture atlas 2048 4096 PF_L16 no_fsaa uav
+	texture tmpGaussianFilter 2048 4096 PF_L16 no_fsaa depth_pool 0 uav
+	texture tmpCubemap 512 512 PF_L16 cubemap no_fsaa
 
 	technique pssm
 	num_splits		3
@@ -196,11 +178,6 @@ abstract compositor_node_shadow ShadowMapDebuggingEsmShadowNodeBase
 		{
 			pass render_scene
 			{
-				store
-				{
-					depth	dont_care
-					stencil	dont_care
-				}
 			}
 		}
 	}
@@ -211,11 +188,6 @@ abstract compositor_node_shadow ShadowMapDebuggingEsmShadowNodeBase
 		{
 			pass render_scene
 			{
-				store
-				{
-					depth	dont_care
-					stencil	dont_care
-				}
 			}
 		}
 	}
@@ -235,11 +207,6 @@ abstract compositor_node_shadow ShadowMapDebuggingEsmShadowNodeBase
 			{
 				pass render_quad
 				{
-					store
-					{
-						depth	dont_care
-						stencil	dont_care
-					}
 					material Ogre/DPSM/CubeToDpsmColour
 					input 0 tmpCubemap
 				}
@@ -282,7 +249,6 @@ compositor_node_shadow ShadowMapDebuggingEsmShadowNodePixelShader : ShadowMapDeb
 	{
 		pass render_quad
 		{
-			load { all dont_care }
 			material ESM/GaussianLogFilterH
 			input 0 atlas
 		}
@@ -292,7 +258,6 @@ compositor_node_shadow ShadowMapDebuggingEsmShadowNodePixelShader : ShadowMapDeb
 	{
 		pass render_quad
 		{
-			load { all dont_care }
 			material ESM/GaussianLogFilterV
 			input 0 tmpGaussianFilter
 		}

@@ -34,38 +34,29 @@ THE SOFTWARE.
 
 namespace Ogre {
     // Forward declarations
-    class GL3PlusAsyncTextureTicket;
     class GL3PlusDynamicBuffer;
     class GL3PlusStagingBuffer;
-    class GL3PlusStagingTexture;
     class GL3PlusSupport;
     class GL3PlusRenderSystem;
+    class GL3PlusTexture;
+    class GL3PlusTextureManager;
     class GL3PlusContext;
     struct GL3PlusHlmsPso;
-    class GL3PlusTextureGpuManager;
+    class GL3PlusRTTManager;
+    class GL3PlusFBOManager;
+    class GL3PlusDepthBuffer;
     class GL3PlusVaoManager;
     
     class GLSLShader;
-
-
-#ifdef OGRE_DEPRECATED_2_2
-    class GL3PlusTexture;
-    class GL3PlusTextureManager;
-    class GL3PlusDepthBuffer;
-    class GL3PlusRTTManager;
-    class GL3PlusFBOManager;
-
-
-    typedef SharedPtr<GL3PlusTexture> GL3PlusTexturePtr;
 
     namespace v1
     {
         class GL3PlusHardwarePixelBuffer;
         class GL3PlusRenderBuffer;
     }
-#endif
 
     typedef SharedPtr<GLSLShader> GLSLShaderPtr;
+    typedef SharedPtr<GL3PlusTexture> GL3PlusTexturePtr;
 }
 
 #if OGRE_PLATFORM == OGRE_PLATFORM_WIN32
@@ -81,7 +72,7 @@ namespace Ogre {
 #   include <GL/gl3w.h>
 #   include <GL/glext.h>
 #   include <GL/wglext.h>
-#elif OGRE_PLATFORM == OGRE_PLATFORM_LINUX || OGRE_PLATFORM == OGRE_PLATFORM_FREEBSD
+#elif OGRE_PLATFORM == OGRE_PLATFORM_LINUX
 #   include <GL/gl3w.h>
 #   include <GL/glext.h>
 #elif OGRE_PLATFORM == OGRE_PLATFORM_APPLE
@@ -148,11 +139,5 @@ namespace Ogre {
 #endif
 
 #define OCGE OGRE_CHECK_GL_ERROR
-
-namespace Ogre
-{
-    extern void ogreGlObjectLabel( GLenum identifier, GLuint name, GLsizei length, const GLchar *label );
-    extern void ogreGlObjectLabel( GLenum identifier, GLuint name, const String &label );
-}
 
 #endif //#ifndef __GL3PlusPrerequisites_H__

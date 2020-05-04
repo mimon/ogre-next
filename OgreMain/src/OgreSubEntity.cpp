@@ -361,7 +361,8 @@ namespace v1 {
     }
     //-----------------------------------------------------------------------
     void SubEntity::_updateCustomGpuParameter(
-        const GpuProgramParameters_AutoConstantEntry &constantEntry, GpuProgramParameters *params ) const
+        const GpuProgramParameters::AutoConstantEntry& constantEntry,
+        GpuProgramParameters* params) const
     {
         if (constantEntry.paramType == GpuProgramParameters::ACT_ANIMATION_PARAMETRIC)
         {

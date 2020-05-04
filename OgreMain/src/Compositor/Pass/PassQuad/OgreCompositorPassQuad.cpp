@@ -36,30 +36,34 @@ THE SOFTWARE.
 #include "Compositor/OgreCompositorWorkspace.h"
 #include "Compositor/OgreCompositorWorkspaceListener.h"
 
+#include "OgreRenderTarget.h"
 #include "OgreMaterialManager.h"
 #include "OgreRectangle2D.h"
 #include "OgreSceneManager.h"
 #include "OgreTechnique.h"
-#include "OgreCamera.h"
+
+#include "OgreRenderTexture.h"
+#include "OgreHardwarePixelBuffer.h"
 
 namespace Ogre
 {
-    void CompositorPassQuadDef::addQuadTextureSource( size_t texUnitIdx, const String &textureName )
+    void CompositorPassQuadDef::addQuadTextureSource( size_t texUnitIdx, const String &textureName,
+                                                        size_t mrtIndex )
     {
         if( textureName.find( "global_" ) == 0 )
         {
             mParentNodeDef->addTextureSourceName( textureName, 0,
                                                     TextureDefinitionBase::TEXTURE_GLOBAL );
         }
-        mTextureSources.push_back( QuadTextureSource( texUnitIdx, textureName ) );
+        mTextureSources.push_back( QuadTextureSource( texUnitIdx, textureName, mrtIndex ) );
     }
     //-----------------------------------------------------------------------------------
     //-----------------------------------------------------------------------------------
     CompositorPassQuad::CompositorPassQuad( const CompositorPassQuadDef *definition,
                                             Camera *defaultCamera, CompositorNode *parentNode,
-                                            const RenderTargetViewDef *rtv, Real horizonalTexelOffset,
+                                            const CompositorChannel &target, Real horizonalTexelOffset,
                                             Real verticalTexelOffset ) :
-                CompositorPass( definition, parentNode ),
+                CompositorPass( definition, target, parentNode ),
                 mDefinition( definition ),
                 mFsRect( 0 ),
                 mDatablock( 0 ),
@@ -68,8 +72,6 @@ namespace Ogre
                 mHorizonalTexelOffset( horizonalTexelOffset ),
                 mVerticalTexelOffset( verticalTexelOffset )
     {
-        initialize( rtv );
-
         const CompositorWorkspace *workspace = parentNode->getWorkspace();
 
         if( mDefinition->mUseQuad ||
@@ -126,14 +128,17 @@ namespace Ogre
         CompositorPassQuadDef::TextureSources::const_iterator end  = textureSources.end();
         while( itor != end )
         {
-            TextureGpu *channel = mParentNode->getDefinedTexture( itor->textureName );
+            const CompositorChannel *channel = mParentNode->_getDefinedTexture( itor->textureName );
             CompositorTextureVec::const_iterator it = mTextureDependencies.begin();
             CompositorTextureVec::const_iterator en = mTextureDependencies.end();
             while( it != en && it->name != itor->textureName )
                 ++it;
 
             if( it == en )
-                mTextureDependencies.push_back( CompositorTexture( itor->textureName, channel ) );
+            {
+                mTextureDependencies.push_back( CompositorTexture( itor->textureName,
+                                                                   &channel->textures ) );
+            }
 
             ++itor;
         }
@@ -151,7 +156,13 @@ namespace Ogre
 
         profilingBegin();
 
-        notifyPassEarlyPreExecuteListeners();
+        CompositorWorkspaceListener *listener = mParentNode->getWorkspace()->getListener();
+        if( listener )
+            listener->passEarlyPreExecute( this );
+
+        //Call beginUpdate if we're the first to use this RT
+        if( mDefinition->mBeginRtUpdate )
+            mTarget->_beginUpdate();
 
         if( mPass )
         {
@@ -165,26 +176,18 @@ namespace Ogre
                 if( itor->texUnitIdx < mPass->getNumTextureUnitStates() )
                 {
                     TextureUnitState *tu = mPass->getTextureUnitState( itor->texUnitIdx );
-                    tu->setTexture( mParentNode->getDefinedTexture( itor->textureName ) );
+                    tu->setTexture( mParentNode->getDefinedTexture( itor->textureName,
+                                                                    itor->mrtIndex ) );
                 }
 
                 ++itor;
-            }
-
-            // Force all non-AutomaticBatching textures to be loaded before calling _renderSingleObject,
-            // since low level materials need these textures to be loaded (streaming is opt-in)
-            const size_t numTUs = mPass->getNumTextureUnitStates();
-            for( size_t i = 0u; i < numTUs; ++i )
-            {
-                TextureUnitState *tu = mPass->getTextureUnitState( i );
-                tu->_getTexturePtr();
             }
         }
 
         if( mHorizonalTexelOffset != 0 || mVerticalTexelOffset != 0 )
         {
-            const Real hOffset = 2.0f * mHorizonalTexelOffset / mAnyTargetTexture->getWidth();
-            const Real vOffset = 2.0f * mVerticalTexelOffset / mAnyTargetTexture->getHeight();
+            const Real hOffset = 2.0f * mHorizonalTexelOffset / mTarget->getWidth();
+            const Real vOffset = 2.0f * mVerticalTexelOffset / mTarget->getHeight();
 
             //The rectangle is shared, set the corners each time
             mFsRect->setCorners( 0.0f + hOffset, 0.0f - vOffset, 1.0f, 1.0f );
@@ -259,17 +262,16 @@ namespace Ogre
 
         executeResourceTransitions();
 
-        setRenderPassDescToCurrent();
+        SceneManager *sceneManager = mCamera->getSceneManager();
+        sceneManager->_setViewport( mViewport );
+        sceneManager->_setCameraInProgress( mCamera );
 
         //Fire the listener in case it wants to change anything
-        notifyPassPreExecuteListeners();
+        if( listener )
+            listener->passPreExecute( this );
 
-#if TODO_OGRE_2_2
         mTarget->setFsaaResolveDirty();
-#endif
 
-        SceneManager *sceneManager = mCamera->getSceneManager();
-        sceneManager->_setCamerasInProgress( CamerasInProgress(mCamera) );
         sceneManager->_setCurrentCompositorPass( this );
 
         //sceneManager->_injectRenderWithPass( mPass, mFsRect, mCamera, false, false );
@@ -277,10 +279,6 @@ namespace Ogre
             mFsRect->setMaterial( mMaterial ); //Low level material
         else
             mFsRect->setDatablock( mDatablock ); //Hlms material
-
-        RenderSystem *renderSystem = sceneManager->getDestinationRenderSystem();
-        renderSystem->executeRenderPassDescriptorDelayedActions();
-
         sceneManager->_renderSingleObject( mFsRect, mFsRect, false, false );
 
         if( mDefinition->mCameraCubemapReorient )
@@ -291,7 +289,20 @@ namespace Ogre
 
         sceneManager->_setCurrentCompositorPass( 0 );
 
-        notifyPassPosExecuteListeners();
+        if( listener )
+            listener->passPosExecute( this );
+
+        if( mDefinition->mIsResolve )
+        {
+            TexturePtr tex = mParentNode->getDefinedTexture( mDefinition->mFsaaTextureName, 0 );
+
+            if( !tex.isNull() )
+                tex->getBuffer()->getRenderTarget()->setFsaaResolved();
+        }
+
+        //Call endUpdate if we're the last pass in a row to use this RT
+        if( mDefinition->mEndRtUpdate )
+            mTarget->_endUpdate();
 
         profilingEnd();
     }

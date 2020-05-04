@@ -20,7 +20,7 @@ namespace Demo
 
         bool                mAnimateObjects;
 
-        Ogre::TextureGpu    *mAreaMaskTex;
+        Ogre::TexturePtr    mAreaMaskTex;
 
         void createAreaMask(void);
         void createAreaPlaneMesh(void);

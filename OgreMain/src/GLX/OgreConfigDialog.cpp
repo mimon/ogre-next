@@ -27,9 +27,8 @@ THE SOFTWARE.
 */
 #include "OgreConfigDialog.h"
 #include "OgreException.h"
-#include "OgreTextureBox.h"
-#include "OgreImage2.h"
-#include "OgrePixelFormatGpuUtils.h"
+#include "OgreImage.h"
+#include "OgrePixelBox.h"
 #include "OgreLogManager.h"
 
 #include <cstdlib>
@@ -53,7 +52,6 @@ THE SOFTWARE.
 #include <X11/Xaw/MenuButton.h>
 #include <X11/Xaw/SimpleMenu.h>
 #include <X11/Xaw/SmeBSB.h>
-#include <X11/extensions/Xrandr.h>
 
 #include <list>
 
@@ -111,7 +109,7 @@ public:
     void Exit();
 protected:
     Display *mDisplay;
-    ::Window mWindow;
+    Window mWindow;
     Pixmap mBackDrop;
 
     int mWidth, mHeight;
@@ -122,7 +120,7 @@ protected:
     /**
      * Create backdrop image, and return it as a Pixmap.
      */
-    virtual Pixmap CreateBackdrop(::Window rootWindow, int depth);
+    virtual Pixmap CreateBackdrop(Window rootWindow, int depth);
     /**
      * Called after window initialisation.
      */
@@ -131,9 +129,6 @@ protected:
      * Called initially, and on expose.
      */
     virtual void Draw();
-
-    void findMonitorIndexFromMouseCursor( ::Window rootWindow, int screen,
-                                          int &outCenterW, int &outCenterH );
 public:
     /* Local */
     bool accept;
@@ -224,48 +219,6 @@ GLXConfigurator::~GLXConfigurator() {
     }
 }
 
-void GLXConfigurator::findMonitorIndexFromMouseCursor( ::Window rootWindow, int screen,
-                                                       int &outCenterW, int &outCenterH )
-{
-    int dummy = 0;
-    if( XQueryExtension( mDisplay, "RANDR", &dummy, &dummy, &dummy ) )
-    {
-        XRRScreenResources *screenXRR = XRRGetScreenResources( mDisplay, rootWindow );
-
-        ::Window mouseRootWindow;
-        ::Window mouseRootWindowChild;
-        int unused;
-        unsigned int mask;
-        int mouseX, mouseY;
-        Bool result = XQueryPointer( mDisplay, rootWindow, &mouseRootWindow, &mouseRootWindowChild,
-                                     &mouseX, &mouseY, &unused, &unused, &mask );
-        if( result == True )
-        {
-            for( int i=0; i< screenXRR->ncrtc; ++i )
-            {
-                XRRCrtcInfo *crtcInfo = XRRGetCrtcInfo( mDisplay, screenXRR, screenXRR->crtcs[i] );
-                if( crtcInfo->x <= mouseX && mouseX < (int)(crtcInfo->x + crtcInfo->width) &&
-                    crtcInfo->y <= mouseY && mouseY < (int)(crtcInfo->y + crtcInfo->height) )
-                {
-                    outCenterW = crtcInfo->x + crtcInfo->width / 2;
-                    outCenterH = crtcInfo->y + crtcInfo->height / 2;
-                    XRRFreeCrtcInfo( crtcInfo );
-                    XRRFreeScreenResources( screenXRR );
-                    return;
-                }
-
-                XRRFreeCrtcInfo( crtcInfo );
-            }
-        }
-
-        XRRFreeScreenResources( screenXRR );
-    }
-
-    //Couldn't find. Probably remote display.
-    outCenterW = DisplayWidth(mDisplay, screen) / 2;
-    outCenterH = DisplayHeight(mDisplay, screen) / 2;
-}
-
 bool GLXConfigurator::CreateWindow() {
 
 
@@ -287,14 +240,14 @@ bool GLXConfigurator::CreateWindow() {
     /* Find out display and screen used */
     mDisplay = XtDisplay(toplevel);
     int screen = DefaultScreen(mDisplay);
-    ::Window rootWindow = RootWindow(mDisplay,screen);
+    Window rootWindow = RootWindow(mDisplay,screen);
 
     /* Move to center of display */
-    int centerX = 0, centerY = 0;
-    findMonitorIndexFromMouseCursor( rootWindow, screen, centerX, centerY );
+    int w = DisplayWidth(mDisplay, screen);
+    int h = DisplayHeight(mDisplay, screen);
     XtVaSetValues(toplevel,
-            XtNx, centerX - mWidth / 2,
-            XtNy, centerY - mHeight / 2, 0, NULL);
+            XtNx, w/2-mWidth/2,
+            XtNy, h/2-mHeight/2, 0, NULL);
 
     /* Backdrop stuff */
     mBackDrop = CreateBackdrop(rootWindow, DefaultDepth(mDisplay,screen));
@@ -377,11 +330,10 @@ bool GLXConfigurator::CreateWindow() {
     return true;
 }
 
-Pixmap GLXConfigurator::CreateBackdrop(::Window rootWindow, int depth) {
+Pixmap GLXConfigurator::CreateBackdrop(Window rootWindow, int depth) {
     int bpl;
     /* Find out number of bytes per pixel */
-    switch(depth)
-    {
+    switch(depth) {
     default:
         LogManager::getSingleton().logMessage("GLX backdrop: Unsupported bit depth");
         /* Unsupported bit depth */
@@ -396,40 +348,28 @@ Pixmap GLXConfigurator::CreateBackdrop(::Window rootWindow, int depth) {
     /* Create background pixmap */
     unsigned char *data = 0; // Must be allocated with malloc
 
-    try
-    {
+    try {
         String imgType = "png";
-        Image2 img;
+        Image img;
         MemoryDataStream *imgStream;
         DataStreamPtr imgStreamPtr;
 
         // Load backdrop image using OGRE
-        imgStream = new MemoryDataStream( const_cast<unsigned char*>(GLX_backdrop_data),
-                                          sizeof(GLX_backdrop_data), false );
-        imgStreamPtr = DataStreamPtr( imgStream );
-        img.load( imgStreamPtr, imgType );
+        imgStream = new MemoryDataStream(const_cast<unsigned char*>(GLX_backdrop_data), sizeof(GLX_backdrop_data), false);
+        imgStreamPtr = DataStreamPtr(imgStream);
+        img.load(imgStreamPtr, imgType);
 
-        TextureBox srcBox = img.getData( 0 );
+        PixelBox src = img.getPixelBox(0, 0);
 
         // Convert and copy image
-        data = (unsigned char*)malloc( mWidth * mHeight * bpl ); // Must be allocated with malloc
+        data = (unsigned char*)malloc(mWidth * mHeight * bpl); // Must be allocated with malloc
 
-        const PixelFormatGpu dstFormat = bpl == 2 ? PFG_B5G6R5_UNORM : PFG_BGRA8_UNORM;
-        TextureBox dstBox( mWidth, mHeight, 1u, 1u,
-                           PixelFormatGpuUtils::getBytesPerPixel( dstFormat ),
-                           PixelFormatGpuUtils::getSizeBytes( mWidth, 1u, 1u, 1u, dstFormat, 1u ),
-                           PixelFormatGpuUtils::getSizeBytes( mWidth, mHeight, 1u, 1u, dstFormat, 1u ) );
-        dstBox.data = data;
+        PixelBox dst(src, bpl == 2 ? PF_B5G6R5 : PF_A8R8G8B8, data );
 
-        PixelFormatGpuUtils::bulkPixelConversion( srcBox, img.getPixelFormat(),
-                                                  dstBox, dstFormat );
-    }
-    catch( Exception &e )
-    {
+        PixelUtil::bulkPixelConversion(src, dst);
+    } catch(Exception &e) {
         // Could not find image; never mind
-        LogManager::getSingleton().logMessage(
-                    "WARNING: Can not load backdrop for config dialog. " + e.getDescription(),
-                    LML_TRIVIAL );
+        LogManager::getSingleton().logMessage("WARNING: Can not load backdrop for config dialog. " + e.getDescription(), LML_TRIVIAL);
         return 0;
     }
 

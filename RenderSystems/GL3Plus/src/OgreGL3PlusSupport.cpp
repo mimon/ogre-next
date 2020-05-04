@@ -29,8 +29,6 @@ Copyright (c) 2000-2014 Torus Knot Software Ltd
 #include "OgreGL3PlusSupport.h"
 #include "OgreLogManager.h"
 
-#include <sstream>
-
 namespace Ogre {
 
     void GL3PlusSupport::setConfigOption(const String &name, const String &value)
@@ -61,15 +59,11 @@ namespace Ogre {
         glGetIntegerv(GL_MAJOR_VERSION, &mVersion.major);
         glGetIntegerv(GL_MINOR_VERSION, &mVersion.minor);
 
-        LogManager::getSingleton().logMessage("GL Version = " + mVersion.toString());
-
-        const GLubyte* pcVersion = glGetString(GL_VERSION);
-        String tmpStr = (const char*)pcVersion;
-        LogManager::getSingleton().logMessage("GL_VERSION = " + tmpStr);
+        LogManager::getSingleton().logMessage("GL_VERSION = " + mVersion.toString());
 
         // Get vendor
         const GLubyte* pcVendor = glGetString(GL_VENDOR);
-        tmpStr = (const char*)pcVendor;
+        String tmpStr = (const char*)pcVendor;
         LogManager::getSingleton().logMessage("GL_VENDOR = " + tmpStr);
         mVendor = tmpStr.substr(0, tmpStr.find(" "));
 

@@ -18,7 +18,7 @@
 #include "OgreHlmsPbsDatablock.h"
 
 #include "OgreCamera.h"
-#include "OgreWindow.h"
+#include "OgreRenderWindow.h"
 
 using namespace Demo;
 

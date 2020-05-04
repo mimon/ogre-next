@@ -30,7 +30,6 @@
 #include "OgreLogManager.h"
 #include "OgreRoot.h"
 #include "OgreStringConverter.h"
-#include "OgreString.h"
 
 #include "OgreGLSLShader.h"
 #include "OgreGLSLShader.h"
@@ -38,10 +37,6 @@
 #include "OgreGLSLSeparableProgramManager.h"
 #include "OgreGLSLPreprocessor.h"
 #include "OgreGL3PlusUtil.h"
-
-#include "OgreLwString.h"
-
-#include <sstream>
 
 namespace Ogre {
 
@@ -222,12 +217,10 @@ namespace Ogre {
         GLenum GLShaderType = getGLShaderType(mType);
         OGRE_CHECK_GL_ERROR(mGLShaderHandle = glCreateShader(GLShaderType));
 
-        {
-            char tmpBuffer[256];
-            LwString compundName( LwString::FromEmptyPointer( tmpBuffer, sizeof(tmpBuffer) ) );
-            compundName.a( mName.c_str(), " (", mFilename.c_str(), ")" );
-            ogreGlObjectLabel( GL_SHADER, mGLShaderHandle, compundName.size(), compundName.c_str() );
-        }
+        //TODO GL 4.3 KHR_debug
+
+        // if (getGLSupport()->checkExtension("GL_KHR_debug") || mHasGL43)
+        //     glObjectLabel(GL_SHADER, mGLShaderHandle, 0, mName.c_str());
 
         // if (Root::getSingleton().getRenderSystem()->getCapabilities()->hasCapability(RSC_SEPARATE_SHADER_OBJECTS))
         // {

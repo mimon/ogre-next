@@ -34,7 +34,6 @@
 #include "OgreGL3PlusHardwareBufferManager.h"
 #include "OgreRoot.h"
 #include "OgreGL3PlusUtil.h"
-#include "OgreString.h"
 
 #include <iostream>
 
@@ -254,12 +253,6 @@ namespace Ogre {
         case GL_INT_SAMPLER_CUBE:
         case GL_UNSIGNED_INT_SAMPLER_CUBE:
             defToUpdate.constType = GCT_SAMPLERCUBE;
-            break;
-        case GL_SAMPLER_CUBE_MAP_ARRAY:
-        case GL_SAMPLER_CUBE_MAP_ARRAY_SHADOW:
-        case GL_INT_SAMPLER_CUBE_MAP_ARRAY:
-        case GL_UNSIGNED_INT_SAMPLER_CUBE_MAP_ARRAY:
-            defToUpdate.constType = GCT_SAMPLERCUBE_ARRAY;
             break;
         case GL_SAMPLER_1D_SHADOW:
         case GL_SAMPLER_1D_ARRAY_SHADOW:

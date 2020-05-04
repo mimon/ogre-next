@@ -147,7 +147,6 @@ namespace Ogre
         D3D11SyncVec mFrameSyncVec;
 
         VertexBufferPacked  *mDrawId;
-        ID3D11Buffer        *mSplicingHelperBuffer;
 
         D3D11RenderSystem   *mD3D11RenderSystem;
 
@@ -208,9 +207,6 @@ namespace Ogre
 
         virtual void destroyVertexBufferImpl( VertexBufferPacked *vertexBuffer );
 
-    public:
-        void _forceCreateDelayedImmutableBuffers(void);
-    protected:
         void createDelayedImmutableBuffers(void);
         void reorganizeImmutableVaos(void);
 
@@ -230,7 +226,7 @@ namespace Ogre
                                                           void *initialData, bool keepAsShadow );
         virtual void destroyConstBufferImpl( ConstBufferPacked *constBuffer );
 
-        virtual TexBufferPacked* createTexBufferImpl( PixelFormatGpu pixelFormat, size_t sizeBytes,
+        virtual TexBufferPacked* createTexBufferImpl( PixelFormat pixelFormat, size_t sizeBytes,
                                                       BufferType bufferType,
                                                       void *initialData, bool keepAsShadow );
         virtual void destroyTexBufferImpl( TexBufferPacked *texBuffer );
@@ -268,26 +264,12 @@ namespace Ogre
                                                                  void *initialData,
                                                                  uint32 structureByteStride = 0 );
 
-        inline void getMemoryStats( const Block &block, uint32 vboIdx0, uint32 vboIdx1,
-                                    size_t poolCapacity, LwString &text,
-                                    MemoryStatsEntryVec &outStats,
-                                    Log *log ) const;
-
-        virtual void switchVboPoolIndexImpl( size_t oldPoolIdx, size_t newPoolIdx,
-                                             BufferPacked *buffer );
-
     public:
         D3D11VaoManager( bool supportsIndirectBuffers, D3D11Device &device,
-                         D3D11RenderSystem *renderSystem, const NameValuePairList *params );
+                         D3D11RenderSystem *renderSystem );
         virtual ~D3D11VaoManager();
 
-        virtual void getMemoryStats( MemoryStatsEntryVec &outStats, size_t &outCapacityBytes,
-                                     size_t &outFreeBytes, Log *log ) const;
-
-        virtual void cleanupEmptyPools(void);
-
-        D3D11RenderSystem* getD3D11RenderSystem(void) const             { return mD3D11RenderSystem; }
-        D3D11Device& getDevice(void) const                              { return mDevice; }
+        D3D11RenderSystem* getD3D11RenderSystem(void) const              { return mD3D11RenderSystem; }
 
         /// Binds the Draw ID to the currently bound vertex array object.
         void bindDrawId( uint32 bindSlotId );
@@ -304,12 +286,6 @@ namespace Ogre
 
         virtual void _beginFrame(void);
         virtual void _update(void);
-
-        /// When dealing with copy operations on structured buffers, D3D11 wants buffers
-        /// to be of the same size as the structured buffer's stride. Because we allow
-        /// more relaxed copies, we create a helper buffer of 2kb (max stride) to splice
-        /// buffer copies and workaround this limitation
-        ID3D11Buffer* getSplicingHelperBuffer(void);
 
         /// @see VaoManager::waitForTailFrameToFinish
         virtual uint8 waitForTailFrameToFinish(void);
@@ -333,9 +309,6 @@ namespace Ogre
         */
         static ID3D11Query* waitFor( ID3D11Query *fenceName, ID3D11DeviceContextN *deviceContext );
         ID3D11Query* waitFor( ID3D11Query *fenceName );
-
-        static bool queryIsDone( ID3D11Query *fenceName, ID3D11DeviceContextN *deviceContext );
-        bool queryIsDone( ID3D11Query *fenceName );
     };
 }
 

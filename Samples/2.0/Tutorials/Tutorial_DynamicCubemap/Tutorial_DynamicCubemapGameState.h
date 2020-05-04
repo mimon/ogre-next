@@ -5,15 +5,10 @@
 #include "OgrePrerequisites.h"
 #include "TutorialGameState.h"
 
+#include "OgreTexture.h"
+
 namespace Demo
 {
-    enum IblQuality
-    {
-        MipmapsLowest,
-        IblLow,
-        IblHigh
-    };
-
     class DynamicCubemapGameState : public TutorialGameState
     {
         Ogre::SceneNode     *mSceneNode[16];
@@ -22,13 +17,11 @@ namespace Demo
 
         bool                mAnimateObjects;
 
-        IblQuality          mIblQuality;
-
         std::vector<Ogre::MovableObject*> mSpheres;
         std::vector<Ogre::MovableObject*> mObjects;
 
         Ogre::Camera                *mCubeCamera;
-        Ogre::TextureGpu            *mDynamicCubemap;
+        Ogre::TexturePtr            mDynamicCubemap;
         Ogre::CompositorWorkspace   *mDynamicCubemapWorkspace;
 
         virtual void generateDebugText( float timeSinceLast, Ogre::String &outText );

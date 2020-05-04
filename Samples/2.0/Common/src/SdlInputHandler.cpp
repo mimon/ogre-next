@@ -126,15 +126,6 @@ namespace Demo
                         mGraphicsSystem->queueSendMessage( mLogicSystem, Mq::SDL_EVENT, evt );
                 }
                 break;
-            case SDL_TEXTEDITING:
-                {
-                    if( mKeyboardListener )
-                        mKeyboardListener->textEditing( evt.edit );
-
-                    if( mLogicSystem )
-                        mGraphicsSystem->queueSendMessage( mLogicSystem, Mq::SDL_EVENT, evt );
-                }
-                break;
             case SDL_TEXTINPUT:
                 {
                     if( mKeyboardListener )

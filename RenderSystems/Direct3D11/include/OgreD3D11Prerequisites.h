@@ -48,14 +48,10 @@ THE SOFTWARE.
 
 #undef NOMINMAX
 #define NOMINMAX // required to stop windows.h screwing up std::min definition
-#if defined( _WIN32_WINNT_WIN8 ) || OGRE_COMPILER != OGRE_COMPILER_MSVC
-    #include <d3d11_1.h>
-    #if !defined(_WIN32_WINNT_WIN10)
-        #define DXGI_SWAP_EFFECT_FLIP_DISCARD ((DXGI_SWAP_EFFECT)(4)) // we want to use it on Win10 even if building with Win8 SDK
-    #endif
+#if OGRE_PLATFORM == OGRE_PLATFORM_WINRT || OGRE_D3D11_PROFILING
+#include <d3d11_1.h>
 #else
-    #include <d3d11.h>
-    #include "OgreD3D11LegacySDKEmulation.h"
+#include <d3d11.h>
 #endif
 
 #if __OGRE_WINRT_PHONE_80
@@ -90,10 +86,12 @@ namespace Ogre
 #endif
 
     // Predefine classes
-    class D3D11AsyncTextureTicket;
     class D3D11RenderSystem;
     class D3D11RenderWindowBase;
     class D3D11CompatBufferInterface;
+    class D3D11Texture;
+    class D3D11TextureManager;
+    class D3D11DepthBuffer;
     class D3D11Driver;
     class D3D11DriverList;
     class D3D11DynamicBuffer;
@@ -104,20 +102,8 @@ namespace Ogre
     class D3D11HLSLProgramFactory;
     class D3D11HLSLProgram;
     class D3D11Device;
-    class D3D11StagingTexture;
-    class D3D11TextureGpu;
     class D3D11VaoManager;
-    class D3D11VendorExtension;
     struct D3D11VertexArrayObjectShared;
-    class D3D11Window;
-
-#ifdef OGRE_DEPRECATED_2_2
-    class D3D11Texture;
-    class D3D11TextureManager;
-    class D3D11DepthBuffer;
-
-    typedef SharedPtr<D3D11Texture>     D3D11TexturePtr;
-#endif
 
     namespace v1
     {
@@ -128,6 +114,7 @@ namespace Ogre
     }
 
     typedef SharedPtr<D3D11HLSLProgram> D3D11HLSLProgramPtr;
+    typedef SharedPtr<D3D11Texture>     D3D11TexturePtr;
 
     //-------------------------------------------
     // Windows setttings

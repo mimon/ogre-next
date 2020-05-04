@@ -10,9 +10,6 @@
     #define NOMINMAX
     #include <windows.h>
 #endif
-#if OGRE_PLATFORM == OGRE_PLATFORM_WINRT
-#include <wrl.h>
-#endif
 
 #if OGRE_PLATFORM == OGRE_PLATFORM_WIN32
     #define DEMO_MAIN_ENTRY_PARAMS hInst, hPrevInstance, strCmdLine, nCmdShow
@@ -22,7 +19,7 @@
     int mainApp( int argc, const char *argv[] );
 #endif
 
-#if OGRE_PLATFORM == OGRE_PLATFORM_WIN32 || OGRE_PLATFORM == OGRE_PLATFORM_WINRT
+#if OGRE_PLATFORM == OGRE_PLATFORM_WIN32
 INT WINAPI WinMain( HINSTANCE hInst, HINSTANCE hInst2, LPSTR strCmdLine, INT intParam )
 #else
 int main( int argc, const char *argv[] )
@@ -33,9 +30,6 @@ int main( int argc, const char *argv[] )
     {
     #if OGRE_PLATFORM == OGRE_PLATFORM_WIN32
         retVal = WinMainApp( hInst, hInst2, strCmdLine, intParam );
-    #elif OGRE_PLATFORM == OGRE_PLATFORM_WINRT
-        if (SUCCEEDED(Windows::Foundation::Initialize(RO_INIT_MULTITHREADED)))
-            retVal = SDL_WinRTRunApp((int(*)(int,char**))mainApp, NULL);
     #else
         retVal = mainApp( argc, argv );
     #endif

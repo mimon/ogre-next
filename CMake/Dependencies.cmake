@@ -148,13 +148,7 @@ if(WIN32)
 		find_package(AMDQBS)
 		macro_log_feature(AMDQBS_FOUND "AMDQBS" "Support AMD stereo with the DirectX render system" "http://developer.amd.com/tools-and-sdks/graphics-development/amd-quad-buffer-sdk/" FALSE "" "")
 	endif()
-
-	find_package(AMDAGS)
-	macro_log_feature(AMDAGS_FOUND "AMDAGS" "Use AMD GPU Services library to provide D3D vendor extensions" "https://gpuopen.com/gaming-product/amd-gpu-services-ags-library/" FALSE "" "")
 endif()
-
-find_package(OpenVR)
-macro_log_feature(OpenVR_FOUND "OpenVR" "OpenVR for Virtual Reality" "https://github.com/ValveSoftware/openvr" FALSE "" "")
 
 #######################################################################
 # Additional features

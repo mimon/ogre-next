@@ -54,9 +54,11 @@ namespace Ogre
             size_t      texUnitIdx;
             /// Name of the texture (can come from input channel, local textures, or global ones)
             IdString    textureName;
+            /// Index in case of MRT. Ignored if textureSource isn't mrt
+            size_t      mrtIndex;
 
-            QuadTextureSource( size_t _texUnitIdx, IdString _textureName ) :
-                texUnitIdx( _texUnitIdx ), textureName( _textureName ) {}
+            QuadTextureSource( size_t _texUnitIdx, IdString _textureName, size_t _mrtIndex ) :
+                texUnitIdx( _texUnitIdx ), textureName( _textureName ), mrtIndex( _mrtIndex ) {}
         };
         typedef vector<QuadTextureSource>::type TextureSources;
 
@@ -91,6 +93,7 @@ namespace Ogre
             @See TextureDefinitionBase::TextureDefinition::fsaaExplicitResolve
         */
         bool     mIsResolve;
+        IdString mFsaaTextureName;
 
         /** When true, the camera will be rotated 90°, -90° or 180° depending on the value of
             mRtIndex and then restored to its original rotation after we're done.
@@ -120,7 +123,7 @@ namespace Ogre
         /** Indicates the pass to change the texture units to use the specified texture sources.
             @See QuadTextureSource for params
         */
-        void addQuadTextureSource( size_t texUnitIdx, const String &textureName );
+        void addQuadTextureSource( size_t texUnitIdx, const String &textureName, size_t mrtIndex );
 
         const TextureSources& getTextureSources(void) const     { return mTextureSources; }
     };

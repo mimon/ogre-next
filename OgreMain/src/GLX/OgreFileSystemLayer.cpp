@@ -33,8 +33,6 @@
 #include <sys/stat.h>
 #include <pwd.h>
 
-#include <stdio.h>
-
 namespace Ogre
 {
     namespace {

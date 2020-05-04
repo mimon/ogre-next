@@ -43,11 +43,10 @@ THE SOFTWARE.
 #include "OgreRenderQueue.h"
 
 #include "OgreGL3PlusHardwareBufferManager.h" //GL3PlusHardwareBufferManager::getGLType
-#include "OgreGL3PlusStagingTexture.h"
 
 #include "OgreTimer.h"
 #include "OgreStringConverter.h"
-#include "OgreLwString.h"
+
 
 namespace Ogre
 {
@@ -77,47 +76,22 @@ namespace Ogre
         14, // VES_BLEND_INDICES2 - 1
     };
 
-    static const char *c_vboTypes[] =
-    {
-        "CPU_INACCESSIBLE",
-        "CPU_ACCESSIBLE_DEFAULT",
-        "CPU_ACCESSIBLE_PERSISTENT",
-        "CPU_ACCESSIBLE_PERSISTENT_COHERENT",
-    };
-
     GL3PlusVaoManager::GL3PlusVaoManager( bool _supportsArbBufferStorage,
                                           bool emulateTexBuffers,
                                           bool _supportsIndirectBuffers,
                                           bool _supportsBaseInstance,
-                                          bool _supportsSsbo,
-                                          const NameValuePairList *params ) :
-        VaoManager( params ),
+                                          bool _supportsSsbo ) :
         mArbBufferStorage( _supportsArbBufferStorage ),
         mEmulateTexBuffers( emulateTexBuffers ),
         mMaxVertexAttribs( 30 ),
         mDrawId( 0 )
     {
-        //Keep pools of 64MB each for static meshes
-        mDefaultPoolSize[CPU_INACCESSIBLE]  = 64 * 1024 * 1024;
+        //Keep pools of 128MB each for static meshes
+        mDefaultPoolSize[CPU_INACCESSIBLE]  = 128 * 1024 * 1024;
 
-        //Keep pools of 4MB each for most dynamic buffers, 16 for the most common one.
+        //Keep pools of 32MB each for dynamic vertex buffers
         for( size_t i=CPU_ACCESSIBLE_DEFAULT; i<=CPU_ACCESSIBLE_PERSISTENT_COHERENT; ++i )
-            mDefaultPoolSize[i] = 4 * 1024 * 1024;
-        mDefaultPoolSize[CPU_ACCESSIBLE_PERSISTENT] = 16 * 1024 * 1024;
-
-        if( params )
-        {
-            for( size_t i=0; i<MAX_VBO_FLAG; ++i )
-            {
-                NameValuePairList::const_iterator itor =
-                        params->find( String( "VaoManager::" ) + c_vboTypes[i] );
-                if( itor != params->end() )
-                {
-                    mDefaultPoolSize[i] = StringConverter::parseUnsignedInt( itor->second,
-                                                                             mDefaultPoolSize[i] );
-                }
-            }
-        }
+            mDefaultPoolSize[i] = 32 * 1024 * 1024;
 
         mFrameSyncVec.resize( mDynamicBufferMultiplier, 0 );
 
@@ -167,19 +141,13 @@ namespace Ogre
         mSupportsIndirectBuffers    = _supportsIndirectBuffers;
         mSupportsBaseInstance       = _supportsBaseInstance;
 
-        //4096u is a sensible default because most Hlms implementations need 16 bytes per
-        //instance in a const buffer. HlmsBufferManager::mapNextConstBuffer purposedly clamps
-        //its const buffers to 64kb, so that 64kb / 16 = 4096 and thus it can never exceed
-        //4096 instances.
-        //However due to instanced stereo, we need twice that
-        const uint32 maxNumInstances = 4096u * 2u;
         VertexElement2Vec vertexElements;
         vertexElements.push_back( VertexElement2( VET_UINT1, VES_COUNT ) );
-        uint32 *drawIdPtr = static_cast<uint32*>( OGRE_MALLOC_SIMD( maxNumInstances * sizeof(uint32),
+        uint32 *drawIdPtr = static_cast<uint32*>( OGRE_MALLOC_SIMD( 4096 * sizeof(uint32),
                                                                     MEMCATEGORY_GEOMETRY ) );
-        for( uint32 i=0; i<maxNumInstances; ++i )
+        for( uint32 i=0; i<4096; ++i )
             drawIdPtr[i] = i;
-        mDrawId = createVertexBuffer( vertexElements, maxNumInstances, BT_IMMUTABLE, drawIdPtr, true );
+        mDrawId = createVertexBuffer( vertexElements, 4096, BT_IMMUTABLE, drawIdPtr, true );
     }
     //-----------------------------------------------------------------------------------
     GL3PlusVaoManager::~GL3PlusVaoManager()
@@ -242,175 +210,6 @@ namespace Ogre
         {
             OCGE( glDeleteSync( *itor ) );
             ++itor;
-        }
-    }
-    //-----------------------------------------------------------------------------------
-    void GL3PlusVaoManager::getMemoryStats( const Block &block, size_t vboIdx, size_t poolCapacity,
-                                            LwString &text, MemoryStatsEntryVec &outStats,
-                                            Log *log ) const
-    {
-        if( log )
-        {
-            text.clear();
-            text.a( c_vboTypes[vboIdx], ";",
-                    (uint64)block.offset, ";",
-                    (uint64)block.size, ";",
-                    (uint64)poolCapacity );
-            log->logMessage( text.c_str(), LML_CRITICAL );
-        }
-
-        MemoryStatsEntry entry( (uint32)vboIdx, block.offset, block.size, poolCapacity );
-        outStats.push_back( entry );
-    }
-    //-----------------------------------------------------------------------------------
-    void GL3PlusVaoManager::getMemoryStats( MemoryStatsEntryVec &outStats, size_t &outCapacityBytes,
-                                            size_t &outFreeBytes, Log *log ) const
-    {
-        size_t capacityBytes = 0;
-        size_t freeBytes = 0;
-        MemoryStatsEntryVec statsVec;
-        statsVec.swap( outStats );
-
-        vector<char>::type tmpBuffer;
-        tmpBuffer.resize( 512 * 1024 ); //512kb per line should be way more than enough
-        LwString text( LwString::FromEmptyPointer( &tmpBuffer[0], tmpBuffer.size() ) );
-
-        if( log )
-            log->logMessage( "Pool Type;Offset;Size Bytes;Pool Capacity", LML_CRITICAL );
-
-        for( int vboIdx=0; vboIdx<MAX_VBO_FLAG; ++vboIdx )
-        {
-            VboVec::const_iterator itor = mVbos[vboIdx].begin();
-            VboVec::const_iterator end  = mVbos[vboIdx].end();
-
-            while( itor != end )
-            {
-                const Vbo &vbo = *itor;
-                capacityBytes += vbo.sizeBytes;
-
-                Block usedBlock( 0, 0 );
-
-                BlockVec freeBlocks = vbo.freeBlocks;
-                while( !freeBlocks.empty() )
-                {
-                    //Find the free block that comes next
-                    BlockVec::iterator nextBlock;
-                    {
-                        BlockVec::iterator itBlock = freeBlocks.begin();
-                        BlockVec::iterator enBlock = freeBlocks.end();
-
-                        nextBlock = itBlock;
-
-                        while( itBlock != enBlock )
-                        {
-                            if( nextBlock->offset < itBlock->offset )
-                                nextBlock = itBlock;
-                            ++itBlock;
-                        }
-                    }
-
-                    freeBytes += nextBlock->size;
-                    usedBlock.size = nextBlock->offset;
-
-                    //usedBlock.size could be 0 if:
-                    //  1. All of memory is free
-                    //  2. There's two contiguous free blocks, which should not happen
-                    //     due to mergeContiguousBlocks
-                    if( usedBlock.size > 0u )
-                        getMemoryStats( usedBlock, vboIdx, vbo.sizeBytes, text, statsVec, log );
-
-                    usedBlock.offset += usedBlock.size;
-                    usedBlock.size = 0;
-                    efficientVectorRemove( freeBlocks, nextBlock );
-                }
-
-                if( usedBlock.size > 0u || (usedBlock.offset == 0 && usedBlock.size == 0) )
-                    getMemoryStats( usedBlock, vboIdx, vbo.sizeBytes, text, statsVec, log );
-
-                ++itor;
-            }
-        }
-
-        outCapacityBytes = capacityBytes;
-        outFreeBytes = freeBytes;
-        statsVec.swap( outStats );
-    }
-    //-----------------------------------------------------------------------------------
-    void GL3PlusVaoManager::switchVboPoolIndexImpl( size_t oldPoolIdx, size_t newPoolIdx,
-                                                    BufferPacked *buffer )
-    {
-        if( mSupportsIndirectBuffers || buffer->getBufferPackedType() != BP_TYPE_INDIRECT )
-        {
-            GL3PlusBufferInterface *bufferInterface = static_cast<GL3PlusBufferInterface*>(
-                                                          buffer->getBufferInterface() );
-            if( bufferInterface->getVboPoolIndex() == oldPoolIdx )
-                bufferInterface->_setVboPoolIndex( newPoolIdx );
-        }
-    }
-    //-----------------------------------------------------------------------------------
-    void GL3PlusVaoManager::cleanupEmptyPools(void)
-    {
-        FastArray<GLuint> bufferNames;
-
-        for( int vboIdx=0; vboIdx<MAX_VBO_FLAG; ++vboIdx )
-        {
-            VboVec::iterator itor = mVbos[vboIdx].begin();
-            VboVec::iterator end  = mVbos[vboIdx].end();
-
-            while( itor != end )
-            {
-                Vbo &vbo = *itor;
-                if( vbo.freeBlocks.size() == 1u &&
-                    vbo.sizeBytes == vbo.freeBlocks.back().size )
-                {
-#if OGRE_DEBUG_MODE >= OGRE_DEBUG_LOW
-                    VaoVec::const_iterator itVao = mVaos.begin();
-                    VaoVec::const_iterator enVao = mVaos.end();
-
-                    while( itVao != enVao )
-                    {
-                        Vao::VertexBindingVec::const_iterator itBuf = itVao->vertexBuffers.begin();
-                        Vao::VertexBindingVec::const_iterator enBuf = itVao->vertexBuffers.end();
-
-                        while( itBuf != enBuf )
-                        {
-                            OGRE_ASSERT_LOW( itBuf->vertexBufferVbo != vbo.vboName &&
-                                             "A VertexArrayObject still references "
-                                             "a deleted vertex buffer!" );
-                            ++itBuf;
-                        }
-
-                        OGRE_ASSERT_LOW( itVao->indexBufferVbo != vbo.vboName &&
-                                         "A VertexArrayObject still references "
-                                         "a deleted index buffer!" );
-
-                        ++itVao;
-                    }
-#endif
-
-                    bufferNames.push_back( vbo.vboName );
-                    delete vbo.dynamicBuffer;
-                    vbo.dynamicBuffer = 0;
-
-                    //There's (unrelated) live buffers whose vboIdx will now point out of bounds.
-                    //We need to update them so they don't crash deallocateVbo later.
-                    switchVboPoolIndex( (size_t)(mVbos[vboIdx].size() - 1u),
-                                        (size_t)(itor - mVbos[vboIdx].begin()) );
-
-                    itor = efficientVectorRemove( mVbos[vboIdx], itor );
-                    end  = mVbos[vboIdx].end();
-                }
-                else
-                {
-                    ++itor;
-                }
-            }
-        }
-
-        if( !bufferNames.empty() )
-        {
-            OCGE( glDeleteBuffers( bufferNames.size(), &bufferNames[0] ) );
-            bufferNames.clear();
         }
     }
     //-----------------------------------------------------------------------------------
@@ -780,8 +579,7 @@ namespace Ogre
                        constBuffer->getBufferType() );
     }
     //-----------------------------------------------------------------------------------
-    TexBufferPacked* GL3PlusVaoManager::createTexBufferImpl( PixelFormatGpu pixelFormat,
-                                                             size_t sizeBytes,
+    TexBufferPacked* GL3PlusVaoManager::createTexBufferImpl( PixelFormat pixelFormat, size_t sizeBytes,
                                                              BufferType bufferType,
                                                              void *initialData, bool keepAsShadow )
     {
@@ -796,12 +594,12 @@ namespace Ogre
         if( mEmulateTexBuffers )
         {
             // Align to the texture size since we must copy the PBO to a texture.
-            ushort maxTexSizeBytes = 2048 * PixelFormatGpuUtils::getBytesPerPixel( pixelFormat );
+            ushort maxTexSizeBytes = 2048 * PixelUtil::getNumElemBytes( pixelFormat );
             // We need another line of maxTexSizeBytes for uploading
             //to create a rectangle when calling glTexSubImage2D().
             sizeBytes = alignToNextMultiple( sizeBytes, maxTexSizeBytes );
         }
-
+        
         if( bufferType >= BT_DYNAMIC_DEFAULT )
         {
             //For dynamic buffers, the size will be 3x times larger
@@ -858,7 +656,7 @@ namespace Ogre
         size_t vboIdx;
         size_t bufferOffset;
 
-        size_t alignment = Math::lcm( mUavBufferAlignment, bytesPerElement );
+        GLint alignment = mUavBufferAlignment;
 
         //UAV Buffers can't be dynamic.
         const BufferType bufferType = BT_DEFAULT;
@@ -1219,7 +1017,7 @@ namespace Ogre
 
             if( !itor->refCount )
             {
-                GLuint vaoName = glVao->getVaoName();
+				GLuint vaoName = glVao->getVaoName();
                 OCGE( glDeleteVertexArrays( 1, &vaoName ) );
 
                 efficientVectorRemove( mVaos, itor );
@@ -1267,72 +1065,6 @@ namespace Ogre
                                                             elementStart, elementCount ) );
     }
     //-----------------------------------------------------------------------------------
-    GL3PlusStagingTexture* GL3PlusVaoManager::createStagingTexture( PixelFormatGpu formatFamily,
-                                                                    size_t sizeBytes )
-    {
-        GL3PlusDynamicBuffer *dynamicBuffer = 0;
-        size_t vboIdx = 0;
-        size_t bufferOffset = 0;
-
-        GLenum error = 0;
-        int trustCounter = 1000;
-        //Reset the error code. Trust counter prevents an infinite loop
-        //just in case we encounter a moronic GL implementation.
-        while( glGetError() && trustCounter-- );
-
-        GLuint bufferName;
-
-        if( mArbBufferStorage )
-        {
-            OCGE( glGenBuffers( 1, &bufferName ) );
-            OCGE( glBindBuffer( GL_COPY_READ_BUFFER, bufferName ) );
-
-            GLbitfield flags = GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT;
-            glBufferStorage( GL_COPY_READ_BUFFER, sizeBytes, 0, flags );
-        }
-        else
-        {
-            //Non-persistent buffers cannot share the buffer with other data, because the worker
-            //threads may keep the buffer mapped while the main thread wants to do GL operations
-            //on it, which will probably work but is illegal as per the OpenGL spec.
-            OCGE( glGenBuffers( 1, &bufferName ) );
-            OCGE( glBindBuffer( GL_COPY_READ_BUFFER, bufferName ) );
-            glBufferData( GL_COPY_READ_BUFFER, sizeBytes, 0, GL_STREAM_DRAW );
-        }
-
-        error = glGetError();
-
-        //OpenGL can't continue after any GL_OUT_OF_MEMORY has been raised,
-        //thus ignore the trustCounter in that case.
-        if( (error != 0 && trustCounter != 0) || error == GL_OUT_OF_MEMORY )
-        {
-            OGRE_EXCEPT( Exception::ERR_RENDERINGAPI_ERROR,
-                         "Out of GPU memory or driver refused.\n"
-                         "glGetError code: " + StringConverter::toString( error ) + ".\n"
-                         "Requested: " + StringConverter::toString( sizeBytes ) + " bytes.",
-                         "GL3PlusVaoManager::allocateVbo" );
-        }
-
-        dynamicBuffer = new GL3PlusDynamicBuffer( bufferName, sizeBytes, this,
-                                                  mArbBufferStorage ? BT_DYNAMIC_PERSISTENT :
-                                                                      BT_DYNAMIC_DEFAULT );
-
-        GL3PlusStagingTexture *retVal = OGRE_NEW GL3PlusStagingTexture( this, formatFamily, sizeBytes,
-                                                                        bufferOffset, vboIdx,
-                                                                        dynamicBuffer );
-        return retVal;
-    }
-    //-----------------------------------------------------------------------------------
-    void GL3PlusVaoManager::destroyStagingTexture( GL3PlusStagingTexture *stagingTexture )
-    {
-        stagingTexture->_unmapBuffer();
-        GL3PlusDynamicBuffer *dynamicBuffer = stagingTexture->_getDynamicBuffer();
-        GLuint bufferName = dynamicBuffer->getVboName();
-        OCGE( glDeleteBuffers( 1u, &bufferName ) );
-        delete dynamicBuffer;
-        stagingTexture->_resetDynamicBuffer();
-    }
-    //-----------------------------------------------------------------------------------
     void GL3PlusVaoManager::_update(void)
     {
         unsigned long currentTimeMs = mTimer->getMilliseconds();
@@ -1353,7 +1085,7 @@ namespace Ogre
                     StagingBuffer *stagingBuffer = *itor;
 
                     mNextStagingBufferTimestampCheckpoint = std::min(
-                        mNextStagingBufferTimestampCheckpoint,
+                        mNextStagingBufferTimestampCheckpoint, 
                         stagingBuffer->getLastUsedTimestamp() + stagingBuffer->getLifetimeThreshold() );
 
                     if( stagingBuffer->getLastUsedTimestamp() + stagingBuffer->getUnfencedTimeThreshold() < currentTimeMs )
@@ -1395,8 +1127,6 @@ namespace Ogre
 
         VaoManager::_update();
 
-        waitForTailFrameToFinish();
-
         if( mFrameSyncVec[mDynamicBufferCurrentFrame] )
         {
             OCGE( glDeleteSync( mFrameSyncVec[mDynamicBufferCurrentFrame] ) );
@@ -1423,23 +1153,16 @@ namespace Ogre
             //Full stall
             glFinish();
 
-            //All of the other per-frame fences are not needed anymore.
-            GLSyncVec::iterator itor = mFrameSyncVec.begin();
-            GLSyncVec::iterator end  = mFrameSyncVec.end();
+            //All of the other per-fences are not needed anymore.
+            GLSyncVec::const_iterator itor = mFrameSyncVec.begin();
+            GLSyncVec::const_iterator end  = mFrameSyncVec.end();
 
             while( itor != end )
             {
                 if( *itor )
-                {
                     OCGE( glDeleteSync( *itor ) );
-                    *itor = 0;
-                }
                 ++itor;
             }
-
-            _destroyAllDelayedBuffers();
-
-            mFrameCount += mDynamicBufferMultiplier;
         }
         else if( mFrameCount - frameCount <= mDynamicBufferMultiplier )
         {
@@ -1473,11 +1196,11 @@ namespace Ogre
     //-----------------------------------------------------------------------------------
     bool GL3PlusVaoManager::isFrameFinished( uint32 frameCount )
     {
-        bool retVal = false;
+        bool retVal = true;
         if( frameCount == mFrameCount )
         {
             //Full stall
-            //retVal = false;
+            //retVal = true;
         }
         else if( mFrameCount - frameCount <= mDynamicBufferMultiplier )
         {
@@ -1504,18 +1227,18 @@ namespace Ogre
                         nextIdx = (nextIdx + 1u) % mDynamicBufferMultiplier;
                     }
 
-                    retVal = true;
+                    retVal = false;
                 }
             }
             else
             {
-                retVal = true;
+                retVal = false;
             }
         }
         else
         {
             //No stall
-            retVal = true;
+            retVal = false;
         }
 
         return retVal;

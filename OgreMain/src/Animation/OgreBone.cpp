@@ -260,7 +260,7 @@ namespace Ogre {
         mTransform.mDerivedTransform[mTransform.mIndex].store( &localSpaceBone );
         mTransform.mParentNodeTransform[mTransform.mIndex]->store( &parentNodeTransform );
 
-        parentNodeTransform = parentNodeTransform.concatenateAffine( localSpaceBone );
+        parentNodeTransform.concatenateAffine( localSpaceBone );
 
         return parentNodeTransform;
     }

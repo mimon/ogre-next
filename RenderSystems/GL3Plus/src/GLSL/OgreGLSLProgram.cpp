@@ -32,7 +32,6 @@
 #include "OgreGLSLShader.h"
 #include "OgreRoot.h"
 #include "OgreProfiler.h"
-#include "OgreString.h"
 
 #include "Vao/OgreGL3PlusVaoManager.h"
 

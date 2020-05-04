@@ -36,8 +36,6 @@
 #include "OgreLodBuffer.h"
 #include "OgreLogManager.h"
 
-#include <sstream>
-
 namespace Ogre
 {
 
@@ -90,7 +88,7 @@ namespace Ogre
                         std::endl;
                     printTriangle(tri, str);
                     str << "It will be excluded from Lod level calculations.";
-                    *LogManager::getSingleton().stream().raw() << str.str();
+                    LogManager::getSingleton().stream() << str.str();
 #endif
                     tri->isRemoved = true;
                     data->mIndexBufferInfoList[tri->submeshID].indexCount -= 3;

@@ -98,20 +98,6 @@ namespace Ogre
         /// Releases the lock aquired through either @see lock or @see tryLock
         void unlock();
     };
-
-    class _OgreExport ScopedLock
-    {
-        LightweightMutex    &mMutex;
-    public:
-        ScopedLock( LightweightMutex &mutex ) : mMutex( mutex )
-        {
-            mMutex.lock();
-        }
-        ~ScopedLock()
-        {
-            mMutex.unlock();
-        }
-    };
 }
 
 #endif

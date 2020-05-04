@@ -27,33 +27,29 @@ Copyright (c) 2000-2016 Torus Knot Software Ltd
 */
 
 #include "OgreMetalRenderSystem.h"
-#include "OgreMetalWindow.h"
+#include "OgreMetalRenderWindow.h"
+#include "OgreMetalTextureManager.h"
 #include "Vao/OgreMetalVaoManager.h"
 #include "Vao/OgreMetalBufferInterface.h"
 #include "OgreMetalHlmsPso.h"
 #include "OgreMetalRenderTargetCommon.h"
+#include "OgreMetalDepthBuffer.h"
 #include "OgreMetalDevice.h"
 #include "OgreMetalGpuProgramManager.h"
 #include "OgreMetalProgram.h"
 #include "OgreMetalProgramFactory.h"
-#include "OgreMetalTextureGpu.h"
-#include "OgreMetalRenderPassDescriptor.h"
-#include "OgreMetalDescriptorSetTexture.h"
-#include "Vao/OgreMetalTexBufferPacked.h"
+#include "OgreMetalTexture.h"
+#include "OgreMetalMultiRenderTarget.h"
 
 #include "OgreMetalHardwareBufferManager.h"
 #include "OgreMetalHardwareIndexBuffer.h"
 #include "OgreMetalHardwareVertexBuffer.h"
-
-#include "OgreMetalTextureGpuManager.h"
 
 #include "Vao/OgreMetalConstBufferPacked.h"
 #include "Vao/OgreMetalUavBufferPacked.h"
 #include "Vao/OgreIndirectBufferPacked.h"
 #include "Vao/OgreVertexArrayObject.h"
 #include "CommandBuffer/OgreCbDrawCall.h"
-
-#include "OgreDepthBuffer.h"
 
 #include "OgreFrustum.h"
 #include "OgreViewport.h"
@@ -64,7 +60,6 @@ Copyright (c) 2000-2016 Torus Knot Software Ltd
 #import <Metal/Metal.h>
 #import <Foundation/NSEnumerator.h>
 
-#include <sstream>
 
 namespace Ogre
 {
@@ -85,35 +80,35 @@ namespace Ogre
         mAutoParamsBufferIdx( 0 ),
         mCurrentAutoParamsBufferPtr( 0 ),
         mCurrentAutoParamsBufferSpaceLeft( 0 ),
+        mMaxModifiedUavPlusOne( 0 ),
+        mUavsDirty( false ),
         mNumMRTs( 0 ),
+        mCurrentDepthBuffer( 0 ),
         mActiveDevice( 0 ),
         mActiveRenderEncoder( 0 ),
         mDevice( this ),
         mMainGpuSyncSemaphore( 0 ),
         mMainSemaphoreAlreadyWaited( false ),
-        mBeginFrameOnceStarted( false ),
-        mEntriesToFlush( 0 ),
-        mVpChanged( false ),
-        mInterruptedRenderCommandEncoder( false )
+        mBeginFrameOnceStarted( false )
     {
         memset( mHistoricalAutoParamsSize, 0, sizeof(mHistoricalAutoParamsSize) );
         for( size_t i=0; i<OGRE_MAX_MULTIPLE_RENDER_TARGETS; ++i )
             mCurrentColourRTs[i] = 0;
-        
-        // set config options defaults
-        initConfigOptions();
     }
     //-------------------------------------------------------------------------
     MetalRenderSystem::~MetalRenderSystem()
     {
         shutdown();
+
+        // Destroy render windows
+        RenderTargetMap::iterator i;
+        for (i = mRenderTargets.begin(); i != mRenderTargets.end(); ++i)
+            OGRE_DELETE i->second;
+        mRenderTargets.clear();
     }
     //-------------------------------------------------------------------------
     void MetalRenderSystem::shutdown(void)
     {
-        if( mActiveDevice )
-            mActiveDevice->endAllEncoders();
-        
         for( size_t i=0; i<mAutoParamsBuffer.size(); ++i )
         {
             if( mAutoParamsBuffer[i]->getMappingState() != MS_UNMAPPED )
@@ -141,6 +136,9 @@ namespace Ogre
 
         OGRE_DELETE mShaderManager;
         mShaderManager = 0;
+
+        OGRE_DELETE mTextureManager;
+        mTextureManager = 0;
     }
     //-------------------------------------------------------------------------
     const String& MetalRenderSystem::getName(void) const
@@ -153,112 +151,6 @@ namespace Ogre
     {
         static String strName("Metal_RS");
         return strName;
-    }
-    //-------------------------------------------------------------------------
-    MetalDeviceList* MetalRenderSystem::getDeviceList( bool refreshList )
-    {
-        if( refreshList || mDeviceList.count() == 0 )
-            mDeviceList.refresh();
-        
-        return &mDeviceList;
-    }
-    //-------------------------------------------------------------------------
-    void MetalRenderSystem::initConfigOptions()
-    {
-        ConfigOption optDevice;
-        ConfigOption optFSAA;
-        ConfigOption optSRGB;
-
-        optDevice.name = "Rendering Device";
-        optDevice.currentValue = "(default)";
-        optDevice.possibleValues.push_back("(default)");
-        MetalDeviceList* deviceList = getDeviceList();
-        for( unsigned j = 0; j < deviceList->count(); j++ )
-            optDevice.possibleValues.push_back( deviceList->item(j)->getDescription() );
-        optDevice.immutable = false;
-
-        optFSAA.name = "FSAA";
-        optFSAA.immutable = false;
-        optFSAA.possibleValues.push_back( "None" );
-        optFSAA.currentValue = "None";
-
-        // SRGB on auto window
-        optSRGB.name = "sRGB Gamma Conversion";
-        optSRGB.possibleValues.push_back("Yes");
-        optSRGB.possibleValues.push_back("No");
-        optSRGB.currentValue = "Yes";
-        optSRGB.immutable = false;
-
-        mOptions[optDevice.name] = optDevice;
-        mOptions[optFSAA.name] = optFSAA;
-        mOptions[optSRGB.name] = optSRGB;
-
-        refreshFSAAOptions();
-    }
-    //-------------------------------------------------------------------------
-    void MetalRenderSystem::setConfigOption(const String &name, const String &value)
-    {
-        // Find option
-        ConfigOptionMap::iterator it = mOptions.find( name );
-
-        // Update
-        if( it != mOptions.end() )
-            it->second.currentValue = value;
-        else
-        {
-            StringStream str;
-            str << "Option named '" << name << "' does not exist.";
-            //OGRE_EXCEPT( Exception::ERR_INVALIDPARAMS, str.str(), "MetalRenderSystem::setConfigOption" );
-        }
-        
-        // Refresh dependent options
-        if( name == "Rendering Device" )
-            refreshFSAAOptions();
-    }
-    //-------------------------------------------------------------------------
-    void MetalRenderSystem::refreshFSAAOptions(void)
-    {
-        ConfigOptionMap::iterator it = mOptions.find( "FSAA" );
-        ConfigOption* optFSAA = &it->second;
-        optFSAA->possibleValues.clear();
-
-        it = mOptions.find("Rendering Device");
-        if( @available( iOS 9.0, * ) )
-        {
-            const MetalDeviceItem *deviceItem = getDeviceList()->item( it->second.currentValue );
-            id<MTLDevice> device = deviceItem ? deviceItem->getMTLDevice() : MTLCreateSystemDefaultDevice();
-            for( unsigned samples = 1; samples <= 32; ++samples )
-                if( [device supportsTextureSampleCount:samples] )
-                    optFSAA->possibleValues.push_back( StringConverter::toString(samples) + "x" );
-        }
-        
-        if( optFSAA->possibleValues.empty() )
-        {
-            optFSAA->possibleValues.push_back( "1x" );
-            optFSAA->possibleValues.push_back( "4x" );
-        }
-        
-        // Reset FSAA to none if previous doesn't avail in new possible values
-        if( std::find( optFSAA->possibleValues.begin(), optFSAA->possibleValues.end(),
-                       optFSAA->currentValue ) == optFSAA->possibleValues.end() )
-        {
-            optFSAA->currentValue = optFSAA->possibleValues[0];
-        }
-    }
-    //-------------------------------------------------------------------------
-    SampleDescription MetalRenderSystem::validateSampleDescription( const SampleDescription &sampleDesc,
-                                                                    PixelFormatGpu format )
-    {
-        uint8 samples = sampleDesc.getMaxSamples();
-        if( @available( iOS 9.0, * ) )
-        {
-            if( mActiveDevice )
-            {
-                while( samples > 1 && ![mActiveDevice->mDevice supportsTextureSampleCount:samples] )
-                    --samples;
-            }
-        }
-        return SampleDescription( samples, sampleDesc.getMsaaPattern() );
     }
     //-------------------------------------------------------------------------
     HardwareOcclusionQuery* MetalRenderSystem::createHardwareOcclusionQuery(void)
@@ -296,9 +188,6 @@ namespace Ogre
         {
             rsc->setCapability(RSC_TEXTURE_COMPRESSION_ASTC);
         }
-
-        if( [mActiveDevice->mDevice supportsFeatureSet:MTLFeatureSet_iOS_GPUFamily4_v1] )
-            rsc->setCapability(RSC_TEXTURE_CUBE_MAP_ARRAY);
 #endif
         rsc->setCapability(RSC_VBO);
         rsc->setCapability(RSC_32BIT_INDEX);
@@ -327,9 +216,7 @@ namespace Ogre
         rsc->setCapability(RSC_HW_GAMMA);
         rsc->setCapability(RSC_TEXTURE_GATHER);
         rsc->setCapability(RSC_TEXTURE_2D_ARRAY);
-        rsc->setCapability(RSC_SEPARATE_SAMPLERS_FROM_TEXTURES);
         rsc->setCapability(RSC_CONST_BUFFER_SLOTS_IN_SHADER);
-        rsc->setCapability(RSC_EXPLICIT_FSAA_RESOLVE);
 
         //These don't make sense on Metal, so just use flexible defaults.
         rsc->setVertexProgramConstantFloatCount( 16384 );
@@ -375,24 +262,8 @@ namespace Ogre
 #endif
         rsc->setMaximumResolutions( max2DResolution, 2048, max2DResolution );
 
-#if OGRE_PLATFORM == OGRE_PLATFORM_APPLE_IOS
-        if( [mActiveDevice->mDevice supportsFeatureSet:MTLFeatureSet_iOS_GPUFamily3_v2] )
-            rsc->setCapability(RSC_STORE_AND_MULTISAMPLE_RESOLVE);
-#else
-        if( [mActiveDevice->mDevice supportsFeatureSet:MTLFeatureSet_OSX_GPUFamily1_v2] )
-            rsc->setCapability(RSC_STORE_AND_MULTISAMPLE_RESOLVE);
-#endif
-
-#if OGRE_PLATFORM == OGRE_PLATFORM_APPLE_IOS
-        rsc->setCapability( RSC_IS_TILER );
-        rsc->setCapability( RSC_TILER_CAN_CLEAR_STENCIL_REGION );
-#endif
-
-        rsc->setCapability( RSC_UAV );
-#if OGRE_PLATFORM != OGRE_PLATFORM_APPLE_IOS
-        rsc->setCapability(RSC_TEXTURE_CUBE_MAP_ARRAY);
-#endif
-        rsc->setCapability( RSC_TYPED_UAV_LOADS );
+        //TODO: UAVs
+        //rsc->setCapability(RSC_UAV);
         //rsc->setCapability(RSC_ATOMIC_COUNTERS);
 
         rsc->addShaderProfile( "metal" );
@@ -416,13 +287,6 @@ namespace Ogre
             { MTLFeatureSet_iOS_GPUFamily1_v2, "iOS_GPUFamily1_v2", 1, 2 },
             { MTLFeatureSet_iOS_GPUFamily2_v2, "iOS_GPUFamily2_v2", 2, 2 },
             { MTLFeatureSet_iOS_GPUFamily3_v1, "iOS_GPUFamily3_v2", 3, 2 },
-
-            { MTLFeatureSet_iOS_GPUFamily4_v1, "iOS_GPUFamily4_v1", 4, 1 },
-
-    #ifdef __IPHONE_12_0
-            { MTLFeatureSet_iOS_GPUFamily4_v2, "iOS_GPUFamily4_v2", 4, 2 },
-            { MTLFeatureSet_iOS_GPUFamily5_v1, "iOS_GPUFamily5_v1", 5, 1 },
-    #endif
 #else
             { MTLFeatureSet_OSX_GPUFamily1_v1, "OSX_GPUFamily1_v1", 1, 1 },
 #endif
@@ -440,20 +304,6 @@ namespace Ogre
 
         rsc->setDriverVersion( driverVersion );
 
-        uint32 threadgroupLimits[3] = { 1024u, 1024u, 64u };
-        uint32 maxThreadsPerThreadgroup = 1024u;
-
-#if OGRE_PLATFORM == OGRE_PLATFORM_APPLE_IOS
-        if( driverVersion.major < 4 )
-        {
-            threadgroupLimits[0] = 512u;
-            threadgroupLimits[1] = 512u;
-            maxThreadsPerThreadgroup = 512u;
-        }
-#endif
-        rsc->setMaxThreadsPerThreadgroupAxis( threadgroupLimits );
-        rsc->setMaxThreadsPerThreadgroup( maxThreadsPerThreadgroup );
-
         return rsc;
     }
     //-------------------------------------------------------------------------
@@ -463,41 +313,25 @@ namespace Ogre
         this->_initialise(true);
     }
     //-------------------------------------------------------------------------
-    Window* MetalRenderSystem::_initialise( bool autoCreateWindow, const String& windowTitle )
+    RenderWindow* MetalRenderSystem::_initialise( bool autoCreateWindow, const String& windowTitle )
     {
-        ConfigOptionMap::iterator opt = mOptions.find( "Rendering Device" );
-        if( opt == mOptions.end() )
-            OGRE_EXCEPT( Exception::ERR_INVALIDPARAMS, "Can`t find requested Metal device name!", "MetalRenderSystem::initialise" );
-        mDeviceName = opt->second.currentValue;
-
-        Window *autoWindow = 0;
+        RenderWindow *autoWindow = 0;
         if( autoCreateWindow )
             autoWindow = _createRenderWindow( windowTitle, 1, 1, false );
-        RenderSystem::_initialise( autoCreateWindow, windowTitle );
+        RenderSystem::_initialise(autoCreateWindow, windowTitle);
 
         return autoWindow;
     }
     //-------------------------------------------------------------------------
-    Window *MetalRenderSystem::_createRenderWindow( const String &name, uint32 width, uint32 height,
-                                                    bool fullScreen,
-                                                    const NameValuePairList *miscParams )
+    RenderWindow* MetalRenderSystem::_createRenderWindow( const String &name,
+                                                         unsigned int width, unsigned int height,
+                                                         bool fullScreen,
+                                                         const NameValuePairList *miscParams )
     {
         if( !mInitialized )
         {
-            const MetalDeviceItem* deviceItem = getDeviceList(true)->item( mDeviceName );
-            mDevice.init( deviceItem );
+            mDevice.init();
             setActiveDevice(&mDevice);
-            String selectedDeviceName = deviceItem ? deviceItem->getDescription() :
-                MetalDeviceItem(mDevice.mDevice, 0).getDescription() + " (system default)";
-            *LogManager::getSingleton().stream().raw() << "Metal: Requested \"" << mDeviceName <<
-                "\", selected \"" << selectedDeviceName << "\"";
-
-            if( miscParams )
-            {
-                NameValuePairList::const_iterator itOption = miscParams->find( "reverse_depth" );
-                if( itOption != miscParams->end() )
-                    mReverseDepth = StringConverter::parseBool( itOption->second, true );
-            }
 
             const long c_inFlightCommandBuffers = 3;
             mMainGpuSyncSemaphore = dispatch_semaphore_create(c_inFlightCommandBuffers);
@@ -513,28 +347,28 @@ namespace Ogre
 
             initialiseFromRenderSystemCapabilities( mCurrentCapabilities, 0 );
 
-            mVaoManager = OGRE_NEW MetalVaoManager( c_inFlightCommandBuffers, &mDevice, miscParams );
+            mTextureManager = new MetalTextureManager( &mDevice );
+            mVaoManager = OGRE_NEW MetalVaoManager( c_inFlightCommandBuffers, &mDevice );
             mHardwareBufferManager = new v1::MetalHardwareBufferManager( &mDevice, mVaoManager );
-            mTextureGpuManager = OGRE_NEW MetalTextureGpuManager( mVaoManager, this, &mDevice );
 
             mInitialized = true;
         }
 
-        Window *win = OGRE_NEW MetalWindow( name, width, height, fullScreen, miscParams, &mDevice );
-        mWindows.insert( win );
-
-        win->_initialize( mTextureGpuManager );
+        RenderWindow *win = OGRE_NEW MetalRenderWindow( &mDevice, this );
+        win->create( name, width, height, fullScreen, miscParams );
         return win;
+    }
+    //-------------------------------------------------------------------------
+    MultiRenderTarget* MetalRenderSystem::createMultiRenderTarget( const String & name )
+    {
+        MetalMultiRenderTarget *retVal = OGRE_NEW MetalMultiRenderTarget( name );
+        attachRenderTarget( *retVal );
+        return retVal;
     }
     //-------------------------------------------------------------------------
     String MetalRenderSystem::getErrorDescription(long errorNumber) const
     {
         return BLANKSTRING;
-    }
-    //-------------------------------------------------------------------------
-    bool MetalRenderSystem::hasStoreAndMultisampleResolve(void) const
-    {
-        return mCurrentCapabilities->hasCapability( RSC_STORE_AND_MULTISAMPLE_RESOLVE );
     }
     //-------------------------------------------------------------------------
     void MetalRenderSystem::_useLights(const LightList& lights, unsigned short limit)
@@ -569,607 +403,174 @@ namespace Ogre
     {
     }
     //-------------------------------------------------------------------------
+    void MetalRenderSystem::queueBindUAV( uint32 slot, TexturePtr texture,
+                                          ResourceAccess::ResourceAccess access,
+                                          int32 mipmapLevel, int32 textureArrayIndex,
+                                          PixelFormat pixelFormat )
+    {
+        assert( slot < 64 );
+
+        if( !mUavs[slot].buffer && mUavs[slot].texture.isNull() && texture.isNull() )
+            return;
+
+        mUavs[slot].texture = texture;
+        mUavs[slot].buffer  = 0;
+
+        if( !texture.isNull() )
+        {
+            if( !(texture->getUsage() & TU_UAV) )
+            {
+                OGRE_EXCEPT( Exception::ERR_INVALIDPARAMS,
+                             "Texture " + texture->getName() +
+                             " must have been created with TU_UAV to be bound as UAV",
+                             "GL3PlusRenderSystem::queueBindUAV" );
+            }
+
+            mUavs[slot].textureName = static_cast<MetalTexture*>( texture.get() )->
+                    getTextureForSampling( this );
+        }
+
+        mMaxModifiedUavPlusOne = std::max( mMaxModifiedUavPlusOne, static_cast<uint8>( slot + 1 ) );
+    }
+    //-------------------------------------------------------------------------
+    void MetalRenderSystem::queueBindUAV( uint32 slot, UavBufferPacked *buffer,
+                                          ResourceAccess::ResourceAccess access,
+                                          size_t offset, size_t sizeBytes )
+    {
+        assert( slot < 64 );
+
+        if( mUavs[slot].texture.isNull() && !mUavs[slot].buffer && !buffer )
+            return;
+
+        mUavs[slot].buffer = buffer;
+        mUavs[slot].texture.setNull();
+
+        if( buffer )
+        {
+            mUavs[slot].offset      = offset;
+            //mUavs[slot].sizeBytes   = sizeBytes;
+        }
+
+        mMaxModifiedUavPlusOne = std::max( mMaxModifiedUavPlusOne, static_cast<uint8>( slot + 1 ) );
+        mUavsDirty = true;
+    }
+    //-------------------------------------------------------------------------
+    void MetalRenderSystem::clearUAVs(void)
+    {
+        for( size_t i=0; i<mMaxModifiedUavPlusOne; ++i )
+        {
+            mUavs[i].texture.setNull();
+            mUavs[i].buffer = 0;
+        }
+        mUavsDirty = mMaxModifiedUavPlusOne != 0;
+        mMaxModifiedUavPlusOne = 0;
+    }
+    //-------------------------------------------------------------------------
     void MetalRenderSystem::flushUAVs(void)
     {
-        if( mUavRenderingDirty && mActiveRenderEncoder )
+        for( uint32 i=0; i<mMaxModifiedUavPlusOne; ++i )
         {
-            if( mUavRenderingDescSet )
+            if( !mUavs[i].texture.isNull() )
             {
-                MetalDescriptorSetTexture *metalSet =
-                        reinterpret_cast<MetalDescriptorSetTexture*>( mUavRenderingDescSet->mRsData );
-
-                //Bind textures
-                {
-                    FastArray<MetalTexRegion>::const_iterator itor = metalSet->textures.begin();
-                    FastArray<MetalTexRegion>::const_iterator end  = metalSet->textures.end();
-
-                    while( itor != end )
-                    {
-                        NSRange range = itor->range;
-                        range.location += /*mUavStartingSlot +*/ OGRE_METAL_UAV_SLOT_START;
-                        [mActiveRenderEncoder setVertexTextures:itor->textures withRange:range];
-                        [mActiveRenderEncoder setFragmentTextures:itor->textures withRange:range];
-                        ++itor;
-                    }
-                }
-
-                //Bind buffers
-                {
-                    FastArray<MetalBufferRegion>::const_iterator itor = metalSet->buffers.begin();
-                    FastArray<MetalBufferRegion>::const_iterator end  = metalSet->buffers.end();
-
-                    while( itor != end )
-                    {
-                        NSRange range = itor->range;
-                        range.location += /*mUavStartingSlot +*/ OGRE_METAL_UAV_SLOT_START;
-
-                        [mActiveRenderEncoder setVertexBuffers:itor->buffers
-                                                       offsets:itor->offsets
-                                                     withRange:range];
-                        [mActiveRenderEncoder setFragmentBuffers:itor->buffers
-                                                         offsets:itor->offsets
-                                                       withRange:range];
-                        ++itor;
-                    }
-                }
+                //TODO: Replace OGRE_METAL_UAV_SLOT_START w/ something
+                //more dynamic, possibly sync with Hlms.
+                [mActiveRenderEncoder setVertexTexture:mUavs[i].textureName
+                                               atIndex:i + OGRE_METAL_UAV_SLOT_START];
+                [mActiveRenderEncoder setFragmentTexture:mUavs[i].textureName
+                                                 atIndex:i + OGRE_METAL_UAV_SLOT_START];
             }
-            mUavRenderingDirty = false;
+            else if( mUavs[i].buffer )
+            {
+                MetalUavBufferPacked *metalUav = static_cast<MetalUavBufferPacked*>( mUavs[i].buffer );
+                metalUav->bindBufferAllRenderStages( i, mUavs[i].offset );
+            }
+            else
+            {
+                [mActiveRenderEncoder setVertexTexture:0 atIndex:i + OGRE_METAL_UAV_SLOT_START];
+                [mActiveRenderEncoder setFragmentTexture:0 atIndex:i + OGRE_METAL_UAV_SLOT_START];
+                [mActiveRenderEncoder setVertexBuffer:0
+                                               offset:0
+                                              atIndex:i + OGRE_METAL_UAV_SLOT_START];
+                [mActiveRenderEncoder setFragmentBuffer:0
+                                                 offset:0
+                                                atIndex:i + OGRE_METAL_UAV_SLOT_START];
+            }
         }
+
+        mUavsDirty = 0;
     }
     //-------------------------------------------------------------------------
-    void MetalRenderSystem::_setTexture( size_t unit, TextureGpu *texPtr )
+    void MetalRenderSystem::_bindTextureUavCS( uint32 slot, Texture *texture,
+                                               ResourceAccess::ResourceAccess access,
+                                               int32 mipmapLevel, int32 textureArrayIndex,
+                                               PixelFormat pixelFormat )
     {
-        if( texPtr )
-        {
-            const MetalTextureGpu *metalTex = static_cast<const MetalTextureGpu*>( texPtr );
-            __unsafe_unretained id<MTLTexture> metalTexture = metalTex->getDisplayTextureName();
+        __unsafe_unretained id<MTLComputeCommandEncoder> computeEncoder =
+                mActiveDevice->getComputeEncoder();
 
-            [mActiveRenderEncoder setVertexTexture:metalTexture atIndex:unit];
-            [mActiveRenderEncoder setFragmentTexture:metalTexture atIndex:unit];
+        __unsafe_unretained id<MTLTexture> metalTexture = 0;
+
+        if( texture )
+        {
+            MetalTexture *metalTex = static_cast<MetalTexture*>( texture );
+            metalTexture = metalTex->getTextureForSampling( this );
+        }
+
+        [computeEncoder setTexture:metalTexture atIndex:slot + OGRE_METAL_CS_UAV_SLOT_START];
+    }
+    //-------------------------------------------------------------------------
+    void MetalRenderSystem::_setTextureCS( uint32 slot, bool enabled, Texture *texPtr )
+    {
+        __unsafe_unretained id<MTLComputeCommandEncoder> computeEncoder =
+                mActiveDevice->getComputeEncoder();
+
+        __unsafe_unretained id<MTLTexture> metalTexture = 0;
+
+        if( texPtr && enabled )
+        {
+            MetalTexture *metalTex = static_cast<MetalTexture*>( texPtr );
+            metalTexture = metalTex->getTextureForSampling( this );
+        }
+
+        [computeEncoder setTexture:metalTexture atIndex:slot];
+    }
+    //-------------------------------------------------------------------------
+    void MetalRenderSystem::_setHlmsSamplerblockCS( uint8 texUnit, const HlmsSamplerblock *samplerblock )
+    {
+        assert( (!samplerblock || samplerblock->mRsData) &&
+                "The block must have been created via HlmsManager::getSamplerblock!" );
+
+        __unsafe_unretained id<MTLComputeCommandEncoder> computeEncoder =
+                mActiveDevice->getComputeEncoder();
+
+        if( !samplerblock )
+        {
+            [computeEncoder setSamplerState:0 atIndex:texUnit];
         }
         else
         {
-            [mActiveRenderEncoder setVertexTexture:0 atIndex:unit];
-            [mActiveRenderEncoder setFragmentTexture:0 atIndex:unit];
+            __unsafe_unretained id<MTLSamplerState> sampler =
+                    (__bridge id<MTLSamplerState>)samplerblock->mRsData;
+            [computeEncoder setSamplerState:sampler atIndex:texUnit];
         }
     }
     //-------------------------------------------------------------------------
-    void MetalRenderSystem::_setTextures( uint32 slotStart, const DescriptorSetTexture *set,
-                                          uint32 hazardousTexIdx )
+    void MetalRenderSystem::_setTexture(size_t unit, bool enabled,  Texture *texPtr)
     {
-        uint32 texUnit = slotStart;
-        FastArray<const TextureGpu*>::const_iterator itor = set->mTextures.begin();
+        __unsafe_unretained id<MTLTexture> metalTexture = 0;
 
-        //for( size_t i=0u; i<NumShaderTypes; ++i )
-        for( size_t i=0u; i<PixelShader + 1u; ++i )
+        if( texPtr && enabled )
         {
-            const size_t numTexturesUsed = set->mShaderTypeTexCount[i];
-            for( size_t j=0u; j<numTexturesUsed; ++j )
-            {
-                const MetalTextureGpu *metalTex = static_cast<const MetalTextureGpu*>( *itor );
-                __unsafe_unretained id<MTLTexture> metalTexture = 0;
-
-                if( metalTex )
-                {
-                    metalTexture = metalTex->getDisplayTextureName();
-
-                    if( (texUnit - slotStart) == hazardousTexIdx &&
-                        mCurrentRenderPassDescriptor->hasAttachment( set->mTextures[hazardousTexIdx] ) )
-                    {
-                        metalTexture = nil;
-                    }
-                }
-
-                switch( i )
-                {
-                case VertexShader:
-                    [mActiveRenderEncoder setVertexTexture:metalTexture atIndex:texUnit];
-                    break;
-                case PixelShader:
-                    [mActiveRenderEncoder setFragmentTexture:metalTexture atIndex:texUnit];
-                    break;
-                case GeometryShader:
-                case HullShader:
-                case DomainShader:
-                    break;
-                }
-
-                ++texUnit;
-                ++itor;
-            }
+            MetalTexture *metalTex = static_cast<MetalTexture*>( texPtr );
+            metalTexture = metalTex->getTextureForSampling( this );
         }
+
+        [mActiveRenderEncoder setVertexTexture:metalTexture atIndex:unit];
+        [mActiveRenderEncoder setFragmentTexture:metalTexture atIndex:unit];
     }
     //-------------------------------------------------------------------------
-    void MetalRenderSystem::_setTextures( uint32 slotStart, const DescriptorSetTexture2 *set )
+    void MetalRenderSystem::_setTextureCoordSet(size_t unit, size_t index)
     {
-        MetalDescriptorSetTexture *metalSet =
-                reinterpret_cast<MetalDescriptorSetTexture*>( set->mRsData );
-
-        //Bind textures
-        {
-            FastArray<MetalTexRegion>::const_iterator itor = metalSet->textures.begin();
-            FastArray<MetalTexRegion>::const_iterator end  = metalSet->textures.end();
-
-            while( itor != end )
-            {
-                NSRange range = itor->range;
-                range.location += slotStart;
-
-                switch( itor->shaderType )
-                {
-                case VertexShader:
-                    [mActiveRenderEncoder setVertexTextures:itor->textures withRange:range];
-                    break;
-                case PixelShader:
-                    [mActiveRenderEncoder setFragmentTextures:itor->textures withRange:range];
-                    break;
-                case GeometryShader:
-                case HullShader:
-                case DomainShader:
-                case NumShaderTypes:
-                    break;
-                }
-
-                ++itor;
-            }
-        }
-
-        //Bind buffers
-        {
-            FastArray<MetalBufferRegion>::const_iterator itor = metalSet->buffers.begin();
-            FastArray<MetalBufferRegion>::const_iterator end  = metalSet->buffers.end();
-
-            while( itor != end )
-            {
-                NSRange range = itor->range;
-                range.location += slotStart + OGRE_METAL_TEX_SLOT_START;
-
-                switch( itor->shaderType )
-                {
-                case VertexShader:
-                    [mActiveRenderEncoder setVertexBuffers:itor->buffers
-                                                   offsets:itor->offsets
-                                                 withRange:range];
-                    break;
-                case PixelShader:
-                    [mActiveRenderEncoder setFragmentBuffers:itor->buffers
-                                                     offsets:itor->offsets
-                                                   withRange:range];
-                    break;
-                case GeometryShader:
-                case HullShader:
-                case DomainShader:
-                case NumShaderTypes:
-                    break;
-                }
-
-                ++itor;
-            }
-        }
-    }
-    //-------------------------------------------------------------------------
-    void MetalRenderSystem::_setSamplers( uint32 slotStart, const DescriptorSetSampler *set )
-    {
-        __unsafe_unretained id <MTLSamplerState> samplers[16];
-
-        FastArray<const HlmsSamplerblock*>::const_iterator itor = set->mSamplers.begin();
-
-        NSRange texUnitRange;
-        texUnitRange.location = slotStart;
-        //for( size_t i=0u; i<NumShaderTypes; ++i )
-        for( size_t i=0u; i<PixelShader + 1u; ++i )
-        {
-            const NSUInteger numSamplersUsed = set->mShaderTypeSamplerCount[i];
-
-            if( !numSamplersUsed )
-                continue;
-
-            for( size_t j=0; j<numSamplersUsed; ++j )
-            {
-                if( *itor )
-                    samplers[j] = (__bridge id<MTLSamplerState>)(*itor)->mRsData;
-                else
-                    samplers[j] = 0;
-                ++itor;
-            }
-
-            texUnitRange.length = numSamplersUsed;
-
-            switch( i )
-            {
-            case VertexShader:
-                [mActiveRenderEncoder setVertexSamplerStates:samplers withRange:texUnitRange];
-                break;
-            case PixelShader:
-                [mActiveRenderEncoder setFragmentSamplerStates:samplers withRange:texUnitRange];
-                break;
-            case GeometryShader:
-            case HullShader:
-            case DomainShader:
-                break;
-            }
-
-            texUnitRange.location += numSamplersUsed;
-        }
-    }
-    //-------------------------------------------------------------------------
-    void MetalRenderSystem::_setTexturesCS( uint32 slotStart, const DescriptorSetTexture *set )
-    {
-        FastArray<const TextureGpu*>::const_iterator itor = set->mTextures.begin();
-
-        __unsafe_unretained id<MTLComputeCommandEncoder> computeEncoder =
-                mActiveDevice->getComputeEncoder();
-
-        size_t texIdx = 0;
-
-        for( size_t i=0u; i<NumShaderTypes; ++i )
-        {
-            const size_t numTexturesUsed = set->mShaderTypeTexCount[i];
-            for( size_t j=0u; j<numTexturesUsed; ++j )
-            {
-                const MetalTextureGpu *metalTex = static_cast<const MetalTextureGpu*>( *itor );
-                __unsafe_unretained id<MTLTexture> metalTexture = 0;
-
-                if( metalTex )
-                    metalTexture = metalTex->getDisplayTextureName();
-
-                [computeEncoder setTexture:metalTexture atIndex:slotStart + texIdx];
-                texIdx += numTexturesUsed;
-
-                ++texIdx;
-                ++itor;
-            }
-        }
-    }
-    //-------------------------------------------------------------------------
-    void MetalRenderSystem::_setTexturesCS( uint32 slotStart, const DescriptorSetTexture2 *set )
-    {
-        MetalDescriptorSetTexture *metalSet =
-                reinterpret_cast<MetalDescriptorSetTexture*>( set->mRsData );
-
-        __unsafe_unretained id<MTLComputeCommandEncoder> computeEncoder =
-                mActiveDevice->getComputeEncoder();
-
-        //Bind textures
-        {
-            FastArray<MetalTexRegion>::const_iterator itor = metalSet->textures.begin();
-            FastArray<MetalTexRegion>::const_iterator end  = metalSet->textures.end();
-
-            while( itor != end )
-            {
-                NSRange range = itor->range;
-                range.location += slotStart;
-                [computeEncoder setTextures:itor->textures withRange:range];
-                ++itor;
-            }
-        }
-
-        //Bind buffers
-        {
-            FastArray<MetalBufferRegion>::const_iterator itor = metalSet->buffers.begin();
-            FastArray<MetalBufferRegion>::const_iterator end  = metalSet->buffers.end();
-
-            while( itor != end )
-            {
-                NSRange range = itor->range;
-                range.location += slotStart + OGRE_METAL_CS_TEX_SLOT_START;
-                [computeEncoder setBuffers:itor->buffers offsets:itor->offsets withRange:range];
-                ++itor;
-            }
-        }
-    }
-    //-------------------------------------------------------------------------
-    void MetalRenderSystem::_setSamplersCS( uint32 slotStart, const DescriptorSetSampler *set )
-    {
-        __unsafe_unretained id <MTLSamplerState> samplers[16];
-
-        __unsafe_unretained id<MTLComputeCommandEncoder> computeEncoder =
-                mActiveDevice->getComputeEncoder();
-
-        FastArray<const HlmsSamplerblock*>::const_iterator itor = set->mSamplers.begin();
-
-        NSRange texUnitRange;
-        texUnitRange.location = slotStart;
-        for( size_t i=0u; i<NumShaderTypes; ++i )
-        {
-            const NSUInteger numSamplersUsed = set->mShaderTypeSamplerCount[i];
-
-            if( !numSamplersUsed )
-                continue;
-
-            for( size_t j=0; j<numSamplersUsed; ++j )
-            {
-                if( *itor )
-                    samplers[j] = (__bridge id<MTLSamplerState>)(*itor)->mRsData;
-                else
-                    samplers[j] = 0;
-                ++itor;
-            }
-
-            texUnitRange.length = numSamplersUsed;
-
-            [computeEncoder setSamplerStates:samplers withRange:texUnitRange];
-            texUnitRange.location += numSamplersUsed;
-        }
-    }
-    //-------------------------------------------------------------------------
-    void MetalRenderSystem::_setUavCS( uint32 slotStart, const DescriptorSetUav *set )
-    {
-        MetalDescriptorSetTexture *metalSet =
-                reinterpret_cast<MetalDescriptorSetTexture*>( set->mRsData );
-
-        __unsafe_unretained id<MTLComputeCommandEncoder> computeEncoder =
-                mActiveDevice->getComputeEncoder();
-
-        //Bind textures
-        {
-            FastArray<MetalTexRegion>::const_iterator itor = metalSet->textures.begin();
-            FastArray<MetalTexRegion>::const_iterator end  = metalSet->textures.end();
-
-            while( itor != end )
-            {
-                NSRange range = itor->range;
-                range.location += slotStart + OGRE_METAL_CS_UAV_SLOT_START;
-                [computeEncoder setTextures:itor->textures withRange:range];
-                ++itor;
-            }
-        }
-
-        //Bind buffers
-        {
-            FastArray<MetalBufferRegion>::const_iterator itor = metalSet->buffers.begin();
-            FastArray<MetalBufferRegion>::const_iterator end  = metalSet->buffers.end();
-
-            while( itor != end )
-            {
-                NSRange range = itor->range;
-                range.location += slotStart + OGRE_METAL_CS_UAV_SLOT_START;
-                [computeEncoder setBuffers:itor->buffers offsets:itor->offsets withRange:range];
-                ++itor;
-            }
-        }
-    }
-    //-------------------------------------------------------------------------
-    void MetalRenderSystem::_setCurrentDeviceFromTexture( TextureGpu *texture )
-    {
-        //mDevice
-    }
-    //-------------------------------------------------------------------------
-    RenderPassDescriptor* MetalRenderSystem::createRenderPassDescriptor(void)
-    {
-        RenderPassDescriptor *retVal = OGRE_NEW MetalRenderPassDescriptor( mActiveDevice, this );
-        mRenderPassDescs.insert( retVal );
-        return retVal;
-    }
-    //-------------------------------------------------------------------------
-    void MetalRenderSystem::beginRenderPassDescriptor( RenderPassDescriptor *desc,
-                                                       TextureGpu *anyTarget, uint8 mipLevel,
-                                                       const Vector4 *viewportSizes,
-                                                       const Vector4 *scissors,
-                                                       uint32 numViewports,
-                                                       bool overlaysEnabled,
-                                                       bool warnIfRtvWasFlushed )
-    {
-        if( desc->mInformationOnly && desc->hasSameAttachments( mCurrentRenderPassDescriptor ) )
-            return;
-
-        const int oldWidth = mCurrentRenderViewport[0].getActualWidth();
-        const int oldHeight = mCurrentRenderViewport[0].getActualHeight();
-        const int oldX = mCurrentRenderViewport[0].getActualLeft();
-        const int oldY = mCurrentRenderViewport[0].getActualTop();
-
-        MetalRenderPassDescriptor *currPassDesc =
-                static_cast<MetalRenderPassDescriptor*>( mCurrentRenderPassDescriptor );
-
-        RenderSystem::beginRenderPassDescriptor( desc, anyTarget, mipLevel, viewportSizes, scissors,
-                                                 numViewports, overlaysEnabled, warnIfRtvWasFlushed );
-
-
-        // Calculate the new "lower-left" corner of the viewport to compare with the old one
-        const int w = mCurrentRenderViewport[0].getActualWidth();
-        const int h = mCurrentRenderViewport[0].getActualHeight();
-        const int x = mCurrentRenderViewport[0].getActualLeft();
-        const int y = mCurrentRenderViewport[0].getActualTop();
-
-        const bool vpChanged = oldX != x || oldY != y || oldWidth != w || oldHeight != h ||
-                               numViewports > 1u;
-
-        MetalRenderPassDescriptor *newPassDesc =
-                static_cast<MetalRenderPassDescriptor*>( desc );
-
-        //Determine whether:
-        //  1. We need to store current active RenderPassDescriptor
-        //  2. We need to perform clears when loading the new RenderPassDescriptor
-        uint32 entriesToFlush = 0;
-        if( currPassDesc )
-        {
-            entriesToFlush = currPassDesc->willSwitchTo( newPassDesc, warnIfRtvWasFlushed );
-
-            if( entriesToFlush != 0 )
-                currPassDesc->performStoreActions( entriesToFlush, false );
-
-            //If rendering was interrupted but we're still rendering to the same
-            //RTT, willSwitchTo will have returned 0 and thus we won't perform
-            //the necessary load actions.
-            //If RTTs were different, we need to have performStoreActions
-            //called by now (i.e. to emulate StoreAndResolve)
-            if( mInterruptedRenderCommandEncoder )
-            {
-                entriesToFlush = RenderPassDescriptor::All;
-                if( warnIfRtvWasFlushed )
-                    newPassDesc->checkWarnIfRtvWasFlushed( entriesToFlush );
-            }
-        }
-        else
-        {
-            entriesToFlush = RenderPassDescriptor::All;
-        }
-
-        mEntriesToFlush = entriesToFlush;
-        mVpChanged      = vpChanged;
-        mInterruptedRenderCommandEncoder = false;
-    }
-    //-------------------------------------------------------------------------
-    void MetalRenderSystem::executeRenderPassDescriptorDelayedActions( bool officialCall )
-    {
-        if( officialCall )
-            mInterruptedRenderCommandEncoder = false;
-
-        if( mEntriesToFlush )
-        {
-            mActiveDevice->endAllEncoders( false );
-            mActiveRenderEncoder = 0;
-
-            MetalRenderPassDescriptor *newPassDesc =
-                    static_cast<MetalRenderPassDescriptor*>( mCurrentRenderPassDescriptor );
-
-            MTLRenderPassDescriptor *passDesc = [MTLRenderPassDescriptor renderPassDescriptor];
-            newPassDesc->performLoadActions( passDesc, mInterruptedRenderCommandEncoder );
-
-            mActiveDevice->mRenderEncoder =
-                    [mActiveDevice->mCurrentCommandBuffer renderCommandEncoderWithDescriptor:passDesc];
-            mActiveRenderEncoder = mActiveDevice->mRenderEncoder;
-
-            static_cast<MetalVaoManager*>( mVaoManager )->bindDrawId();
-            [mActiveRenderEncoder setFrontFacingWinding:MTLWindingCounterClockwise];
-
-            if (mStencilEnabled)
-                [mActiveRenderEncoder setStencilReferenceValue:mStencilRefValue];
-
-            mInterruptedRenderCommandEncoder = false;
-        }
-
-        flushUAVs();
-
-        const uint32 numViewports = mMaxBoundViewports;
-
-        //If we flushed, viewport and scissor settings got reset.
-        if( !mCurrentRenderViewport[0].coversEntireTarget() || (mVpChanged && !mEntriesToFlush) ||
-            numViewports > 1u  )
-        {
-#if defined( __IPHONE_12_0 ) || \
-    (defined( MAC_OS_X_VERSION_10_13 ) && OGRE_PLATFORM != OGRE_PLATFORM_APPLE_IOS)
-            bool hasMultiViewports = false;
-            if( @available( iOS 12.0, macOS 10.13, tvOS 12.0, * ) )
-                hasMultiViewports = true;
-            if( numViewports <= 1u || !hasMultiViewports )
-#endif
-            {
-                MTLViewport mtlVp;
-                mtlVp.originX   = mCurrentRenderViewport[0].getActualLeft();
-                mtlVp.originY   = mCurrentRenderViewport[0].getActualTop();
-                mtlVp.width     = mCurrentRenderViewport[0].getActualWidth();
-                mtlVp.height    = mCurrentRenderViewport[0].getActualHeight();
-                mtlVp.znear     = 0;
-                mtlVp.zfar      = 1;
-                [mActiveRenderEncoder setViewport:mtlVp];
-            }
-#if defined( __IPHONE_12_0 ) || \
-    (defined( MAC_OS_X_VERSION_10_13 ) && OGRE_PLATFORM != OGRE_PLATFORM_APPLE_IOS)
-            else
-            {
-                MTLViewport mtlVp[16];
-                for( size_t i=0; i<numViewports; ++i )
-                {
-                    mtlVp[i].originX    = mCurrentRenderViewport[i].getActualLeft();
-                    mtlVp[i].originY    = mCurrentRenderViewport[i].getActualTop();
-                    mtlVp[i].width      = mCurrentRenderViewport[i].getActualWidth();
-                    mtlVp[i].height     = mCurrentRenderViewport[i].getActualHeight();
-                    mtlVp[i].znear      = 0;
-                    mtlVp[i].zfar       = 1;
-                }
-                [mActiveRenderEncoder setViewports:mtlVp count:numViewports];
-            }
-#endif
-        }
-
-        if( (!mCurrentRenderViewport[0].coversEntireTarget() ||
-             !mCurrentRenderViewport[0].scissorsMatchViewport()) || !mEntriesToFlush ||
-            numViewports > 1u )
-        {
-#if defined( __IPHONE_12_0 ) || \
-    (defined( MAC_OS_X_VERSION_10_13 ) && OGRE_PLATFORM != OGRE_PLATFORM_APPLE_IOS)
-            bool hasMultiViewports = false;
-            if( @available( iOS 12.0, macOS 10.13, tvOS 12.0, * ) )
-                hasMultiViewports = true;
-            if( numViewports <= 1u || !hasMultiViewports )
-#endif
-            {
-                MTLScissorRect scissorRect;
-                scissorRect.x       = mCurrentRenderViewport[0].getScissorActualLeft();
-                scissorRect.y       = mCurrentRenderViewport[0].getScissorActualTop();
-                scissorRect.width   = mCurrentRenderViewport[0].getScissorActualWidth();
-                scissorRect.height  = mCurrentRenderViewport[0].getScissorActualHeight();
-                [mActiveRenderEncoder setScissorRect:scissorRect];
-            }
-#if defined( __IPHONE_12_0 ) || \
-    (defined( MAC_OS_X_VERSION_10_13 ) && OGRE_PLATFORM != OGRE_PLATFORM_APPLE_IOS)
-            else
-            {
-                MTLScissorRect scissorRect[16];
-                for( size_t i=0; i<numViewports; ++i )
-                {
-                    scissorRect[i].x        = mCurrentRenderViewport[i].getScissorActualLeft();
-                    scissorRect[i].y        = mCurrentRenderViewport[i].getScissorActualTop();
-                    scissorRect[i].width    = mCurrentRenderViewport[i].getScissorActualWidth();
-                    scissorRect[i].height   = mCurrentRenderViewport[i].getScissorActualHeight();
-                }
-                [mActiveRenderEncoder setScissorRects:scissorRect count:numViewports];
-            }
-#endif
-        }
-
-        mEntriesToFlush = 0;
-        mVpChanged = false;
-        mInterruptedRenderCommandEncoder = false;
-
-        if( mActiveDevice->mFrameAborted )
-        {
-            mActiveDevice->endAllEncoders();
-            mActiveRenderEncoder = 0;
-            return;
-        }
-    }
-    //-------------------------------------------------------------------------
-    void MetalRenderSystem::executeRenderPassDescriptorDelayedActions(void)
-    {
-        executeRenderPassDescriptorDelayedActions( true );
-    }
-    //-------------------------------------------------------------------------
-    inline void MetalRenderSystem::endRenderPassDescriptor( bool isInterruptingRender )
-    {
-        if( mCurrentRenderPassDescriptor )
-        {
-            MetalRenderPassDescriptor *passDesc =
-                    static_cast<MetalRenderPassDescriptor*>( mCurrentRenderPassDescriptor );
-            passDesc->performStoreActions( RenderPassDescriptor::All, isInterruptingRender );
-
-            mEntriesToFlush = 0;
-            mVpChanged = false;
-
-            mInterruptedRenderCommandEncoder = isInterruptingRender;
-
-            if( !isInterruptingRender )
-                RenderSystem::endRenderPassDescriptor();
-            else
-                mEntriesToFlush = RenderPassDescriptor::All;
-        }
-    }
-    //-------------------------------------------------------------------------
-    void MetalRenderSystem::endRenderPassDescriptor(void)
-    {
-        endRenderPassDescriptor( false );
-    }
-    //-----------------------------------------------------------------------------------
-    TextureGpu* MetalRenderSystem::createDepthBufferFor( TextureGpu *colourTexture,
-                                                         bool preferDepthTexture,
-                                                         PixelFormatGpu depthBufferFormat )
-    {
-        if( depthBufferFormat == PFG_UNKNOWN )
-            depthBufferFormat = DepthBuffer::DefaultDepthBufferFormat;
-
-        return RenderSystem::createDepthBufferFor( colourTexture, preferDepthTexture,
-                                                   depthBufferFormat );
     }
     //-------------------------------------------------------------------------
     void MetalRenderSystem::_setTextureCoordCalculation( size_t unit, TexCoordCalcMethod m,
@@ -1209,14 +610,98 @@ namespace Ogre
         }
     }
     //-------------------------------------------------------------------------
+    DepthBuffer* MetalRenderSystem::_createDepthBufferFor( RenderTarget *renderTarget,
+                                                           bool exactMatchFormat )
+    {
+        MTLTextureDescriptor *desc = [MTLTextureDescriptor new];
+        desc.sampleCount = renderTarget->getFSAA();
+        desc.textureType = renderTarget->getFSAA() > 1u ? MTLTextureType2DMultisample :
+                                                          MTLTextureType2D;
+        desc.width              = (NSUInteger)renderTarget->getWidth();
+        desc.height             = (NSUInteger)renderTarget->getHeight();
+        desc.depth              = (NSUInteger)1u;
+        desc.arrayLength        = 1u;
+        desc.mipmapLevelCount   = 1u;
+
+        desc.usage = MTLTextureUsageRenderTarget;
+        if( renderTarget->prefersDepthTexture() )
+            desc.usage |= MTLTextureUsageShaderRead;
+
+#if OGRE_PLATFORM != OGRE_PLATFORM_APPLE_IOS
+        desc.storageMode = MTLStorageModePrivate;
+#endif
+
+        PixelFormat desiredDepthBufferFormat = renderTarget->getDesiredDepthBufferFormat();
+
+        MTLPixelFormat depthFormat = MTLPixelFormatInvalid;
+        MTLPixelFormat stencilFormat = MTLPixelFormatInvalid;
+        MetalMappings::getDepthStencilFormat( mActiveDevice, desiredDepthBufferFormat,
+                                              depthFormat, stencilFormat );
+
+        id<MTLTexture> depthTexture = 0;
+        id<MTLTexture> stencilTexture = 0;
+
+        if( depthFormat != MTLPixelFormatInvalid )
+        {
+            desc.pixelFormat = depthFormat;
+            depthTexture = [mActiveDevice->mDevice newTextureWithDescriptor: desc];
+        }
+
+        if( stencilFormat != MTLPixelFormatInvalid )
+        {
+            if( stencilFormat != MTLPixelFormatDepth32Float_Stencil8
+   #if OGRE_PLATFORM != OGRE_PLATFORM_APPLE_IOS
+            && stencilFormat != MTLPixelFormatDepth24Unorm_Stencil8
+   #endif
+            )
+            {
+                //Separate Stencil & Depth
+                desc.pixelFormat = stencilFormat;
+                stencilTexture = [mActiveDevice->mDevice newTextureWithDescriptor: desc];
+            }
+            else
+            {
+                //Combined Stencil & Depth
+                stencilTexture = depthTexture;
+            }
+        }
+
+        DepthBuffer *retVal = new MetalDepthBuffer( 0, this, renderTarget->getWidth(),
+                                                    renderTarget->getHeight(),
+                                                    renderTarget->getFSAA(), 0,
+                                                    desiredDepthBufferFormat,
+                                                    renderTarget->prefersDepthTexture(), false,
+                                                    depthTexture, stencilTexture,
+                                                    mActiveDevice );
+
+        return retVal;
+    }
+    //-------------------------------------------------------------------------
     void MetalRenderSystem::_waitForTailFrameToFinish(void)
     {
         if( !mMainSemaphoreAlreadyWaited )
         {
             dispatch_semaphore_wait( mMainGpuSyncSemaphore, DISPATCH_TIME_FOREVER );
-            //Semaphore was just grabbed, so ensure we don't grab it twice.
             mMainSemaphoreAlreadyWaited = true;
         }
+    }
+    //-------------------------------------------------------------------------
+    bool MetalRenderSystem::_willTailFrameStall(void)
+    {
+        bool retVal = mMainSemaphoreAlreadyWaited;
+
+        if( !mMainSemaphoreAlreadyWaited )
+        {
+            const long result = dispatch_semaphore_wait( mMainGpuSyncSemaphore, DISPATCH_TIME_NOW );
+            if( result == 0 )
+            {
+                retVal = true;
+                //Semaphore was just grabbed, so ensure we don't grab it twice.
+                mMainSemaphoreAlreadyWaited = true;
+            }
+        }
+
+        return retVal;
     }
     //-------------------------------------------------------------------------
     void MetalRenderSystem::_beginFrameOnce(void)
@@ -1232,12 +717,13 @@ namespace Ogre
         _waitForTailFrameToFinish();
 
         mBeginFrameOnceStarted = true;
+
+        mActiveRenderTarget = 0;
+        mActiveViewport = 0;
     }
     //-------------------------------------------------------------------------
     void MetalRenderSystem::_endFrameOnce(void)
     {
-        RenderSystem::_endFrameOnce();
-
         //TODO: We shouldn't tidy up JUST the active device. But all of them.
 
         cleanAutoParamsBuffers();
@@ -1253,6 +739,8 @@ namespace Ogre
 
         mActiveDevice->commitAndNextCommandBuffer();
 
+        mActiveRenderTarget = 0;
+        mActiveViewport = 0;
         mActiveDevice->mFrameAborted = false;
         mMainSemaphoreAlreadyWaited = false;
         mBeginFrameOnceStarted = false;
@@ -1359,6 +847,58 @@ namespace Ogre
     {
     }
     //-------------------------------------------------------------------------
+    void MetalRenderSystem::_setViewport(Viewport *vp)
+    {
+        if( mActiveViewport != vp )
+        {
+            mActiveViewport = vp;
+
+            if( vp )
+            {
+                const bool activeHasColourWrites = mNumMRTs != 0;
+
+                if( vp->getTarget() != mActiveRenderTarget ||
+                    vp->getColourWrite() != activeHasColourWrites )
+                {
+                    _setRenderTarget( vp->getTarget(), vp->getViewportRenderTargetFlags() );
+                }
+
+                if( mActiveRenderEncoder || ( !mActiveRenderEncoder &&
+                                              (!vp->coversEntireTarget() ||
+                                               !vp->scissorsMatchViewport()) ) )
+                {
+                    if( !mActiveRenderEncoder )
+                        createRenderEncoder();
+
+                    if( !vp->coversEntireTarget() )
+                    {
+                        MTLViewport mtlVp;
+                        mtlVp.originX   = vp->getActualLeft();
+                        mtlVp.originY   = vp->getActualTop();
+                        mtlVp.width     = vp->getActualWidth();
+                        mtlVp.height    = vp->getActualHeight();
+                        mtlVp.znear     = 0;
+                        mtlVp.zfar      = 1;
+                        [mActiveRenderEncoder setViewport:mtlVp];
+                    }
+
+                    if( !vp->scissorsMatchViewport() )
+                    {
+                        MTLScissorRect scissorRect;
+                        scissorRect.x       = vp->getScissorActualLeft();
+                        scissorRect.y       = vp->getScissorActualTop();
+                        scissorRect.width   = vp->getScissorActualWidth();
+                        scissorRect.height  = vp->getScissorActualHeight();
+                        [mActiveRenderEncoder setScissorRect:scissorRect];
+                    }
+                }
+            }
+        }
+
+        if( mActiveRenderEncoder && mUavsDirty )
+            flushUAVs();
+    }
+    //-------------------------------------------------------------------------
     void MetalRenderSystem::setActiveDevice( MetalDevice *device )
     {
         if( mActiveDevice != device )
@@ -1368,17 +908,98 @@ namespace Ogre
         }
     }
     //-------------------------------------------------------------------------
-    void MetalRenderSystem::_notifyActiveEncoderEnded( bool callEndRenderPassDesc )
+    void MetalRenderSystem::createRenderEncoder(void)
     {
-        // MetalDevice::endRenderEncoder gets called either because
-        //  * Another encoder was required. Thus we interrupted and callEndRenderPassDesc = true
-        //  * endRenderPassDescriptor called us. Thus callEndRenderPassDesc = false
-        //  * executeRenderPassDescriptorDelayedActions called us. Thus callEndRenderPassDesc = false
-        // In all cases, when callEndRenderPassDesc = true, it also implies rendering was interrupted.
-        if( callEndRenderPassDesc )
-            endRenderPassDescriptor( true );
+        assert( mActiveDevice );
 
-        mUavRenderingDirty = true;
+        //We assume the RenderWindow is at MRT#0 (in fact it
+        //would be very odd to use the RenderWindow as MRT)
+        if( mNumMRTs > 0 )
+            mActiveDevice->mFrameAborted |= !mCurrentColourRTs[0]->nextDrawable();
+
+        if( mActiveDevice->mFrameAborted )
+        {
+            mActiveDevice->endAllEncoders();
+            mActiveRenderEncoder = 0;
+            return;
+        }
+
+        const bool hadActiveRenderEncoder = mActiveRenderEncoder;
+        Viewport *prevViewport = 0;
+        RenderTarget *prevRenderTarget = 0;
+        if( hadActiveRenderEncoder )
+        {
+            //Ending all encoders will clear those, so we'll have to restore them.
+            prevViewport = mActiveViewport;
+            prevRenderTarget = mActiveRenderTarget;
+        }
+
+        mActiveDevice->endAllEncoders();
+        mActiveRenderEncoder = 0;
+
+        if( hadActiveRenderEncoder )
+        {
+            if( prevViewport && (!prevViewport->coversEntireTarget() ||
+                                 !prevViewport->scissorsMatchViewport()) )
+            {
+                _setViewport( prevViewport );
+            }
+            else
+            {
+                mActiveViewport = prevViewport;
+                mActiveRenderTarget = prevRenderTarget;
+            }
+        }
+
+        //TODO: With a couple modifications, Compositor should be able to tell us
+        //if we can use MTLStoreActionDontCare.
+
+        MTLRenderPassDescriptor *passDesc = [MTLRenderPassDescriptor renderPassDescriptor];
+        for( uint8 i=0; i<mNumMRTs; ++i )
+        {
+            passDesc.colorAttachments[i] = [mCurrentColourRTs[i]->mColourAttachmentDesc copy];
+            mCurrentColourRTs[i]->mColourAttachmentDesc.loadAction = MTLLoadActionLoad;
+
+            assert( passDesc.colorAttachments[i].texture );
+        }
+
+        if( mCurrentDepthBuffer )
+        {
+            MTLRenderPassDepthAttachmentDescriptor *descDepth =
+                    mCurrentDepthBuffer->mDepthAttachmentDesc;
+            if( descDepth )
+            {
+                passDesc.depthAttachment = [descDepth copy];
+                descDepth.loadAction = MTLLoadActionLoad;
+            }
+
+            MTLRenderPassStencilAttachmentDescriptor *descStencil =
+                    mCurrentDepthBuffer->mStencilAttachmentDesc;
+            if( descStencil )
+            {
+                passDesc.stencilAttachment = [descStencil copy];
+                descStencil.loadAction = MTLLoadActionLoad;
+            }
+        }
+
+        mActiveDevice->mRenderEncoder =
+                [mActiveDevice->mCurrentCommandBuffer renderCommandEncoderWithDescriptor:passDesc];
+        mActiveRenderEncoder = mActiveDevice->mRenderEncoder;
+
+        static_cast<MetalVaoManager*>( mVaoManager )->bindDrawId();
+        [mActiveRenderEncoder setFrontFacingWinding:MTLWindingCounterClockwise];
+        flushUAVs();
+        
+        if (mStencilEnabled)
+        {
+            [mActiveRenderEncoder setStencilReferenceValue:mStencilRefValue];
+        }
+    }
+    //-------------------------------------------------------------------------
+    void MetalRenderSystem::_notifyActiveEncoderEnded(void)
+    {
+        mActiveViewport = 0;
+        mActiveRenderTarget = 0;
         mActiveRenderEncoder = 0;
         mPso = 0;
     }
@@ -1386,12 +1007,6 @@ namespace Ogre
     void MetalRenderSystem::_notifyActiveComputeEnded(void)
     {
         mComputePso = 0;
-    }
-    //-------------------------------------------------------------------------
-    void MetalRenderSystem::_notifyNewCommandBuffer(void)
-    {
-        MetalVaoManager *vaoManager = static_cast<MetalVaoManager*>( mVaoManager );
-        vaoManager->_notifyNewCommandBuffer();
     }
     //-------------------------------------------------------------------------
     void MetalRenderSystem::_notifyDeviceStalled(void)
@@ -1410,8 +1025,6 @@ namespace Ogre
         if( pso->macroblock->mDepthCheck )
         {
             depthState.depthFunc    = pso->macroblock->mDepthFunc;
-            if( mReverseDepth )
-                depthState.depthFunc = reverseCompareFunction( depthState.depthFunc );
             depthState.depthWrite   = pso->macroblock->mDepthWrite;
         }
         else
@@ -1488,8 +1101,6 @@ namespace Ogre
         if( pso->macroblock->mDepthCheck )
         {
             depthState.depthFunc    = pso->macroblock->mDepthFunc;
-            if( mReverseDepth )
-                depthState.depthFunc = reverseCompareFunction( depthState.depthFunc );
             depthState.depthWrite   = pso->macroblock->mDepthWrite;
         }
         else
@@ -1517,7 +1128,7 @@ namespace Ogre
     void MetalRenderSystem::_hlmsPipelineStateObjectCreated( HlmsPso *newPso )
     {
         MTLRenderPipelineDescriptor *psd = [[MTLRenderPipelineDescriptor alloc] init];
-        [psd setSampleCount: newPso->pass.sampleDescription.getColourSamples()]; // aka .rasterSampleCount
+        [psd setSampleCount: newPso->pass.multisampleCount];
 
         MetalProgram *vertexShader = 0;
         MetalProgram *pixelShader = 0;
@@ -1593,14 +1204,15 @@ namespace Ogre
         uint8 mrtCount = 0;
         for( int i=0; i<OGRE_MAX_MULTIPLE_RENDER_TARGETS; ++i )
         {
-            if( newPso->pass.colourFormat[i] != PFG_NULL )
+            if( newPso->pass.colourFormat[i] != PF_NULL )
                 mrtCount = i + 1u;
         }
 
         for( int i=0; i<mrtCount; ++i )
         {
             HlmsBlendblock const *blendblock = newPso->blendblock;
-            psd.colorAttachments[i].pixelFormat = MetalMappings::get( newPso->pass.colourFormat[i] );
+            psd.colorAttachments[i].pixelFormat = MetalMappings::getPixelFormat(
+                        newPso->pass.colourFormat[i], newPso->pass.hwGamma[i] );
 
             if( psd.colorAttachments[i].pixelFormat == MTLPixelFormatInvalid ||
                 (blendblock->mBlendOperation == SBO_ADD &&
@@ -1629,7 +1241,7 @@ namespace Ogre
             psd.colorAttachments[i].writeMask = MetalMappings::get( blendblock->mBlendChannelMask );
         }
 
-        if( newPso->pass.depthFormat != PFG_NULL )
+        if( newPso->pass.depthFormat != PF_NULL )
         {
             MTLPixelFormat depthFormat = MTLPixelFormatInvalid;
             MTLPixelFormat stencilFormat = MTLPixelFormatInvalid;
@@ -1722,279 +1334,6 @@ namespace Ogre
                     CFBridgingRelease( block->mRsData ) );
     }
     //-------------------------------------------------------------------------
-    template <typename TDescriptorSetTexture,
-              typename TTexSlot,
-              typename TBufferPacked,
-              bool isUav>
-    void MetalRenderSystem::_descriptorSetTextureCreated( TDescriptorSetTexture *newSet,
-                                                          const FastArray<TTexSlot> &texContainer,
-                                                          uint16 *shaderTypeTexCount )
-    {
-        MetalDescriptorSetTexture *metalSet = new MetalDescriptorSetTexture();
-
-        metalSet->numTextureViews = 0;
-
-        size_t numBuffers = 0;
-        size_t numTextures = 0;
-
-        size_t numBufferRanges = 0;
-        size_t numTextureRanges = 0;
-
-        bool needsNewTexRange = true;
-        bool needsNewBufferRange = true;
-
-        ShaderType shaderType = VertexShader;
-        size_t numProcessedSlots = 0;
-
-        typename FastArray<TTexSlot>::const_iterator itor = texContainer.begin();
-        typename FastArray<TTexSlot>::const_iterator end  = texContainer.end();
-
-        while( itor != end )
-        {
-            if( shaderTypeTexCount )
-            {
-                //We need to break the ranges if we crossed stages
-                while( shaderType <= PixelShader &&
-                       numProcessedSlots >= shaderTypeTexCount[shaderType] )
-                {
-                    numProcessedSlots = 0;
-                    shaderType = static_cast<ShaderType>( shaderType + 1u );
-                    needsNewTexRange = true;
-                    needsNewBufferRange = true;
-                }
-            }
-
-            if( itor->isTexture() )
-            {
-                needsNewBufferRange = true;
-                if( needsNewTexRange )
-                {
-                    ++numTextureRanges;
-                    needsNewTexRange = false;
-                }
-
-                const typename TDescriptorSetTexture::TextureSlot &texSlot = itor->getTexture();
-                const TextureTypes::TextureTypes texType = texSlot.texture->getTextureType();
-                if( texSlot.needsDifferentView() ||
-                    ( isUav &&
-                      ( texType == TextureTypes::TypeCube || texType == TextureTypes::TypeCubeArray ) ) )
-                {
-                    ++metalSet->numTextureViews;
-                }
-                ++numTextures;
-            }
-            else
-            {
-                needsNewTexRange = true;
-                if( needsNewBufferRange )
-                {
-                    ++numBufferRanges;
-                    needsNewBufferRange = false;
-                }
-
-                ++numBuffers;
-            }
-            ++numProcessedSlots;
-            ++itor;
-        }
-
-        //Create two contiguous arrays of texture and buffers, but we'll split
-        //it into regions as a buffer could be in the middle of two textures.
-        __unsafe_unretained id <MTLTexture> *textures = 0;
-        __unsafe_unretained id <MTLBuffer> *buffers = 0;
-        NSUInteger *offsets = 0;
-
-        if( metalSet->numTextureViews > 0 )
-        {
-            //Create a third array to hold the strong reference
-            //to the reinterpreted versions of textures.
-            //Must be init to 0 before ARC sees it.
-            void *textureViews = OGRE_MALLOC_SIMD( sizeof(id<MTLTexture>*) * metalSet->numTextureViews,
-                                                   MEMCATEGORY_RENDERSYS );
-            memset( textureViews, 0, sizeof(id<MTLTexture>*) * metalSet->numTextureViews );
-            metalSet->textureViews = (__strong id <MTLTexture>*)textureViews;
-        }
-        if( numTextures > 0 )
-        {
-            textures = (__unsafe_unretained id <MTLTexture>*)
-                       OGRE_MALLOC_SIMD( sizeof(id<MTLTexture>*) * numTextures, MEMCATEGORY_RENDERSYS );
-        }
-        if( numBuffers > 0 )
-        {
-            buffers = (__unsafe_unretained id <MTLBuffer>*)
-                       OGRE_MALLOC_SIMD( sizeof(id<MTLBuffer>*) * numBuffers, MEMCATEGORY_RENDERSYS );
-            offsets = (NSUInteger*)OGRE_MALLOC_SIMD( sizeof(NSUInteger) * numBuffers,
-                                                     MEMCATEGORY_RENDERSYS );
-        }
-
-        metalSet->textures.reserve( numTextureRanges );
-        metalSet->buffers.reserve( numBufferRanges );
-
-        needsNewTexRange = true;
-        needsNewBufferRange = true;
-
-        shaderType = VertexShader;
-        numProcessedSlots = 0;
-
-        size_t texViewIndex = 0;
-
-        itor = texContainer.begin();
-        end  = texContainer.end();
-
-        while( itor != end )
-        {
-            if( shaderTypeTexCount )
-            {
-                //We need to break the ranges if we crossed stages
-                while( shaderType <= PixelShader &&
-                       numProcessedSlots >= shaderTypeTexCount[shaderType] )
-                {
-                    numProcessedSlots = 0;
-                    shaderType = static_cast<ShaderType>( shaderType + 1u );
-                    needsNewTexRange = true;
-                    needsNewBufferRange = true;
-                }
-            }
-
-            if( itor->isTexture() )
-            {
-                needsNewBufferRange = true;
-                if( needsNewTexRange )
-                {
-                    metalSet->textures.push_back( MetalTexRegion() );
-                    MetalTexRegion &texRegion = metalSet->textures.back();
-                    texRegion.textures = textures;
-                    texRegion.shaderType = shaderType;
-                    texRegion.range.location    = itor - texContainer.begin();
-                    texRegion.range.length      = 0;
-                    needsNewTexRange = false;
-                }
-
-                const typename TDescriptorSetTexture::TextureSlot &texSlot = itor->getTexture();
-
-                assert( dynamic_cast<MetalTextureGpu*>( texSlot.texture ) );
-                MetalTextureGpu *metalTex = static_cast<MetalTextureGpu*>( texSlot.texture );
-                __unsafe_unretained id<MTLTexture> textureHandle = metalTex->getDisplayTextureName();
-
-                const TextureTypes::TextureTypes texType = texSlot.texture->getTextureType();
-                if( texSlot.needsDifferentView() ||
-                    ( isUav &&
-                      ( texType == TextureTypes::TypeCube || texType == TextureTypes::TypeCubeArray ) ) )
-                {
-                    metalSet->textureViews[texViewIndex] = metalTex->getView( texSlot );
-                    textureHandle = metalSet->textureViews[texViewIndex];
-                    ++texViewIndex;
-                }
-
-                MetalTexRegion &texRegion = metalSet->textures.back();
-                *textures = textureHandle;
-                ++texRegion.range.length;
-
-                ++textures;
-            }
-            else
-            {
-                needsNewTexRange = true;
-                if( needsNewBufferRange )
-                {
-                    metalSet->buffers.push_back( MetalBufferRegion() );
-                    MetalBufferRegion &bufferRegion = metalSet->buffers.back();
-                    bufferRegion.buffers = buffers;
-                    bufferRegion.offsets = offsets;
-                    bufferRegion.shaderType = shaderType;
-                    bufferRegion.range.location = itor - texContainer.begin();
-                    bufferRegion.range.length   = 0;
-                    needsNewBufferRange = false;
-                }
-
-                const typename TDescriptorSetTexture::BufferSlot &bufferSlot = itor->getBuffer();
-
-                assert( dynamic_cast<TBufferPacked*>( bufferSlot.buffer ) );
-                TBufferPacked *metalBuf = static_cast<TBufferPacked*>( bufferSlot.buffer );
-
-                MetalBufferRegion &bufferRegion = metalSet->buffers.back();
-                metalBuf->bindBufferForDescriptor( buffers, offsets, bufferSlot.offset );
-                ++bufferRegion.range.length;
-
-                ++buffers;
-                ++offsets;
-            }
-            ++numProcessedSlots;
-            ++itor;
-        }
-
-        newSet->mRsData = metalSet;
-    }
-    //-------------------------------------------------------------------------
-    void MetalRenderSystem::destroyMetalDescriptorSetTexture( MetalDescriptorSetTexture *metalSet )
-    {
-        const size_t numTextureViews = metalSet->numTextureViews;
-        for( size_t i=0; i<numTextureViews; ++i )
-            metalSet->textureViews[i] = 0; //Let ARC free these pointers
-
-        if( numTextureViews )
-        {
-            OGRE_FREE_SIMD( metalSet->textureViews, MEMCATEGORY_RENDERSYS );
-            metalSet->textureViews = 0;
-        }
-
-        if( !metalSet->textures.empty() )
-        {
-            MetalTexRegion &texRegion = metalSet->textures.front();
-            OGRE_FREE_SIMD( texRegion.textures, MEMCATEGORY_RENDERSYS );
-        }
-
-        if( !metalSet->buffers.empty() )
-        {
-            MetalBufferRegion &bufferRegion = metalSet->buffers.front();
-            OGRE_FREE_SIMD( bufferRegion.buffers, MEMCATEGORY_RENDERSYS );
-        }
-    }
-    //-------------------------------------------------------------------------
-    void MetalRenderSystem::_descriptorSetTexture2Created( DescriptorSetTexture2 *newSet )
-    {
-        _descriptorSetTextureCreated<
-                DescriptorSetTexture2,
-                DescriptorSetTexture2::Slot,
-                MetalTexBufferPacked,
-                false>( newSet, newSet->mTextures, newSet->mShaderTypeTexCount );
-    }
-    //-------------------------------------------------------------------------
-    void MetalRenderSystem::_descriptorSetTexture2Destroyed( DescriptorSetTexture2 *set )
-    {
-        assert( set->mRsData );
-
-        MetalDescriptorSetTexture *metalSet =
-                reinterpret_cast<MetalDescriptorSetTexture*>( set->mRsData );
-
-        destroyMetalDescriptorSetTexture( metalSet );
-        delete metalSet;
-
-        set->mRsData = 0;
-    }
-    //-------------------------------------------------------------------------
-    void MetalRenderSystem::_descriptorSetUavCreated( DescriptorSetUav *newSet )
-    {
-        _descriptorSetTextureCreated<
-                DescriptorSetUav,
-                DescriptorSetUav::Slot,
-                MetalUavBufferPacked,
-                true>( newSet, newSet->mUavs, 0 );
-    }
-    //-------------------------------------------------------------------------
-    void MetalRenderSystem::_descriptorSetUavDestroyed( DescriptorSetUav *set )
-    {
-        assert( set->mRsData );
-
-        MetalDescriptorSetTexture *metalSet =
-                reinterpret_cast<MetalDescriptorSetTexture*>( set->mRsData );
-
-        destroyMetalDescriptorSetTexture( metalSet );
-        delete metalSet;
-
-        set->mRsData = 0;
-    }
-    //-------------------------------------------------------------------------
     void MetalRenderSystem::_setHlmsSamplerblock( uint8 texUnit, const HlmsSamplerblock *samplerblock )
     {
         assert( (!samplerblock || samplerblock->mRsData) &&
@@ -2018,19 +1357,13 @@ namespace Ogre
         MetalHlmsPso *metalPso = reinterpret_cast<MetalHlmsPso*>(pso->rsData);
 
         if( pso && !mActiveRenderEncoder )
-        {
-            assert( mInterruptedRenderCommandEncoder &&
-                    "mActiveRenderEncoder can only be null at this stage if rendering was interrupted."
-                    " Did you call executeRenderPassDescriptorDelayedActions?");
-            executeRenderPassDescriptorDelayedActions( false );
-        }
+            createRenderEncoder();
 
         if( !mPso || mPso->depthStencilState != metalPso->depthStencilState )
             [mActiveRenderEncoder setDepthStencilState:metalPso->depthStencilState];
 
-        const float biasSign = mReverseDepth ? 1.0f : -1.0f;
-        [mActiveRenderEncoder setDepthBias:pso->macroblock->mDepthBiasConstant * biasSign
-                                     slopeScale:pso->macroblock->mDepthBiasSlopeScale * biasSign
+        [mActiveRenderEncoder setDepthBias:pso->macroblock->mDepthBiasConstant
+                                     slopeScale:pso->macroblock->mDepthBiasSlopeScale
                                      clamp:0.0f];
         [mActiveRenderEncoder setCullMode:metalPso->cullMode];
 
@@ -2059,6 +1392,147 @@ namespace Ogre
     VertexElementType MetalRenderSystem::getColourVertexElementType(void) const
     {
         return VET_COLOUR_ARGB;
+    }
+    //-------------------------------------------------------------------------
+    void MetalRenderSystem::_convertProjectionMatrix( const Matrix4& matrix, Matrix4& dest,
+                                                      bool forGpuProgram )
+    {
+        dest = matrix;
+
+        // Convert depth range from [-1,+1] to [0,1]
+        dest[2][0] = (dest[2][0] + dest[3][0]) / 2;
+        dest[2][1] = (dest[2][1] + dest[3][1]) / 2;
+        dest[2][2] = (dest[2][2] + dest[3][2]) / 2;
+        dest[2][3] = (dest[2][3] + dest[3][3]) / 2;
+    }
+    //-------------------------------------------------------------------------
+    Real MetalRenderSystem::getRSDepthRange(void) const
+    {
+         return 1.0f;
+    }
+    //-------------------------------------------------------------------------
+    void MetalRenderSystem::_makeProjectionMatrix( Real left, Real right, Real bottom, Real top,
+                                                   Real nearPlane, Real farPlane, Matrix4 &dest,
+                                                   bool forGpuProgram )
+    {
+        // Correct position for off-axis projection matrix
+        if (!forGpuProgram)
+        {
+            Real offsetX = left + right;
+            Real offsetY = top + bottom;
+
+            left -= offsetX;
+            right -= offsetX;
+            top -= offsetY;
+            bottom -= offsetY;
+        }
+
+        Real width = right - left;
+        Real height = top - bottom;
+        Real q, qn;
+        if (farPlane == 0)
+        {
+            q = 1 - Frustum::INFINITE_FAR_PLANE_ADJUST;
+            qn = nearPlane * (Frustum::INFINITE_FAR_PLANE_ADJUST - 1);
+        }
+        else
+        {
+            q = farPlane / ( farPlane - nearPlane );
+            qn = -q * nearPlane;
+        }
+        dest = Matrix4::ZERO;
+        dest[0][0] = 2 * nearPlane / width;
+        dest[0][2] = (right+left) / width;
+        dest[1][1] = 2 * nearPlane / height;
+        dest[1][2] = (top+bottom) / height;
+        dest[2][2] = -q;
+        dest[3][2] = -1.0f;
+        dest[2][3] = qn;
+    }
+    //-------------------------------------------------------------------------
+    void MetalRenderSystem::_makeProjectionMatrix( const Radian& fovy, Real aspect, Real nearPlane,
+                                                   Real farPlane, Matrix4& dest, bool forGpuProgram )
+    {
+        Radian theta ( fovy * 0.5 );
+        Real h = 1 / Math::Tan(theta);
+        Real w = h / aspect;
+        Real q, qn;
+        if (farPlane == 0)
+        {
+            q = 1 - Frustum::INFINITE_FAR_PLANE_ADJUST;
+            qn = nearPlane * (Frustum::INFINITE_FAR_PLANE_ADJUST - 1);
+        }
+        else
+        {
+            q = farPlane / ( farPlane - nearPlane );
+            qn = -q * nearPlane;
+        }
+
+        dest = Matrix4::ZERO;
+        dest[0][0] = w;
+        dest[1][1] = h;
+
+        dest[2][2] = -q;
+        dest[3][2] = -1.0f;
+
+        dest[2][3] = qn;
+    }
+    //-------------------------------------------------------------------------
+    void MetalRenderSystem::_makeOrthoMatrix( const Radian& fovy, Real aspect, Real nearPlane,
+                                              Real farPlane, Matrix4& dest, bool forGpuProgram )
+    {
+        Radian thetaY (fovy / 2.0f);
+        Real tanThetaY = Math::Tan(thetaY);
+
+        //Real thetaX = thetaY * aspect;
+        Real tanThetaX = tanThetaY * aspect; //Math::Tan(thetaX);
+        Real half_w = tanThetaX * nearPlane;
+        Real half_h = tanThetaY * nearPlane;
+        Real iw = 1.0f / half_w;
+        Real ih = 1.0f / half_h;
+        Real q;
+        if (farPlane == 0)
+        {
+            q = 0;
+        }
+        else
+        {
+            q = 1.0f / (farPlane - nearPlane);
+        }
+
+        dest = Matrix4::ZERO;
+        dest[0][0] = iw;
+        dest[1][1] = ih;
+        dest[2][2] = -q;
+        dest[2][3] = -nearPlane / (farPlane - nearPlane);
+        dest[3][3] = 1;
+    }
+    //---------------------------------------------------------------------
+    void MetalRenderSystem::_applyObliqueDepthProjection( Matrix4& matrix, const Plane& plane,
+                                                          bool forGpuProgram )
+    {
+        // Thanks to Eric Lenyel for posting this calculation at www.terathon.com
+
+        // Calculate the clip-space corner point opposite the clipping plane
+        // as (sgn(clipPlane.x), sgn(clipPlane.y), 1, 1) and
+        // transform it into camera space by multiplying it
+        // by the inverse of the projection matrix
+
+        Vector4 q;
+        q.x = (Math::Sign(plane.normal.x) + matrix[0][2]) / matrix[0][0];
+        q.y = (Math::Sign(plane.normal.y) + matrix[1][2]) / matrix[1][1];
+        q.z = -1.0F;
+        q.w = (1.0F + matrix[2][2]) / matrix[2][3];
+
+        // Calculate the scaled plane vector
+        Vector4 clipPlane4d(plane.normal.x, plane.normal.y, plane.normal.z, plane.d);
+        Vector4 c = clipPlane4d * (2.0F / (clipPlane4d.dotProduct(q)));
+
+        // Replace the third row of the projection matrix
+        matrix[2][0] = c.x;
+        matrix[2][1] = c.y;
+        matrix[2][2] = c.z + 1.0F;
+        matrix[2][3] = c.w;
     }
     //-------------------------------------------------------------------------
     void MetalRenderSystem::_dispatch( const HlmsComputePso &pso )
@@ -2342,11 +1816,10 @@ namespace Ogre
                 // Update derived depth bias.
                 if (mDerivedDepthBias && mCurrentPassIterationNum > 0)
                 {
-                    const float biasSign = mReverseDepth ? 1.0f : -1.0f;
-                    [mActiveRenderEncoder setDepthBias:(mDerivedDepthBiasBase +
-                                                        mDerivedDepthBiasMultiplier *
-                                                        mCurrentPassIterationNum) * biasSign
-                                            slopeScale:mDerivedDepthBiasSlopeScale * biasSign
+                    [mActiveRenderEncoder setDepthBias:mDerivedDepthBiasBase +
+                                                       mDerivedDepthBiasMultiplier *
+                                                       mCurrentPassIterationNum
+                                            slopeScale:mDerivedDepthBiasSlopeScale
                                                  clamp:0.0f];
                 }
 
@@ -2394,11 +1867,10 @@ namespace Ogre
                 // Update derived depth bias.
                 if (mDerivedDepthBias && mCurrentPassIterationNum > 0)
                 {
-                    const float biasSign = mReverseDepth ? 1.0f : -1.0f;
-                    [mActiveRenderEncoder setDepthBias:(mDerivedDepthBiasBase +
-                                                        mDerivedDepthBiasMultiplier *
-                                                        mCurrentPassIterationNum) * biasSign
-                                            slopeScale:mDerivedDepthBiasSlopeScale * biasSign
+                    [mActiveRenderEncoder setDepthBias:mDerivedDepthBiasBase +
+                                                       mDerivedDepthBiasMultiplier *
+                                                       mCurrentPassIterationNum
+                                            slopeScale:mDerivedDepthBiasSlopeScale
                                                  clamp:0.0f];
                 }
 
@@ -2535,13 +2007,57 @@ namespace Ogre
     {
     }
     //-------------------------------------------------------------------------
-    void MetalRenderSystem::clearFrameBuffer( RenderPassDescriptor *renderPassDesc,
-                                              TextureGpu *anyTarget, uint8 mipLevel )
+    void MetalRenderSystem::clearFrameBuffer( unsigned int buffers, const ColourValue& colour,
+                                             Real depth, unsigned short stencil )
     {
-        Vector4 fullVp( 0, 0, 1, 1 );
-        beginRenderPassDescriptor( renderPassDesc, anyTarget, mipLevel,
-                                   &fullVp, &fullVp, 1u, false, false );
-        executeRenderPassDescriptorDelayedActions();
+        if( buffers & FBT_COLOUR )
+        {
+            for( size_t i=0; i<mNumMRTs; ++i )
+            {
+                if( mCurrentColourRTs[i] )
+                {
+                    mCurrentColourRTs[i]->mColourAttachmentDesc.loadAction = MTLLoadActionClear;
+                    mCurrentColourRTs[i]->mColourAttachmentDesc.clearColor =
+                            MTLClearColorMake( colour.r, colour.g, colour.b, colour.a );
+                }
+            }
+        }
+
+        if( mCurrentDepthBuffer )
+        {
+            if( buffers & FBT_DEPTH && mCurrentDepthBuffer->mDepthAttachmentDesc )
+            {
+                mCurrentDepthBuffer->mDepthAttachmentDesc.loadAction = MTLLoadActionClear;
+                mCurrentDepthBuffer->mDepthAttachmentDesc.clearDepth = depth;
+            }
+
+            if( buffers & FBT_STENCIL && mCurrentDepthBuffer->mStencilAttachmentDesc )
+            {
+                mCurrentDepthBuffer->mStencilAttachmentDesc.loadAction = MTLLoadActionClear;
+                mCurrentDepthBuffer->mStencilAttachmentDesc.clearStencil = stencil;
+            }
+        }
+    }
+    //-------------------------------------------------------------------------
+    void MetalRenderSystem::discardFrameBuffer( unsigned int buffers )
+    {
+        if( buffers & FBT_COLOUR )
+        {
+            for( size_t i=0; i<mNumMRTs; ++i )
+            {
+                if( mCurrentColourRTs[i] )
+                    mCurrentColourRTs[i]->mColourAttachmentDesc.loadAction = MTLLoadActionDontCare;
+            }
+        }
+
+        if( mCurrentDepthBuffer )
+        {
+            if( buffers & FBT_DEPTH && mCurrentDepthBuffer->mDepthAttachmentDesc )
+                mCurrentDepthBuffer->mDepthAttachmentDesc.loadAction = MTLLoadActionDontCare;
+
+            if( buffers & FBT_STENCIL && mCurrentDepthBuffer->mStencilAttachmentDesc )
+                mCurrentDepthBuffer->mStencilAttachmentDesc.loadAction = MTLLoadActionDontCare;
+        }
     }
     //-------------------------------------------------------------------------
     Real MetalRenderSystem::getHorizontalTexelOffset(void)
@@ -2562,6 +2078,139 @@ namespace Ogre
     Real MetalRenderSystem::getMaximumDepthInputValue(void)
     {
         return 1.0f;
+    }
+    //-------------------------------------------------------------------------
+    void MetalRenderSystem::_setRenderTarget(RenderTarget *target, uint8 viewportRenderTargetFlags)
+    {
+        {
+            const bool activeHasColourWrites = mNumMRTs != 0;
+            if( mActiveRenderTarget == target &&
+                activeHasColourWrites == (viewportRenderTargetFlags & VP_RTT_COLOUR_WRITE) )
+            {
+                if( mActiveRenderEncoder && mUavsDirty )
+                    flushUAVs();
+                return;
+            }
+        }
+
+        if( mActiveDevice )
+            mActiveDevice->endRenderEncoder();
+
+        mActiveRenderTarget = target;
+
+        if( target )
+        {
+            if( target->getForceDisableColourWrites() )
+                viewportRenderTargetFlags &= ~VP_RTT_COLOUR_WRITE;
+
+            mCurrentColourRTs[0] = 0;
+            //We need to set mCurrentColourRTs[0] to grab the active device,
+            //even if we won't be drawing to colour target.
+            target->getCustomAttribute( "mNumMRTs", &mNumMRTs );
+            target->getCustomAttribute( "MetalRenderTargetCommon", &mCurrentColourRTs[0] );
+
+            MetalDevice *ownerDevice = 0;
+
+            if( viewportRenderTargetFlags & VP_RTT_COLOUR_WRITE )
+            {
+                for( size_t i=0; i<mNumMRTs; ++i )
+                {
+                    MTLRenderPassColorAttachmentDescriptor *desc =
+                            mCurrentColourRTs[i]->mColourAttachmentDesc;
+
+                    //TODO. This information is stored in Texture. Metal needs it now.
+                    const bool explicitResolve = false;
+
+                    //TODO: Compositor should be able to tell us whether to use
+                    //MTLStoreActionDontCare with some future enhancements.
+                    if( target->getFSAA() > 1 && !explicitResolve )
+                    {
+                        desc.storeAction = MTLStoreActionMultisampleResolve;
+                    }
+                    else
+                    {
+                        desc.storeAction = MTLStoreActionStore;
+                    }
+
+                    ownerDevice = mCurrentColourRTs[i]->getOwnerDevice();
+                }
+            }
+            else
+            {
+                mNumMRTs = 0;
+            }
+
+            MetalDepthBuffer *depthBuffer = static_cast<MetalDepthBuffer*>( target->getDepthBuffer() );
+
+            if( target->getDepthBufferPool() != DepthBuffer::POOL_NO_DEPTH && !depthBuffer )
+            {
+                // Depth is automatically managed and there is no depth buffer attached to this RT
+                setDepthBufferFor( target, true );
+            }
+
+            depthBuffer = static_cast<MetalDepthBuffer*>( target->getDepthBuffer() );
+            mCurrentDepthBuffer = depthBuffer;
+            if( depthBuffer )
+            {
+                if( depthBuffer->mDepthAttachmentDesc )
+                    depthBuffer->mDepthAttachmentDesc.storeAction = MTLStoreActionStore;
+                if( depthBuffer->mStencilAttachmentDesc )
+                    depthBuffer->mStencilAttachmentDesc.storeAction = MTLStoreActionStore;
+
+                ownerDevice = depthBuffer->getOwnerDevice();
+            }
+
+            setActiveDevice( ownerDevice );
+        }
+        else
+        {
+            mNumMRTs = 0;
+            mCurrentDepthBuffer = 0;
+        }
+    }
+    //-------------------------------------------------------------------------
+    void MetalRenderSystem::_notifyCompositorNodeSwitchedRenderTarget( RenderTarget *previousTarget )
+    {
+        if( previousTarget )
+        {
+            bool mustClear = false;
+            uint8 numMRTs = 0;
+            MetalRenderTargetCommon *currentColourRTs[OGRE_MAX_MULTIPLE_RENDER_TARGETS];
+            previousTarget->getCustomAttribute( "mNumMRTs", &numMRTs );
+            previousTarget->getCustomAttribute( "MetalRenderTargetCommon", &currentColourRTs[0] );
+
+            for( size_t i=0; i<numMRTs; ++i )
+            {
+                if( currentColourRTs[i] )
+                {
+                    if( currentColourRTs[i]->mColourAttachmentDesc.loadAction == MTLLoadActionClear )
+                        mustClear = true;
+                }
+            }
+
+            MetalDepthBuffer *depthBuffer = static_cast<MetalDepthBuffer*>(
+                        previousTarget->getDepthBuffer() );
+
+            if( depthBuffer )
+            {
+                if( depthBuffer->mDepthAttachmentDesc &&
+                    depthBuffer->mDepthAttachmentDesc.loadAction == MTLLoadActionClear )
+                {
+                    mustClear = true;
+                }
+                if( depthBuffer->mStencilAttachmentDesc &&
+                    depthBuffer->mStencilAttachmentDesc.loadAction == MTLLoadActionClear )
+                {
+                    mustClear = true;
+                }
+            }
+
+            if( mustClear )
+            {
+                _setRenderTarget( previousTarget, true );
+                createRenderEncoder();
+            }
+        }
     }
     //-------------------------------------------------------------------------
     void MetalRenderSystem::preExtraThreadsStarted()
@@ -2630,28 +2279,24 @@ namespace Ogre
     {
     }
     //-------------------------------------------------------------------------
-    void MetalRenderSystem::initialiseFromRenderSystemCapabilities(RenderSystemCapabilities* caps, Window *primary)
+    void MetalRenderSystem::initialiseFromRenderSystemCapabilities(RenderSystemCapabilities* caps, RenderTarget* primary)
     {
-        DepthBuffer::DefaultDepthBufferFormat = PFG_D32_FLOAT_S8X24_UINT;
+        DepthBuffer::DefaultDepthBufferFormat = PF_D32_FLOAT_X24_S8_UINT;
         mShaderManager = OGRE_NEW MetalGpuProgramManager( &mDevice );
         mMetalProgramFactory = new MetalProgramFactory( &mDevice );
         HighLevelGpuProgramManager::getSingleton().addFactory( mMetalProgramFactory );
     }
     //-------------------------------------------------------------------------
-    void MetalRenderSystem::updateCompositorManager( CompositorManager2 *compositorManager )
+    void MetalRenderSystem::updateCompositorManager( CompositorManager2 *compositorManager,
+                                                     SceneManagerEnumerator &sceneManagers,
+                                                     HlmsManager *hlmsManager )
     {
         // Metal requires that a frame's worth of rendering be invoked inside an autorelease pool.
         // This is true for both iOS and macOS.
         @autoreleasepool
         {
-            compositorManager->_updateImplementation();
+            compositorManager->_updateImplementation( sceneManagers, hlmsManager );
         }
-    }
-    //-------------------------------------------------------------------------
-    void MetalRenderSystem::flushCommands(void)
-    {
-        endRenderPassDescriptor( false );
-        mActiveDevice->commitAndNextCommandBuffer();
     }
     //-------------------------------------------------------------------------
     void MetalRenderSystem::setStencilBufferParams( uint32 refValue, const StencilParams &stencilParams )

@@ -22,29 +22,24 @@ def setup_clang(library):
     else:
         clang.cindex.Config.set_library_file(library)
 
-def parse_any(cursor, classname, classmembers, baseclassname):
+
+def parse_any(cursor, classname, classmembers):
     for children in cursor.get_children():
         try:
             if children.kind == clang.cindex.CursorKind.CLASS_DECL:
-                parse_classdecl(children, classname, classmembers, baseclassname)
+                parse_classdecl(children, classname, classmembers)
             else:
-                parse_any(children, classname, classmembers, baseclassname)
+                parse_any(children, classname, classmembers)
         except ValueError:
             pass
 
 
-def parse_classdecl(cursor, classname, classmembers, baseclassname):
+def parse_classdecl(cursor, classname, classmembers):
     if cursor.spelling == classname:
         for children in cursor.get_children():
             try:
                 if children.kind == clang.cindex.CursorKind.FIELD_DECL:
                     parse_fielddecl(children, classname, classmembers)
-                elif children.kind == clang.cindex.CursorKind.CXX_BASE_SPECIFIER:
-                    base_class = children.get_definition()
-                    for base_children in base_class.get_children():
-                        if base_children.displayname == "cloneImpl(Ogre::HlmsDatablock *)":
-                            baseclassname.append( base_class.spelling )
-                            break
             except ValueError:
                 pass
 
@@ -71,14 +66,14 @@ def parse_fielddecl(cursor, classname, classmembers):
     classmembers.append((cursor.spelling, size))
 
 
-def dump_cpp(dirname, basename, classname, classmembers, baseclassname):
+def dump_cpp(dirname, basename, classname, classmembers):
     fullPath = dirname + "/" + basename
     #file = io.open(fullPath, "w", encoding = "utf-8", newline = "\n")
     newFile = io.StringIO(newline = "\n")
 
     dump_cpp_disclaimer( newFile )
     dump_cpp_license( newFile )
-    dump_cpp_implementation( newFile, classname, classmembers, baseclassname )
+    dump_cpp_implementation( newFile, classname, classmembers )
 
     newFile.seek( 0, io.SEEK_SET )
     try:
@@ -146,17 +141,16 @@ THE SOFTWARE.
     )
 
 
-def dump_cpp_implementation(file, classname, classmembers, baseclassname):
+def dump_cpp_implementation(file, classname, classmembers):
     file.write(
 u"""namespace Ogre
 {{
     //-----------------------------------------------------------------------------------
     void {classname}::cloneImpl( HlmsDatablock *datablock ) const
     {{
-        {baseclassname}::cloneImpl( datablock );
         {classname} *datablockImpl = static_cast<{classname}*>( datablock );
 
-""".format(baseclassname = baseclassname, classname = classname)
+""".format(classname = classname)
     )
 
     for classmember in classmembers:
@@ -240,13 +234,13 @@ def main():
 
         classname = translationunitbasename.replace("Ogre", "")
         classmembers = []
-        baseclassnames = []
-        parse_any(translationunit.cursor, classname, classmembers, baseclassnames)
+
+        parse_any(translationunit.cursor, classname, classmembers)
 
         # Sort classmembers for prettyprint source code
         classmembers.sort(key = lambda x: x[1][0])
 
-        dump_cpp(translationunitdirname.replace("include", "src"), translationunitbasename + ".cpp.inc", classname, classmembers,baseclassnames[0])
+        dump_cpp(translationunitdirname.replace("include", "src"), translationunitbasename + ".cpp.inc", classname, classmembers)
 
 
 

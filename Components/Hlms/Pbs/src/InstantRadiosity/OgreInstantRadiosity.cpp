@@ -38,8 +38,6 @@ THE SOFTWARE.
 #include "OgreLight.h"
 #include "OgreSceneManager.h"
 #include "Vao/OgreAsyncTicket.h"
-#include "Vao/OgreIndexBufferPacked.h"
-#include "Vao/OgreVertexArrayObject.h"
 
 #include "Math/Array/OgreBooleanMask.h"
 
@@ -47,14 +45,12 @@ THE SOFTWARE.
 #include "OgreLwString.h"
 
 #include "OgreBitwise.h"
-#include "OgreTextureGpu.h"
-#include "OgrePixelFormatGpuUtils.h"
-#include "OgreImage2.h"
+#include "OgreTextureManager.h"
+#include "OgreHardwarePixelBuffer.h"
 
 #if (OGRE_COMPILER == OGRE_COMPILER_MSVC ||\
     OGRE_PLATFORM == OGRE_PLATFORM_APPLE ||\
-    OGRE_PLATFORM == OGRE_PLATFORM_APPLE_IOS ||\
-    OGRE_PLATFORM == OGRE_PLATFORM_FREEBSD)
+    OGRE_PLATFORM == OGRE_PLATFORM_APPLE_IOS)
     #include <random>
 #else
     #include <tr1/random>
@@ -64,10 +60,7 @@ namespace Ogre
 {
     class RandomNumberGenerator
     {
-#if OGRE_PLATFORM == OGRE_PLATFORM_APPLE ||\
-    OGRE_PLATFORM == OGRE_PLATFORM_APPLE_IOS ||\
-    ( OGRE_COMPILER == OGRE_COMPILER_MSVC && OGRE_COMP_VER >= 1910 ) ||\
-    OGRE_PLATFORM == OGRE_PLATFORM_FREEBSD
+#if OGRE_PLATFORM == OGRE_PLATFORM_APPLE || OGRE_PLATFORM == OGRE_PLATFORM_APPLE_IOS || ( OGRE_COMPILER == OGRE_COMPILER_MSVC && OGRE_COMP_VER >= 1910 )
         std::mt19937        mRng;
 #else
         std::tr1::mt19937   mRng;
@@ -250,12 +243,10 @@ namespace Ogre
                     interpUV.y += texHeight;
 
                 //TODO: Do blending modes
-                ColourValue colourVal;
-                PixelFormatGpuUtils::unpackColour( &colourVal, hit.material.image[i]->getPixelFormat(),
-                                                   hit.material.box[i].at(
-                                                       static_cast<size_t>(interpUV.x),
-                                                       static_cast<size_t>(interpUV.y),
-                                                       0u ) );
+                ColourValue colourVal =
+                        hit.material.image[i]->getColourAt( static_cast<size_t>(interpUV.x),
+                                                            static_cast<size_t>(interpUV.y),
+                                                            0u );
                 diffuseTerm.x *= colourVal.r;
                 diffuseTerm.y *= colourVal.g;
                 diffuseTerm.z *= colourVal.b;
@@ -1040,15 +1031,15 @@ namespace Ogre
         return &mMeshDataMapV1[renderOp];
     }
     //-----------------------------------------------------------------------------------
-    const Image2 &InstantRadiosity::downloadTexture( TextureGpu *texture )
+    const Image& InstantRadiosity::downloadTexture( const TexturePtr &texture )
     {
-        ImageMap::iterator itor = mImageMap.find( texture );
+        ImageMap::iterator itor = mImageMap.find( texture.get() );
         if( itor != mImageMap.end() )
             return itor->second;
 
-        mImageMap[texture] = Image2();
-        itor = mImageMap.find( texture );
-        itor->second.convertFromTexture( texture, mMipmapBias, mMipmapBias );
+        mImageMap[texture.get()] = Image();
+        itor = mImageMap.find( texture.get() );
+        texture->convertToImage( itor->second, false, mMipmapBias );
 
         return itor->second;
     }
@@ -1153,11 +1144,9 @@ namespace Ogre
                             HlmsPbsDatablock *pbsDatablock = static_cast<HlmsPbsDatablock*>( datablock );
                             //TODO: Should we account fresnel here? What about metalness?
                             material.diffuse = pbsDatablock->getDiffuse();
-                            TextureGpu *diffuseTex = pbsDatablock->getTexture( PBSM_DIFFUSE );
-                            if( diffuseTex )
-                                diffuseTex->waitForMetadata();
-                            if( !diffuseTex ||
-                                PixelFormatGpuUtils::isCompressed( diffuseTex->getPixelFormat() ) )
+                            TexturePtr diffuseTex = pbsDatablock->getTexture( PBSM_DIFFUSE );
+                            if( diffuseTex.isNull() ||
+                                PixelUtil::isCompressed( diffuseTex->getFormat() ) )
                             {
                                 const ColourValue &bgDiffuse = pbsDatablock->getBackgroundDiffuse();
                                 material.diffuse.x *= bgDiffuse.r;
@@ -1167,7 +1156,6 @@ namespace Ogre
                             else if( mUseTextures )
                             {
                                 material.image[imageIdx] = &downloadTexture( diffuseTex );
-                                material.box[imageIdx]   = material.image[imageIdx]->getData(0);
                                 material.uvSet[imageIdx] =
                                         pbsDatablock->getTextureUvSource( PBSM_DIFFUSE );
                                 material.needsUv = true;
@@ -1180,15 +1168,11 @@ namespace Ogre
                                 {
                                     const PbsTextureTypes texType = static_cast<PbsTextureTypes>(
                                                                                 PBSM_DETAIL0 + k );
-                                    TextureGpu *detailTex = pbsDatablock->getTexture( texType );
-                                    if( detailTex )
-                                        detailTex->waitForMetadata();
-                                    if( detailTex &&
-                                        !PixelFormatGpuUtils::isCompressed(
-                                            detailTex->getPixelFormat() ) )
+                                    TexturePtr detailTex = pbsDatablock->getTexture( texType );
+                                    if( !detailTex.isNull() &&
+                                        !PixelUtil::isCompressed( detailTex->getFormat() ) )
                                     {
                                         material.image[imageIdx] = &downloadTexture( detailTex );
-                                        material.box[imageIdx]   = material.image[imageIdx]->getData(0);
                                         material.uvSet[imageIdx] =
                                                 pbsDatablock->getTextureUvSource( texType );
                                         material.needsUv = true;

@@ -35,9 +35,6 @@ THE SOFTWARE.
 #include "OgreCommon.h"
 #include "OgreStringVector.h"
 #include "OgreScriptLoader.h"
-
-#include "ogrestd/unordered_map.h"
-
 #include "OgreHeaderPrefix.h"
 
 namespace Ogre {

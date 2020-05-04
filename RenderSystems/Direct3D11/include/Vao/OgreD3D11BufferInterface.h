@@ -57,8 +57,6 @@ namespace Ogre
 
         D3D11DynamicBuffer* getDynamicBuffer(void) const    { return mDynamicBuffer; }
 
-        void _setVboPoolIndex( size_t newVboPool )  { mVboPoolIdx = newVboPool; }
-
         /// Only use this function for the first upload
         void _firstUpload( void *data );
 

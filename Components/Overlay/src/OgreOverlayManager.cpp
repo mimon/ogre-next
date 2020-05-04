@@ -36,7 +36,6 @@ THE SOFTWARE.
 #include "OgreOverlayElementFactory.h"
 #include "OgreRenderQueue.h"
 #include "OgreStringConverter.h"
-#include "OgreString.h"
 #include "Math/Array/OgreNodeMemoryManager.h"
 
 namespace Ogre

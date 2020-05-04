@@ -125,6 +125,7 @@ namespace Ogre {
         for( size_t i = 0; i < OGRE_MAX_TEXTURE_LAYERS; i++ )
         {
             // Dummy value
+            mTextureCoordIndex[i] = 99;
             mTextureTypes[i] = 0;
         }
 
@@ -922,7 +923,10 @@ namespace Ogre {
         mTextureCoordIndex[stage] = index;
     }
 
-    GLint GLES2RenderSystem::getTextureAddressingMode(TextureAddressingMode tam) const
+    void GLES2RenderSystem::queueBindUAV( uint32 slot, TexturePtr texture,
+                                          ResourceAccess::ResourceAccess access,
+                                          int32 mipmapLevel, int32 textureArrayIndex,
+                                          PixelFormat pixelFormat )
     {
     }
 
@@ -1655,37 +1659,110 @@ namespace Ogre {
         }
     }
 
-    void GLES2RenderSystem::_setColourBufferWriteEnabled(bool red, bool green, bool blue, bool alpha)
+    void GLES2RenderSystem::_convertProjectionMatrix(const Matrix4& matrix,
+                                                  Matrix4& dest,
+                                                  bool forGpuProgram)
     {
-        mStateCacheManager->setColourMask(red, green, blue, alpha);
+        // no any conversion request for OpenGL
+        dest = matrix;
     }
 
-    void GLES2RenderSystem::_convertProjectionMatrix(const Matrix4& matrix, Matrix4& dest)
+    void GLES2RenderSystem::_makeProjectionMatrix(const Radian& fovy, Real aspect,
+                                               Real nearPlane, Real farPlane,
+                                               Matrix4& dest, bool forGpuProgram)
     {
-        if( !mReverseDepth )
+        Radian thetaY(fovy / 2.0f);
+        Real tanThetaY = Math::Tan(thetaY);
+
+        // Calc matrix elements
+        Real w = (1.0f / tanThetaY) / aspect;
+        Real h = 1.0f / tanThetaY;
+        Real q, qn;
+        if (farPlane == 0)
         {
-            // no any conversion request for OpenGL
-            dest = matrix;
+            // Infinite far plane
+            q = Frustum::INFINITE_FAR_PLANE_ADJUST - 1;
+            qn = nearPlane * (Frustum::INFINITE_FAR_PLANE_ADJUST - 2);
         }
         else
         {
-            RenderSystem::_convertProjectionMatrix( matrix, dest );
+            q = -(farPlane + nearPlane) / (farPlane - nearPlane);
+            qn = -2 * (farPlane * nearPlane) / (farPlane - nearPlane);
         }
+
+        // NB This creates Z in range [-1,1]
+        //
+        // [ w   0   0   0  ]
+        // [ 0   h   0   0  ]
+        // [ 0   0   q   qn ]
+        // [ 0   0   -1  0  ]
+
+        dest = Matrix4::ZERO;
+        dest[0][0] = w;
+        dest[1][1] = h;
+        dest[2][2] = q;
+        dest[2][3] = qn;
+        dest[3][2] = -1;
     }
 
-    //---------------------------------------------------------------------
-    HardwareOcclusionQuery* GLES2RenderSystem::createHardwareOcclusionQuery(void)
+    void GLES2RenderSystem::_makeProjectionMatrix(Real left, Real right,
+                                               Real bottom, Real top,
+                                               Real nearPlane, Real farPlane,
+                                               Matrix4& dest, bool forGpuProgram)
     {
-        if(mGLSupport->checkExtension("GL_EXT_occlusion_query_boolean") || gleswIsSupported(3, 0))
+        Real width = right - left;
+        Real height = top - bottom;
+        Real q, qn;
+        if (farPlane == 0)
         {
-            GLES2HardwareOcclusionQuery* ret = new GLES2HardwareOcclusionQuery(); 
-            mHwOcclusionQueries.push_back(ret);
-            return ret;
+            // Infinite far plane
+            q = Frustum::INFINITE_FAR_PLANE_ADJUST - 1;
+            qn = nearPlane * (Frustum::INFINITE_FAR_PLANE_ADJUST - 2);
         }
         else
         {
-            return NULL;
+            q = -(farPlane + nearPlane) / (farPlane - nearPlane);
+            qn = -2 * (farPlane * nearPlane) / (farPlane - nearPlane);
         }
+
+        dest = Matrix4::ZERO;
+        dest[0][0] = 2 * nearPlane / width;
+        dest[0][2] = (right+left) / width;
+        dest[1][1] = 2 * nearPlane / height;
+        dest[1][2] = (top+bottom) / height;
+        dest[2][2] = q;
+        dest[2][3] = qn;
+        dest[3][2] = -1;
+    }
+
+    void GLES2RenderSystem::_makeOrthoMatrix(const Radian& fovy, Real aspect,
+                                          Real nearPlane, Real farPlane,
+                                          Matrix4& dest, bool forGpuProgram)
+    {
+        Radian thetaY(fovy / 2.0f);
+        Real tanThetaY = Math::Tan(thetaY);
+
+        // Real thetaX = thetaY * aspect;
+        Real tanThetaX = tanThetaY * aspect; // Math::Tan(thetaX);
+        Real half_w = tanThetaX * nearPlane;
+        Real half_h = tanThetaY * nearPlane;
+        Real iw = 1.0f / half_w;
+        Real ih = 1.0f / half_h;
+        Real q;
+        if (farPlane == 0)
+        {
+            q = 0;
+        }
+        else
+        {
+            q = 2.0f / (farPlane - nearPlane);
+        }
+        dest = Matrix4::ZERO;
+        dest[0][0] = iw;
+        dest[1][1] = ih;
+        dest[2][2] = -q;
+        dest[2][3] = -(farPlane + nearPlane) / (farPlane - nearPlane);
+        dest[3][3] = 1;
     }
 
     void GLES2RenderSystem::_applyObliqueDepthProjection(Matrix4& matrix,
@@ -1716,7 +1793,7 @@ namespace Ogre {
         matrix[2][3] = c.w; 
     }
 
-    void GLES2RenderSystem::setStencilCheckEnabled(bool enabled)
+    HardwareOcclusionQuery* GLES2RenderSystem::createHardwareOcclusionQuery(void)
     {
         if(hasMinGLVersion(3, 0) || checkExtension("GL_EXT_occlusion_query_boolean"))
         {
@@ -2575,10 +2652,13 @@ namespace Ogre {
         // Unbind GPU programs and rebind to new context later, because
         // scene manager treat render system as ONE 'context' ONLY, and it
         // cached the GPU programs using state.
-        if (mCurrentVertexProgram)
-            mCurrentVertexProgram->unbindProgram();
-        if (mCurrentFragmentProgram)
-            mCurrentFragmentProgram->unbindProgram();
+        if( mPso )
+        {
+            if (mPso->vertexShader)
+                mPso->vertexShader->unbind();
+            if (mPso->pixelShader)
+                mPso->pixelShader->unbind();
+        }
         
         // Disable textures
         _disableTextureUnitsFrom(0);

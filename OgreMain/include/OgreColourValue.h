@@ -318,7 +318,13 @@ namespace Ogre {
 
         /** Function for writing to a stream.
         */
-        _OgreExport friend std::ostream &operator<<( std::ostream &o, const ColourValue &c );
+        inline _OgreExport friend std::ostream& operator <<
+            ( std::ostream& o, const ColourValue& c )
+        {
+            o << "ColourValue(" << c.r << ", " << c.g << ", " << c.b << ", " << c.a << ")";
+            return o;
+        }
+
     };
     /** @} */
     /** @} */

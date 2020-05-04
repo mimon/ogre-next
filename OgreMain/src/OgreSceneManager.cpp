@@ -32,7 +32,6 @@ THE SOFTWARE.
 #include "OgreCamera.h"
 #include "OgreMeshManager.h"
 #include "OgreDecal.h"
-#include "OgreInternalCubemapProbe.h"
 #include "OgreEntity.h"
 #include "OgreSubEntity.h"
 #include "OgreItem.h"
@@ -50,6 +49,7 @@ THE SOFTWARE.
 #include "OgreGpuProgram.h"
 #include "OgreDataStream.h"
 #include "OgreStaticGeometry.h"
+#include "OgreHardwarePixelBuffer.h"
 #include "OgreManualObject.h"
 #include "OgreManualObject2.h"
 #include "OgreBillboardChain.h"
@@ -57,10 +57,12 @@ THE SOFTWARE.
 #include "OgreParticleSystemManager.h"
 #include "OgreParticleSystem.h"
 #include "OgreProfiler.h"
-#include "OgreTextureGpuManager.h"
+#include "OgreInstanceBatch.h"
+#include "OgreInstancedEntity.h"
+#include "OgreRenderTexture.h"
+#include "OgreTextureManager.h"
 #include "OgreSceneNode.h"
-#include "OgreRadialDensityMask.h"
-#include "OgreRectangle2D2.h"
+#include "OgreRectangle2D.h"
 #include "OgreLodListener.h"
 #include "OgreOldNode.h"
 #include "OgreLodStrategyManager.h"
@@ -74,7 +76,6 @@ THE SOFTWARE.
 #include "Animation/OgreSkeletonInstance.h"
 #include "Animation/OgreTagPoint.h"
 #include "Compositor/OgreCompositorShadowNode.h"
-#include "Compositor/Pass/PassScene/OgreCompositorPassSceneDef.h"
 #include "Threading/OgreBarrier.h"
 #include "Threading/OgreUniformScalableTask.h"
 
@@ -91,31 +92,35 @@ uint32 SceneManager::QUERY_STATICGEOMETRY_DEFAULT_MASK = 0x20000000;
 uint32 SceneManager::QUERY_LIGHT_DEFAULT_MASK          = 0x10000000;
 uint32 SceneManager::QUERY_FRUSTUM_DEFAULT_MASK        = 0x08000000;
 //-----------------------------------------------------------------------
-SceneManager::SceneManager( const String& name, size_t numWorkerThreads ) :
-IdObject( Id::generateNewId<SceneManager>() ),
+SceneManager::SceneManager(const String& name, size_t numWorkerThreads,
+                           InstancingThreadedCullingMethod threadedCullingMethod) :
 mNumDecals( 0 ),
-mNumCubemapProbes( 0 ),
 mStaticMinDepthLevelDirty( 0 ),
 mStaticEntitiesDirty( true ),
 mPrePassMode( PrePassNone ),
+mPrePassTextures( 0 ),
 mSsrTexture( 0 ),
-mRefractionsTexture( 0 ),
 mName(name),
 mRenderQueue( 0 ),
 mForwardPlusSystem( 0 ),
 mForwardPlusImpl( 0 ),
 mBuildLegacyLightList( false ),
-mDecalsDiffuseTex( 0 ),
-mDecalsNormalsTex( 0 ),
-mDecalsEmissiveTex( 0 ),
-mCamerasInProgress(0),
-mCurrentViewport0(0),
+mDecalsDiffuseTex( TexturePtr() ),
+mDecalsNormalsTex( TexturePtr() ),
+mDecalsEmissiveTex( TexturePtr() ),
+mCameraInProgress(0),
+mCurrentViewport(0),
 mCurrentPass(0),
 mCurrentShadowNode(0),
 mShadowNodeIsReused( false ),
-mSkyMethod( SkyCubemap ),
-mSky( 0 ),
-mRadialDensityMask( 0 ),
+mSkyPlaneEntity(0),
+mSkyBoxObj(0),
+mSkyPlaneNode(0),
+mSkyDomeNode(0),
+mSkyBoxNode(0),
+mSkyPlaneEnabled(false),
+mSkyBoxEnabled(false),
+mSkyDomeEnabled(false),
 mFogMode(FOG_NONE),
 mFogColour(),
 mFogStart(0),
@@ -128,24 +133,25 @@ mFlipCullingOnNegativeScale(true),
 mShadowCasterPlainBlackPass(0),
 mDisplayNodes(false),
 mShowBoundingBoxes(false),
-mAutoParamDataSource(0),
 mLateMaterialResolving(false),
 mShadowColour(ColourValue(0.25, 0.25, 0.25)),
+mFullScreenQuad(0),
 mShadowDirLightExtrudeDist(10000),
 mIlluminationStage(IRS_NONE),
 mLightClippingInfoMapFrameNumber(999),
 mDefaultShadowFarDist(200),
 mDefaultShadowFarDistSquared(200*200),
-mShadowTextureOffset(0.6),
-mShadowTextureFadeStart(0.7),
+mShadowTextureOffset(0.6), 
+mShadowTextureFadeStart(0.7), 
 mShadowTextureFadeEnd(0.9),
 mShadowTextureCustomCasterPass(0),
+mCompositorTarget( IdString(), 0 ),
 mVisibilityMask(0xFFFFFFFF & VisibilityFlags::RESERVED_VISIBILITY_FLAGS),
-mLightMask(0xFFFFFFFF),
 mFindVisibleObjects(true),
 mNumWorkerThreads( std::max<size_t>( numWorkerThreads, 1u ) ),
 mForceMainThread( numWorkerThreads == 0u ? true : false ),
 mUpdateBoundsRequest( 0 ),
+mInstancingThreadedCullingMethod( threadedCullingMethod ),
 mUserTask( 0 ),
 mRequestType( NUM_REQUESTS ),
 mWorkerThreadsBarrier( 0 ),
@@ -155,11 +161,12 @@ mLastLightLimit(0),
 mLastLightHashGpuProgram(0),
 mGpuParamsDirty((uint16)GPV_ALL)
 {
+    if( numWorkerThreads <= 1 )
+        mInstancingThreadedCullingMethod = INSTANCING_CULLING_SINGLETHREAD;
+
     for( size_t i=0; i<NUM_SCENE_MEMORY_MANAGER_TYPES; ++i )
         mSceneRoot[i] = 0;
     mSceneDummy = 0;
-
-    memset( mAmbientSphericalHarmonics, 0, sizeof( mAmbientSphericalHarmonics ) );
 
     setAmbientLight( ColourValue::Black, ColourValue::Black, Vector3::UNIT_Y, 1.0f );
 
@@ -169,6 +176,12 @@ mGpuParamsDirty((uint16)GPV_ALL)
     mEntityMemoryManager[SCENE_DYNAMIC]._setTwin( SCENE_DYNAMIC, &mEntityMemoryManager[SCENE_STATIC] );
     mForwardPlusMemoryManager[SCENE_STATIC]._setTwin( SCENE_STATIC, &mForwardPlusMemoryManager[SCENE_DYNAMIC] );
     mForwardPlusMemoryManager[SCENE_DYNAMIC]._setTwin( SCENE_DYNAMIC, &mForwardPlusMemoryManager[SCENE_STATIC] );
+
+    // init sky
+    for (size_t i = 0; i < 5; ++i)
+    {
+        mSkyDomeEntity[i] = 0;
+    }
 
     Root *root = Root::getSingletonPtr();
     if (root)
@@ -236,12 +249,6 @@ SceneManager::~SceneManager()
     mForwardPlusSystem  = 0;
     mForwardPlusImpl    = 0;
 
-    OGRE_DELETE mSky;
-    mSky = 0;
-
-    OGRE_DELETE mRadialDensityMask;
-    mRadialDensityMask = 0;
-
     fireSceneManagerDestroyed();
     clearScene( true, false );
     destroyAllCameras();
@@ -257,6 +264,8 @@ SceneManager::~SceneManager()
         mMovableObjectCollectionMap.clear();
     }
 
+    OGRE_DELETE mSkyBoxObj;
+
     OGRE_DELETE mSceneDummy;
     mSceneDummy = 0;
 
@@ -265,9 +274,11 @@ SceneManager::~SceneManager()
         OGRE_DELETE mSceneRoot[i];
         mSceneRoot[i] = 0;
     }
+    OGRE_DELETE mFullScreenQuad;
     OGRE_DELETE mRenderQueue;
     OGRE_DELETE mAutoParamDataSource;
 
+    mFullScreenQuad         = 0;
     mRenderQueue            = 0;
     mAutoParamDataSource    = 0;
 
@@ -457,36 +468,6 @@ void SceneManager::destroyAllLights(void)
     destroyAllMovableObjectsByType(LightFactory::FACTORY_TYPE_NAME);
 }
 //-----------------------------------------------------------------------
-void SceneManager::defragmentMemoryPools(void)
-{
-    for( size_t i=0; i<NUM_SCENE_MEMORY_MANAGER_TYPES; ++i )
-    {
-        mNodeMemoryManager[i].defragment();
-        mEntityMemoryManager[i].defragment();
-        mForwardPlusMemoryManager[i].defragment();
-    }
-
-    mLightMemoryManager.defragment();
-    //Skeletons are more complex because the new slot count must be multiple bonesPerDepth
-    //mSkeletonAnimationManager.defragment();
-    mTagPointNodeMemoryManager.defragment();
-}
-//-----------------------------------------------------------------------
-void SceneManager::shrinkToFitMemoryPools(void)
-{
-    for( size_t i=0; i<NUM_SCENE_MEMORY_MANAGER_TYPES; ++i )
-    {
-        mNodeMemoryManager[i].shrinkToFit();
-        mEntityMemoryManager[i].shrinkToFit();
-        mForwardPlusMemoryManager[i].shrinkToFit();
-    }
-
-    mLightMemoryManager.shrinkToFit();
-    //Skeletons are more complex because the new slot count must be multiple bonesPerDepth
-    //mSkeletonAnimationManager.shrinkToFit();
-    mTagPointNodeMemoryManager.shrinkToFit();
-}
-//-----------------------------------------------------------------------
 Item* SceneManager::createItem( const String& meshName,
                                 const String& groupName, /* = ResourceGroupManager::AUTODETECT_RESOURCE_GROUP_NAME */
                                 SceneMemoryMgrTypes sceneType /*= SCENE_DYNAMIC */ )
@@ -565,27 +546,6 @@ void SceneManager::destroyAllDecals(void)
     destroyAllMovableObjectsByType( DecalFactory::FACTORY_TYPE_NAME );
 }
 //-----------------------------------------------------------------------
-InternalCubemapProbe* SceneManager::_createCubemapProbe( SceneMemoryMgrTypes sceneType )
-{
-    ++mNumCubemapProbes;
-    return static_cast<InternalCubemapProbe*>( createMovableObject(
-                                                   InternalCubemapProbeFactory::FACTORY_TYPE_NAME,
-                                                   &mForwardPlusMemoryManager[sceneType], 0 ) );
-
-}
-//-----------------------------------------------------------------------
-void SceneManager::_destroyCubemapProbe( InternalCubemapProbe *i )
-{
-    --mNumCubemapProbes;
-    destroyMovableObject( i );
-}
-//-----------------------------------------------------------------------
-void SceneManager::_destroyAllCubemapProbes(void)
-{
-    mNumCubemapProbes = 0;
-    destroyAllMovableObjectsByType( InternalCubemapProbeFactory::FACTORY_TYPE_NAME );
-}
-//-----------------------------------------------------------------------
 v1::Entity* SceneManager::createEntity( PrefabType ptype, SceneMemoryMgrTypes sceneType )
 {
     switch (ptype)
@@ -634,31 +594,39 @@ void SceneManager::destroyAllEntities(void)
     destroyAllMovableObjectsByType(v1::EntityFactory::FACTORY_TYPE_NAME);
 }
 //-----------------------------------------------------------------------
-Rectangle2D* SceneManager::createRectangle2D( SceneMemoryMgrTypes sceneType )
+v1::Rectangle2D* SceneManager::createRectangle2D( bool bQuad, SceneMemoryMgrTypes sceneType )
 {
     // delegate to factory implementation
-    return static_cast<Rectangle2D*>( createMovableObject( Rectangle2DFactory::FACTORY_TYPE_NAME,
-                                                           &mEntityMemoryManager[sceneType], 0 ) );
+    NameValuePairList params;
+    params["quad"] = StringConverter::toString( bQuad );
+    return static_cast<v1::Rectangle2D*>( createMovableObject( v1::Rectangle2DFactory::FACTORY_TYPE_NAME,
+                                                               &mEntityMemoryManager[sceneType],
+                                                               &params ) );
 }
 //-----------------------------------------------------------------------
-void SceneManager::destroyRectangle2D( Rectangle2D *rect )
+void SceneManager::destroyRectangle2D( v1::Rectangle2D *rect )
 {
     destroyMovableObject( rect );
 }
 //-----------------------------------------------------------------------
 void SceneManager::destroyAllRectangle2D(void)
 {
-    destroyAllMovableObjectsByType(Rectangle2DFactory::FACTORY_TYPE_NAME);
+    destroyAllMovableObjectsByType(v1::Rectangle2DFactory::FACTORY_TYPE_NAME);
 }
 //-----------------------------------------------------------------------
-void SceneManager::_addCompositorTexture( IdString name, TextureGpu *tex )
+void SceneManager::_addCompositorTexture( IdString name, const TextureVec *texs )
 {
-    mCompositorTextures.push_back( CompositorTexture( name, tex ) );
+    mCompositorTextures.push_back( CompositorTexture( name, texs ) );
 }
 //-----------------------------------------------------------------------
 void SceneManager::_removeCompositorTextures( size_t from )
 {
     mCompositorTextures.erase( mCompositorTextures.begin() + from, mCompositorTextures.end() );
+}
+//-----------------------------------------------------------------------
+void SceneManager::_setCompositorTarget( const CompositorTexture &compoTarget )
+{
+    mCompositorTarget = compoTarget;
 }
 //-----------------------------------------------------------------------
 SkeletonInstance* SceneManager::createSkeletonInstance( const SkeletonDef *skeletonDef )
@@ -759,6 +727,7 @@ void SceneManager::destroyAllParticleSystems(void)
 void SceneManager::clearScene( bool deleteIndestructibleToo, bool reattachCameras )
 {
     destroyAllStaticGeometry();
+    destroyAllInstanceManagers();
     destroyAllMovableObjects();
 
     // Clear root node of all children
@@ -786,6 +755,10 @@ void SceneManager::clearScene( bool deleteIndestructibleToo, bool reattachCamera
     // Clear animations
     destroyAllAnimations();
 
+    // Remove sky nodes since they've been deleted
+    mSkyBoxNode = mSkyPlaneNode = mSkyDomeNode = 0;
+    mSkyBoxEnabled = mSkyPlaneEnabled = mSkyDomeEnabled = false; 
+
     if (mRenderQueue)
         mRenderQueue->clear();
 
@@ -802,12 +775,6 @@ void SceneManager::clearScene( bool deleteIndestructibleToo, bool reattachCamera
             ++itor;
         }
     }
-
-    if( mSky )
-        mSceneRoot[SCENE_STATIC]->attachObject( mSky );
-
-    if( mRadialDensityMask )
-        mSceneRoot[SCENE_STATIC]->attachObject( mRadialDensityMask->getRectangle() );
 
     if( reattachCameras )
     {
@@ -987,142 +954,6 @@ void SceneManager::unregisterSceneNodeListener( SceneNode *sceneNode )
         mSceneNodesWithListeners.erase( itor );
 }
 //-----------------------------------------------------------------------
-void SceneManager::setSky( bool bEnabled, SkyMethod skyMethod, TextureGpu *texture )
-{
-    MaterialManager &materialManager = MaterialManager::getSingleton();
-
-    if( bEnabled )
-    {
-        if( !mSky )
-        {
-            mSky = OGRE_NEW Rectangle2D( Id::generateNewId<MovableObject>(),
-                                         &mEntityMemoryManager[SCENE_STATIC], this );
-            // We can't use BT_DYNAMIC_* because the scene may be rendered from multiple cameras
-            // in the same frame, and dynamic supports only one set of values per frame
-            mSky->initialize( BT_DEFAULT,
-                              Rectangle2D::GeometryFlagQuad | Rectangle2D::GeometryFlagNormals );
-            mSky->setGeometry( -Ogre::Vector2::UNIT_SCALE, Ogre::Vector2( 2.0f ) );
-            mSky->setRenderQueueGroup( 212u ); // Render after most stuff
-            mSceneRoot[SCENE_STATIC]->attachObject( mSky );
-        }
-
-        const IdType sceneManagerId = getId();
-
-        const char *baseMatNames[] =
-        {
-            "Ogre/Sky/Cubemap",
-            "Ogre/Sky/Equirectangular",
-        };
-
-        const String matName = baseMatNames[skyMethod] + StringConverter::toString( sceneManagerId );
-
-        mSkyMaterial = materialManager.getByName( matName );
-        if( !mSkyMaterial )
-        {
-            mSkyMaterial = materialManager.getByName(
-                baseMatNames[skyMethod], ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME );
-            if( !mSkyMaterial )
-            {
-                OGRE_EXCEPT( Exception::ERR_FILE_NOT_FOUND,
-                             "To use the sky bundle the resources included in Samples/Media/Common",
-                             "SceneManager::setSky" );
-            }
-            mSkyMaterial->load();
-            mSkyMaterial = mSkyMaterial->clone( matName );
-        }
-
-        if( skyMethod == SkyCubemap && texture->getTextureType() != TextureTypes::TypeCube )
-        {
-            OGRE_EXCEPT( Exception::ERR_INVALIDPARAMS, "SkyCubemap method requires a cubemap texture",
-                         "SceneManager::setSky" );
-        }
-        else if( skyMethod == SkyEquirectangular &&
-                 texture->getInternalTextureType() != TextureTypes::Type2DArray )
-        {
-            OGRE_EXCEPT( Exception::ERR_INVALIDPARAMS, "SkyEquirectangular method requires a 2D texture",
-                         "SceneManager::setSky" );
-        }
-
-        Pass *pass = mSkyMaterial->getTechnique( 0 )->getPass( 0 );
-
-        if( skyMethod == SkyEquirectangular )
-        {
-            GpuProgramParametersSharedPtr psParams = pass->getFragmentProgramParameters();
-            psParams->setNamedConstant( "sliceIdx", (float)texture->getInternalSliceStart() );
-        }
-
-        TextureUnitState *tu = pass->getTextureUnitState( 0 );
-        // Ensure we don't accidentally clone the texture (minimize
-        // mem consumption by being Automatic Batching aware)
-        tu->setAutomaticBatching( texture->hasAutomaticBatching() );
-        tu->setTexture( texture );
-
-        mSky->setMaterial( mSkyMaterial );
-    }
-    else
-    {
-        if( mSky )
-            mSky->detachFromParent();
-        OGRE_DELETE mSky;
-        mSky = 0;
-        if( mSkyMaterial )
-        {
-            materialManager.remove( mSkyMaterial );
-            mSkyMaterial.reset();
-        }
-    }
-}
-//-----------------------------------------------------------------------
-void SceneManager::setSky( bool bEnabled, SkyMethod skyMethod, const String &texName,
-                           const String &resourceGroup )
-{
-    TextureGpu *texture = 0;
-
-    if( bEnabled )
-    {
-        TextureGpuManager *textureManager = mDestRenderSystem->getTextureGpuManager();
-        if( skyMethod == SkyCubemap )
-        {
-            texture = textureManager->createOrRetrieveTexture(
-                texName, GpuPageOutStrategy::Discard, CommonTextureTypes::EnvMap, resourceGroup );
-        }
-        else
-        {
-            // Do not generate mipmaps for equirectangular maps.
-            // They cause artifacts when it wraps around due to the sudden change in UV
-            texture = textureManager->createOrRetrieveTexture(
-                texName, texName, GpuPageOutStrategy::Discard,
-                TextureFlags::AutomaticBatching | TextureFlags::PrefersLoadingFromFileAsSRGB,
-                TextureTypes::Type2D, resourceGroup, 0 );
-        }
-
-        texture->scheduleTransitionTo( GpuResidency::Resident );
-    }
-
-    setSky( bEnabled, skyMethod, texture );
-}
-//-----------------------------------------------------------------------
-void SceneManager::setRadialDensityMask( bool bEnabled, const float radius[3] )
-{
-    if( bEnabled )
-    {
-        if( !mRadialDensityMask )
-        {
-            mRadialDensityMask =
-                    OGRE_NEW RadialDensityMask( this, radius, Root::getSingleton().getHlmsManager() );
-        }
-        else
-        {
-            mRadialDensityMask->setNewRadius( radius );
-        }
-    }
-    else
-    {
-        OGRE_DELETE mRadialDensityMask;
-        mRadialDensityMask = 0;
-    }
-}
-//-----------------------------------------------------------------------
 void SceneManager::setForward3D( bool bEnable, uint32 width, uint32 height, uint32 numSlices,
                                  uint32 lightsPerCell, float minDistance, float maxDistance )
 {
@@ -1142,7 +973,6 @@ void SceneManager::setForward3D( bool bEnable, uint32 width, uint32 height, uint
 //-----------------------------------------------------------------------
 void SceneManager::setForwardClustered( bool bEnable, uint32 width, uint32 height, uint32 numSlices,
                                         uint32 lightsPerCell, uint32 decalsPerCell,
-                                        uint32 cubemapProbesPerCel,
                                         float minDistance, float maxDistance )
 {
     OGRE_DELETE mForwardPlusSystem;
@@ -1152,8 +982,7 @@ void SceneManager::setForwardClustered( bool bEnable, uint32 width, uint32 heigh
     if( bEnable )
     {
         mForwardPlusSystem = OGRE_NEW ForwardClustered( width, height, numSlices, lightsPerCell,
-                                                        decalsPerCell, cubemapProbesPerCel,
-                                                        minDistance, maxDistance, this );
+                                                        decalsPerCell, minDistance, maxDistance, this );
 
         if( mDestRenderSystem )
             mForwardPlusSystem->_changeRenderSystem( mDestRenderSystem );
@@ -1173,9 +1002,9 @@ void SceneManager::setBuildLegacyLightList( bool bEnable )
     mBuildLegacyLightList = bEnable;
 }
 //-----------------------------------------------------------------------
-void SceneManager::_setPrePassMode( PrePassMode mode, const TextureGpuVec &prepassTextures,
-                                    TextureGpu *prepassDepthTexture,
-                                    TextureGpu *ssrTexture )
+void SceneManager::_setPrePassMode( PrePassMode mode, const TextureVec *prepassTextures,
+                                    const TextureVec *prepassDepthTexture,
+                                    const TextureVec *ssrTexture )
 {
     mPrePassMode = mode;
     mPrePassTextures = prepassTextures;
@@ -1183,50 +1012,69 @@ void SceneManager::_setPrePassMode( PrePassMode mode, const TextureGpuVec &prepa
     mSsrTexture = ssrTexture;
 }
 //-----------------------------------------------------------------------
-void SceneManager::_setRefractions( TextureGpu *depthTextureNoMsaa, TextureGpu *refractionsTexture )
+void SceneManager::prepareRenderQueue(void)
 {
-    mPassDepthTextureNoMsaa = depthTextureNoMsaa;
-    mRefractionsTexture = refractionsTexture;
-}
-//-----------------------------------------------------------------------
-void SceneManager::setDecalsDiffuse( TextureGpu *tex )
-{
-    if( tex )
-        tex->scheduleTransitionTo( GpuResidency::Resident );
-    mDecalsDiffuseTex = tex;
-}
-//-----------------------------------------------------------------------
-void SceneManager::setDecalsNormals( TextureGpu *tex )
-{
-    if( tex )
-        tex->scheduleTransitionTo( GpuResidency::Resident );
-    mDecalsNormalsTex = tex;
-}
-//-----------------------------------------------------------------------
-void SceneManager::setDecalsEmissive( TextureGpu *tex )
-{
-    if( tex )
-        tex->scheduleTransitionTo( GpuResidency::Resident );
-    mDecalsEmissiveTex = tex;
-}
-//-----------------------------------------------------------------------
-bool SceneManager::isDecalsDiffuseEmissiveMerged(void) const
-{
-    bool retVal = false;
-    if( mDecalsDiffuseTex && mDecalsEmissiveTex &&
-        (mDecalsDiffuseTex == mDecalsEmissiveTex ||
-         (mDecalsDiffuseTex->hasAutomaticBatching() &&
-          mDecalsDiffuseTex->getTexturePool() == mDecalsEmissiveTex->getTexturePool())) )
+    /* TODO: RENDER QUEUE
+    RenderQueue* q = getRenderQueue();
+    // Clear the render queue
+    q->clear();
+
+    // Prep the ordering options
+
+    // If we're using a custom render squence, define based on that
+    RenderQueueInvocationSequence* seq = 
+        mCurrentViewport->_getRenderQueueInvocationSequence();
+    if (seq)
     {
-        retVal = true;
+        // Iterate once to crate / reset all
+        RenderQueueInvocationIterator invokeIt = seq->iterator();
+        while (invokeIt.hasMoreElements())
+        {
+            RenderQueueInvocation* invocation = invokeIt.getNext();
+            RenderQueueGroup* group = 
+                q->getQueueGroup(invocation->getRenderQueueGroupID());
+            group->resetOrganisationModes();
+        }
+        // Iterate again to build up options (may be more than one)
+        invokeIt = seq->iterator();
+        while (invokeIt.hasMoreElements())
+        {
+            RenderQueueInvocation* invocation = invokeIt.getNext();
+            RenderQueueGroup* group = 
+                q->getQueueGroup(invocation->getRenderQueueGroupID());
+            group->addOrganisationMode(invocation->getSolidsOrganisation());
+        }
+
+        mLastRenderQueueInvocationCustom = true;
     }
-    return retVal;
+    else
+    {
+        if (mLastRenderQueueInvocationCustom)
+        {
+            // We need this here to reset if coming out of a render queue sequence, 
+            // but doing it resets any specialised settings set globally per render queue 
+            // so only do it when necessary - it's nice to allow people to set the organisation
+            // mode manually for example
+
+            // Default all the queue groups that are there, new ones will be created
+            // with defaults too
+            RenderQueue::QueueGroupIterator groupIter = q->_getQueueGroupIterator();
+            while (groupIter.hasMoreElements())
+            {
+                RenderQueueGroup* g = groupIter.getNext();
+                g->defaultOrganisationMode();
+            }
+        }
+
+        mLastRenderQueueInvocationCustom = false;
+    }*/
+
 }
 //-----------------------------------------------------------------------
 bool SceneManager::_collectForwardPlusObjects( const Camera *camera )
 {
     bool retVal = false;
-    if( mNumDecals > 0 || mNumCubemapProbes > 0 )
+    if( mNumDecals > 0 )
     {
         OgreProfile( "Forward+ Decal collect" );
 
@@ -1244,17 +1092,17 @@ bool SceneManager::_collectForwardPlusObjects( const Camera *camera )
     return retVal;
 }
 //-----------------------------------------------------------------------
-void SceneManager::_cullPhase01( Camera *cullCamera, Camera *renderCamera, const Camera *lodCamera,
-                                 uint8 firstRq, uint8 lastRq, bool reuseCullData )
+void SceneManager::_cullPhase01( Camera* camera, const Camera *lodCamera, Viewport* vp,
+                                 uint8 firstRq, uint8 lastRq )
 {
     OgreProfileGroup( "Frustum Culling", OGREPROF_CULLING );
 
     Root::getSingleton()._pushCurrentSceneManager(this);
     mAutoParamDataSource->setCurrentSceneManager(this);
 
-    mCamerasInProgress = CamerasInProgress(renderCamera,cullCamera, lodCamera);
+    setViewport( vp );
+    mCameraInProgress = camera;
 
-    if( !reuseCullData )
     {
         // Lock scene graph mutex, no more changes until we're ready to render
         OGRE_LOCK_MUTEX(sceneGraphMutex);
@@ -1266,25 +1114,6 @@ void SceneManager::_cullPhase01( Camera *cullCamera, Camera *renderCamera, const
         }*/
 
         mRenderQueue->clear();
-
-        // Invert vertex winding?
-        if( cullCamera->isReflected() )
-            mDestRenderSystem->setInvertVertexWinding(true);
-        else
-            mDestRenderSystem->setInvertVertexWinding(false);
-
-        {
-            //TODO: Remove this hacky listener (mostly needed by OverlayManager)
-            //Overlays REQUIRED THIS to be called before RenderQueue::renderPassPrepare.
-            OgreProfileGroup( "RenderQueue Listeners (i.e. Overlays)", OGREPROF_RENDERING );
-            for( uint8 i=firstRq; i<lastRq; ++i )
-                fireRenderQueueStarted( i, BLANKSTRING );
-        }
-
-        if( mIlluminationStage != IRS_RENDER_TO_TEXTURE && mForwardPlusImpl )
-            mForwardPlusImpl->collectLights( cullCamera );
-
-        mRenderQueue->renderPassPrepare( mIlluminationStage == IRS_RENDER_TO_TEXTURE, false );
 
         if (mFindVisibleObjects)
         {
@@ -1309,34 +1138,19 @@ void SceneManager::_cullPhase01( Camera *cullCamera, Camera *renderCamera, const
                 realLastRq = std::min(realLastRq, std::max(realFirstRq, lastRq));
             }
 
-            cullCamera->_setRenderedRqs( realFirstRq, realLastRq );
+            camera->_setRenderedRqs( realFirstRq, realLastRq );
 
             CullFrustumRequest cullRequest( realFirstRq, realLastRq,
                                             mIlluminationStage == IRS_RENDER_TO_TEXTURE, true, false,
-                                            &mEntitiesMemoryManagerCulledList, cullCamera, lodCamera );
+                                            &mEntitiesMemoryManagerCulledList, camera, lodCamera );
             fireCullFrustumThreads( cullRequest );
         }
     } // end lock on scene graph mutex
-    else
-    {
-        {
-            //TODO: Remove this hacky listener (mostly needed by OverlayManager)
-            //Overlays REQUIRED THIS to be called before RenderQueue::renderPassPrepare.
-            OgreProfileGroup( "RenderQueue Listeners (i.e. Overlays)", OGREPROF_RENDERING );
-            for( uint8 i=firstRq; i<lastRq; ++i )
-                fireRenderQueueStarted( i, BLANKSTRING );
-        }
-
-        if( mIlluminationStage != IRS_RENDER_TO_TEXTURE && mForwardPlusImpl )
-            mForwardPlusImpl->collectLights( cullCamera );
-
-        mRenderQueue->renderPassPrepare( mIlluminationStage == IRS_RENDER_TO_TEXTURE, false );
-    }
 
     Root::getSingleton()._popCurrentSceneManager(this);
 }
 //-----------------------------------------------------------------------
-void SceneManager::_renderPhase02(Camera* camera, const Camera *lodCamera,
+void SceneManager::_renderPhase02(Camera* camera, const Camera *lodCamera, Viewport* vp,
                                   uint8 firstRq, uint8 lastRq, bool includeOverlays)
 {
     OgreProfileGroup( "Rendering", OGREPROF_RENDERING );
@@ -1352,8 +1166,19 @@ void SceneManager::_renderPhase02(Camera* camera, const Camera *lodCamera,
         // Lock scene graph mutex, no more changes until we're ready to render
         OGRE_LOCK_MUTEX(sceneGraphMutex);
 
-        mCamerasInProgress.renderingCamera = camera;
-        mCamerasInProgress.lodCamera = lodCamera;
+        mCameraInProgress = camera;
+
+        // Invert vertex winding?
+        if (camera->isReflected())
+        {
+            mDestRenderSystem->setInvertVertexWinding(true);
+        }
+        else
+        {
+            mDestRenderSystem->setInvertVertexWinding(false);
+        }
+
+        setViewport( vp );
 
         // Tell params about camera
         mAutoParamDataSource->setCurrentCamera(camera);
@@ -1367,37 +1192,33 @@ void SceneManager::_renderPhase02(Camera* camera, const Camera *lodCamera,
         if (mDestRenderSystem->getCapabilities()->hasCapability(RSC_USER_CLIP_PLANES))
         {
             mDestRenderSystem->resetClipPlanes();
-            if (camera->isWindowSet())
+            if (camera->isWindowSet())  
             {
                 mDestRenderSystem->setClipPlanes(camera->getWindowPlanes());
             }
         }
 
-        if( mSky && mIlluminationStage != IRS_RENDER_TO_TEXTURE )
+        // Prepare render queue for receiving new objects
         {
-            const Vector3 *corners = camera->getWorldSpaceCorners();
-            const Vector3 &cameraPos = camera->getDerivedPosition();
-
-            const Real invFarPlane = 1.0f / camera->getFarClipDistance();
-            Vector3 cameraDirs[4];
-            cameraDirs[0] = ( corners[5] - cameraPos ) * invFarPlane;
-            cameraDirs[1] = ( corners[6] - cameraPos ) * invFarPlane;
-            cameraDirs[2] = ( corners[4] - cameraPos ) * invFarPlane;
-            cameraDirs[3] = ( corners[7] - cameraPos ) * invFarPlane;
-
-            mSky->setNormals( cameraDirs[0], cameraDirs[1], cameraDirs[2], cameraDirs[3] );
-            mSky->update();
+            prepareRenderQueue();
         }
 
-        if( mRadialDensityMask && mIlluminationStage != IRS_RENDER_TO_TEXTURE &&
-            isUsingInstancedStereo() )
+        if( mIlluminationStage != IRS_RENDER_TO_TEXTURE && mForwardPlusImpl )
         {
-            mRadialDensityMask->update( mDestRenderSystem->getCurrentRenderViewports() );
+            mForwardPlusImpl->collectLights( camera );
         }
 
         if (mFindVisibleObjects)
         {
             OgreProfileGroup( "V1 Renderable update", OGREPROF_RENDERING );
+
+            if( mInstancingThreadedCullingMethod == INSTANCING_CULLING_THREADED )
+            {
+                fireCullFrustumInstanceBatchThreads( InstanceBatchCullRequest( camera, lodCamera,
+                                                     (vp->getVisibilityMask() & getVisibilityMask()) |
+                                                     (vp->getVisibilityMask() &
+                                                       ~VisibilityFlags::RESERVED_VISIBILITY_FLAGS) ) );
+            }
 
             //mVisibleObjects should be filled in phase 01
             VisibleObjectsPerThreadArray::const_iterator it = mVisibleObjects.begin();
@@ -1405,7 +1226,7 @@ void SceneManager::_renderPhase02(Camera* camera, const Camera *lodCamera,
 
             bool casterPass = mIlluminationStage == IRS_RENDER_TO_TEXTURE;
 
-            firePreFindVisibleObjects( mCurrentViewport0 );
+            firePreFindVisibleObjects(vp);
 
             //Some v1 Renderables may bind their own GL buffers during _updateRenderQueue,
             //thus we need to be sure the correct VAO is bound.
@@ -1440,20 +1261,30 @@ void SceneManager::_renderPhase02(Camera* camera, const Camera *lodCamera,
                 ++it;
             }
 
-            firePostFindVisibleObjects( mCurrentViewport0 );
+            firePostFindVisibleObjects(vp);
+        }
+        // Queue skies, if viewport seems it
+        if (vp->getSkiesEnabled() && mFindVisibleObjects && mIlluminationStage != IRS_RENDER_TO_TEXTURE)
+        {
+            _queueSkiesForRendering(camera);
+        }
+
+        {
+            //TODO: Remove this hacky listener (mostly needed by OverlayManager)
+            OgreProfileGroup( "RenderQueue Listeners (i.e. Overlays)", OGREPROF_RENDERING );
+            for( uint8 i=firstRq; i<lastRq; ++i )
+                fireRenderQueueStarted( i, BLANKSTRING );
         }
     } // end lock on scene graph mutex
 
     mDestRenderSystem->_beginGeometryCount();
 
     // Set initial camera state
-    mDestRenderSystem->_setProjectionMatrix( Matrix4::IDENTITY );
-
-    mCachedViewMatrix = mCamerasInProgress.renderingCamera->getViewMatrix(true);
-
+    mDestRenderSystem->_setProjectionMatrix(mCameraInProgress->getProjectionMatrixRS());
+    
+    mCachedViewMatrix = mCameraInProgress->getViewMatrix(true);
+    
     setViewMatrix(mCachedViewMatrix);
-
-    mDestRenderSystem->executeRenderPassDescriptorDelayedActions();
 
     // Render scene content
     {
@@ -1517,12 +1348,6 @@ void SceneManager::_frameEnded(void)
 void SceneManager::_setDestinationRenderSystem(RenderSystem* sys)
 {
     mDestRenderSystem = sys;
-    const uint32 maxBoundVps = mDestRenderSystem->getMaxBoundViewports();
-    Viewport *currVps = mDestRenderSystem->getCurrentRenderViewports();
-    Viewport *vp[16];
-    for( size_t i=0; i<maxBoundVps; ++i )
-        vp[i] = &currVps[i];
-    setViewports( vp, maxBoundVps );
 
     if( mForwardPlusSystem )
         mForwardPlusSystem->_changeRenderSystem( sys );
@@ -1589,6 +1414,596 @@ void SceneManager::setWorldGeometry(DataStreamPtr& stream,
     OGRE_EXCEPT(Exception::ERR_INVALIDPARAMS,
         "World geometry is not supported by the generic SceneManager.",
         "SceneManager::setWorldGeometry");
+}
+//-----------------------------------------------------------------------
+void SceneManager::_setSkyPlane(bool enable,
+                               const Plane& plane,
+                               const String& materialName,
+                               uint8 renderQueue,
+                               Real gscale,
+                               Real tiling,
+                               Real bow,
+                               int xsegments, int ysegments,
+                               const String& groupName)
+{
+    if (enable)
+    {
+        String meshName = mName + "SkyPlane";
+        mSkyPlane = plane;
+
+        MaterialPtr m = MaterialManager::getSingleton().getByName(materialName, groupName);
+        if (m.isNull())
+        {
+            OGRE_EXCEPT(Exception::ERR_INVALIDPARAMS, 
+                "Sky plane material '" + materialName + "' not found.",
+                "SceneManager::setSkyPlane");
+        }
+        // Make sure the material doesn't update the depth buffer
+        //m->setDepthWriteEnabled(false);
+        // Ensure loaded
+        m->load();
+
+        // Set up the plane
+        v1::MeshPtr planeMesh = v1::MeshManager::getSingleton().getByName(meshName);
+        if (!planeMesh.isNull())
+        {
+            // Destroy the old one
+            v1::MeshManager::getSingleton().remove(planeMesh->getHandle());
+        }
+
+        // Create up vector
+        Vector3 up = plane.normal.crossProduct(Vector3::UNIT_X);
+        if (up == Vector3::ZERO)
+            up = plane.normal.crossProduct(-Vector3::UNIT_Z);
+
+        // Create skyplane
+        if( bow > 0 )
+        {
+            // Build a curved skyplane
+            planeMesh = v1::MeshManager::getSingleton().createCurvedPlane(
+                meshName, groupName, plane, gscale * 100, gscale * 100, gscale * bow * 100, 
+                xsegments, ysegments, false, 1, tiling, tiling, up);
+        }
+        else
+        {
+            planeMesh = v1::MeshManager::getSingleton().createPlane(
+                meshName, groupName, plane, gscale * 100, gscale * 100, xsegments, ysegments, false, 
+                1, tiling, tiling, up);
+        }
+
+        // Create entity 
+        if (mSkyPlaneEntity)
+        {
+            // destroy old one
+            destroyEntity( mSkyPlaneEntity );
+            mSkyPlaneEntity = 0;
+        }
+        // Create, use the same name for mesh and entity
+        // manually construct as we don't want this to be destroyed on destroyAllMovableObjects
+        MovableObjectFactory* factory = 
+            Root::getSingleton().getMovableObjectFactory(v1::EntityFactory::FACTORY_TYPE_NAME);
+        NameValuePairList params;
+        params["mesh"] = meshName;
+        mSkyPlaneEntity = static_cast<v1::Entity*>(factory->createInstance(
+                                            Id::generateNewId<MovableObject>(),
+                                            &mEntityMemoryManager[SCENE_DYNAMIC], this, &params ));
+        mSkyPlaneEntity->setName( meshName );
+        mSkyPlaneEntity->setMaterialName(materialName, groupName);
+        mSkyPlaneEntity->setCastShadows(false);
+        mSkyPlaneEntity->setRenderQueueGroup( renderQueue );
+        mSkyPlaneEntity->setQueryFlags( 0 );
+
+        MovableObjectCollection* objectMap = getMovableObjectCollection(
+                                                    v1::EntityFactory::FACTORY_TYPE_NAME );
+        objectMap->movableObjects.push_back( mSkyPlaneEntity );
+        mSkyPlaneEntity->mGlobalIndex = objectMap->movableObjects.size() - 1;
+
+        // Create node and attach
+        if (!mSkyPlaneNode)
+        {
+            mSkyPlaneNode = createSceneNode();
+        }
+        else
+        {
+            mSkyPlaneNode->detachAllObjects();
+        }
+        mSkyPlaneNode->attachObject(mSkyPlaneEntity);
+
+    }
+    mSkyPlaneEnabled = enable;
+    mSkyPlaneGenParameters.skyPlaneBow = bow;
+    mSkyPlaneGenParameters.skyPlaneScale = gscale;
+    mSkyPlaneGenParameters.skyPlaneTiling = tiling;
+    mSkyPlaneGenParameters.skyPlaneXSegments = xsegments;
+    mSkyPlaneGenParameters.skyPlaneYSegments = ysegments;
+}
+//-----------------------------------------------------------------------
+void SceneManager::setSkyPlane(
+                               bool enable,
+                               const Plane& plane,
+                               const String& materialName,
+                               Real gscale,
+                               Real tiling,
+                               bool drawFirst,
+                               Real bow, 
+                               int xsegments, int ysegments, 
+                               const String& groupName)
+{
+    _setSkyPlane(enable, plane, materialName, 0, gscale, tiling,
+                 bow, xsegments, ysegments, groupName);
+}
+//-----------------------------------------------------------------------
+void SceneManager::_setSkyBox(bool enable,
+                             const String& materialName,
+                             uint8 renderQueue,
+                             Real distance,
+                             const Quaternion& orientation,
+                             const String& groupName)
+{
+    if (enable)
+    {
+        MaterialPtr m = MaterialManager::getSingleton().getByName(materialName, groupName);
+        if (m.isNull())
+        {
+            OGRE_EXCEPT(Exception::ERR_INVALIDPARAMS, 
+                "Sky box material '" + materialName + "' not found.",
+                "SceneManager::setSkyBox");
+        }
+        // Ensure loaded
+        m->load();
+        if (!m->getBestTechnique() || 
+            !m->getBestTechnique()->getNumPasses())
+        {
+            LogManager::getSingleton().logMessage(
+                "Warning, skybox material " + materialName + " is not supported, defaulting.", LML_CRITICAL);
+            m = MaterialManager::getSingleton().getDefaultSettings();
+        }
+
+        bool t3d = false;
+        Pass* pass = m->getBestTechnique()->getPass(0);
+        if (pass->getNumTextureUnitStates() > 0 && pass->getTextureUnitState(0)->is3D())
+            t3d = true;
+
+        // Create node 
+        if (!mSkyBoxNode)
+        {
+            mSkyBoxNode = createSceneNode( SCENE_DYNAMIC );
+            mSkyBoxNode->setName( "SkyBoxNode" );
+        }
+
+        // Create object
+        if (!mSkyBoxObj)
+        {
+            mSkyBoxObj = OGRE_NEW v1::ManualObject( Id::generateNewId<MovableObject>(),
+                                                    &mEntityMemoryManager[SCENE_DYNAMIC],
+                                                    this );
+            mSkyBoxObj->setCastShadows(false);
+            mSkyBoxObj->setRenderQueueGroup( renderQueue );
+            mSkyBoxObj->setQueryFlags( 0 );
+            mSkyBoxNode->attachObject(mSkyBoxObj);
+        }
+        else
+        {
+            if (!mSkyBoxObj->isAttached())
+            {
+                mSkyBoxNode->attachObject(mSkyBoxObj);
+            }
+            mSkyBoxObj->clear();
+        }
+        
+        mSkyBoxObj->setRenderQueueGroup(renderQueue);
+
+        if (t3d)
+        {
+            mSkyBoxObj->begin(materialName);
+        }
+
+        MaterialManager& matMgr = MaterialManager::getSingleton();
+        // Set up the box (6 planes)
+        for (uint16 i = 0; i < 6; ++i)
+        {
+            Plane plane;
+            Vector3 middle;
+            Vector3 up, right;
+
+            switch(i)
+            {
+            case BP_FRONT:
+                middle = Vector3(0, 0, -distance);
+                up = Vector3::UNIT_Y * distance;
+                right = Vector3::UNIT_X * distance;
+                break;
+            case BP_BACK:
+                middle = Vector3(0, 0, distance);
+                up = Vector3::UNIT_Y * distance;
+                right = Vector3::NEGATIVE_UNIT_X * distance;
+                break;
+            case BP_LEFT:
+                middle = Vector3(-distance, 0, 0);
+                up = Vector3::UNIT_Y * distance;
+                right = Vector3::NEGATIVE_UNIT_Z * distance;
+                break;
+            case BP_RIGHT:
+                middle = Vector3(distance, 0, 0);
+                up = Vector3::UNIT_Y * distance;
+                right = Vector3::UNIT_Z * distance;
+                break;
+            case BP_UP:
+                middle = Vector3(0, distance, 0);
+                up = Vector3::UNIT_Z * distance;
+                right = Vector3::UNIT_X * distance;
+                break;
+            case BP_DOWN:
+                middle = Vector3(0, -distance, 0);
+                up = Vector3::NEGATIVE_UNIT_Z * distance;
+                right = Vector3::UNIT_X * distance;
+                break;
+            }
+            // Modify by orientation
+            middle = orientation * middle;
+            up = orientation * up;
+            right = orientation * right;
+
+            
+            if (t3d)
+            {
+                // 3D cubic texture 
+                // Note UVs mirrored front/back
+                // I could save a few vertices here by sharing the corners
+                // since 3D coords will function correctly but it's really not worth
+                // making the code more complicated for the sake of 16 verts
+                // top left
+                Vector3 pos;
+                pos = middle + up - right;
+                mSkyBoxObj->position(pos);
+                mSkyBoxObj->textureCoord(pos.normalisedCopy() * Vector3(1,1,-1));
+                // bottom left
+                pos = middle - up - right;
+                mSkyBoxObj->position(pos);
+                mSkyBoxObj->textureCoord(pos.normalisedCopy() * Vector3(1,1,-1));
+                // bottom right
+                pos = middle - up + right;
+                mSkyBoxObj->position(pos);
+                mSkyBoxObj->textureCoord(pos.normalisedCopy() * Vector3(1,1,-1));
+                // top right
+                pos = middle + up + right;
+                mSkyBoxObj->position(pos);
+                mSkyBoxObj->textureCoord(pos.normalisedCopy() * Vector3(1,1,-1));
+
+                uint16 base = i * 4;
+                mSkyBoxObj->quad(base, base+1, base+2, base+3);
+
+            }
+            else // !t3d
+            {
+                // If we're using 6 separate images, have to create 6 materials, one for each frame
+                // Used to use combined material but now we're using queue we can't split to change frame
+                // This doesn't use much memory because textures aren't duplicated
+                String matName = mName + "SkyBoxPlane" + StringConverter::toString(i);
+                MaterialPtr boxMat = matMgr.getByName(matName, groupName);
+                if (boxMat.isNull())
+                {
+                    // Create new by clone
+                    boxMat = m->clone(matName);
+                    boxMat->load();
+                }
+                else
+                {
+                    // Copy over existing
+                    m->copyDetailsTo(boxMat);
+                    boxMat->load();
+                }
+                // Make sure the material doesn't update the depth buffer
+                //boxMat->setDepthWriteEnabled(false);
+                // Set active frame
+                Material::TechniqueIterator ti = boxMat->getSupportedTechniqueIterator();
+                while (ti.hasMoreElements())
+                {
+                    Technique* tech = ti.getNext();
+                    if (tech->getPass(0)->getNumTextureUnitStates() > 0)
+                    {
+                        TextureUnitState* t = tech->getPass(0)->getTextureUnitState(0);
+
+                        // Also clamp texture, don't wrap (otherwise edges can get filtered)
+                        HlmsSamplerblock samplerblock = *t->getSamplerblock();
+                        samplerblock.setAddressingMode( TAM_CLAMP );
+
+                        t->setSamplerblock( samplerblock );
+                        t->setCurrentFrame(i);
+
+                    }
+                }
+
+                // section per material
+                mSkyBoxObj->begin(matName, OT_TRIANGLE_LIST, groupName);
+                // top left
+                mSkyBoxObj->position(middle + up - right);
+                mSkyBoxObj->textureCoord(0,0);
+                // bottom left
+                mSkyBoxObj->position(middle - up - right);
+                mSkyBoxObj->textureCoord(0,1);
+                // bottom right
+                mSkyBoxObj->position(middle - up + right);
+                mSkyBoxObj->textureCoord(1,1);
+                // top right
+                mSkyBoxObj->position(middle + up + right);
+                mSkyBoxObj->textureCoord(1,0);
+                
+                mSkyBoxObj->quad(0, 1, 2, 3);
+
+                mSkyBoxObj->end();
+
+            }
+
+        } // for each plane
+
+        if (t3d)
+        {
+            mSkyBoxObj->end();
+        }
+
+
+    }
+    mSkyBoxEnabled = enable;
+    mSkyBoxGenParameters.skyBoxDistance = distance;
+}
+//-----------------------------------------------------------------------
+void SceneManager::setSkyBox(
+                             bool enable,
+                             const String& materialName,
+                             Real distance,
+                             bool drawFirst,
+                             const Quaternion& orientation,
+                             const String& groupName)
+{
+    _setSkyBox(enable, materialName, 0, distance,
+               orientation, groupName);
+}
+//-----------------------------------------------------------------------
+void SceneManager::_setSkyDome(bool enable,
+                              const String& materialName,
+                              uint8 renderQueue,
+                              Real curvature,
+                              Real tiling,
+                              Real distance,
+                              const Quaternion& orientation,
+                              int xsegments, int ysegments, int ySegmentsToKeep,
+                              const String& groupName)
+{
+    if (enable)
+    {
+        MaterialPtr m = MaterialManager::getSingleton().getByName(materialName, groupName);
+        if (m.isNull())
+        {
+            OGRE_EXCEPT(Exception::ERR_INVALIDPARAMS, 
+                "Sky dome material '" + materialName + "' not found.",
+                "SceneManager::setSkyDome");
+        }
+        // Make sure the material doesn't update the depth buffer
+        //m->setDepthWriteEnabled(false);
+        // Ensure loaded
+        m->load();
+
+        // Create node 
+        if (!mSkyDomeNode)
+        {
+            mSkyDomeNode = createSceneNode( SCENE_DYNAMIC );
+            mSkyDomeNode->setName( "SkyDomeNode" );
+        }
+        else
+        {
+            mSkyDomeNode->detachAllObjects();
+        }
+
+        // Set up the dome (5 planes)
+        for (int i = 0; i < 5; ++i)
+        {
+            v1::MeshPtr planeMesh = createSkydomePlane((BoxPlane)i, curvature,
+                tiling, distance, orientation, xsegments, ysegments, 
+                i!=BP_UP ? ySegmentsToKeep : -1, groupName);
+
+            String entName = "SkyDomePlane" + StringConverter::toString(i);
+
+            // Create entity 
+            if (mSkyDomeEntity[i])
+            {
+                // destroy old one, do it by name for speed
+                destroyEntity(mSkyDomeEntity[i]);
+                mSkyDomeEntity[i] = 0;
+            }
+            // construct manually so we don't have problems if destroyAllMovableObjects called
+            MovableObjectFactory* factory = 
+                Root::getSingleton().getMovableObjectFactory(v1::EntityFactory::FACTORY_TYPE_NAME);
+
+            NameValuePairList params;
+            params["mesh"] = planeMesh->getName();
+            mSkyDomeEntity[i] = static_cast<v1::Entity*>(factory->createInstance(
+                                                Id::generateNewId<MovableObject>(),
+                                                &mEntityMemoryManager[SCENE_DYNAMIC], this, &params ));
+            mSkyDomeEntity[i]->setName( entName );
+            mSkyDomeEntity[i]->setMaterialName(m->getName(), groupName);
+            mSkyDomeEntity[i]->setCastShadows(false);
+            mSkyDomeEntity[i]->setRenderQueueGroup( renderQueue );
+            mSkyDomeEntity[i]->setQueryFlags( 0 );
+
+            MovableObjectCollection* objectMap = getMovableObjectCollection(
+                                                        v1::EntityFactory::FACTORY_TYPE_NAME );
+            objectMap->movableObjects.push_back( mSkyDomeEntity[i] );
+            mSkyDomeEntity[i]->mGlobalIndex = objectMap->movableObjects.size() - 1;
+
+            // Attach to node
+            mSkyDomeNode->attachObject(mSkyDomeEntity[i]);
+        } // for each plane
+
+    }
+    mSkyDomeEnabled = enable;
+    mSkyDomeGenParameters.skyDomeCurvature = curvature;
+    mSkyDomeGenParameters.skyDomeDistance = distance;
+    mSkyDomeGenParameters.skyDomeTiling = tiling;
+    mSkyDomeGenParameters.skyDomeXSegments = xsegments;
+    mSkyDomeGenParameters.skyDomeYSegments = ysegments;
+    mSkyDomeGenParameters.skyDomeYSegments_keep = ySegmentsToKeep;
+}
+//-----------------------------------------------------------------------
+void SceneManager::setSkyDome(
+                              bool enable,
+                              const String& materialName,
+                              Real curvature,
+                              Real tiling,
+                              Real distance,
+                              bool drawFirst,
+                              const Quaternion& orientation,
+                              int xsegments, int ysegments, int ySegmentsToKeep,
+                              const String& groupName)
+{
+    _setSkyDome(enable, materialName, 0, curvature, tiling, distance, 
+                orientation, xsegments, ysegments, ySegmentsToKeep, groupName);
+}
+//-----------------------------------------------------------------------
+v1::MeshPtr SceneManager::createSkyboxPlane(
+                                      BoxPlane bp,
+                                      Real distance,
+                                      const Quaternion& orientation,
+                                      const String& groupName)
+{
+    Plane plane;
+    String meshName;
+    Vector3 up;
+
+    meshName = mName + "SkyBoxPlane_";
+    // Set up plane equation
+    plane.d = distance;
+    switch(bp)
+    {
+    case BP_FRONT:
+        plane.normal = Vector3::UNIT_Z;
+        up = Vector3::UNIT_Y;
+        meshName += "Front";
+        break;
+    case BP_BACK:
+        plane.normal = -Vector3::UNIT_Z;
+        up = Vector3::UNIT_Y;
+        meshName += "Back";
+        break;
+    case BP_LEFT:
+        plane.normal = Vector3::UNIT_X;
+        up = Vector3::UNIT_Y;
+        meshName += "Left";
+        break;
+    case BP_RIGHT:
+        plane.normal = -Vector3::UNIT_X;
+        up = Vector3::UNIT_Y;
+        meshName += "Right";
+        break;
+    case BP_UP:
+        plane.normal = -Vector3::UNIT_Y;
+        up = Vector3::UNIT_Z;
+        meshName += "Up";
+        break;
+    case BP_DOWN:
+        plane.normal = Vector3::UNIT_Y;
+        up = -Vector3::UNIT_Z;
+        meshName += "Down";
+        break;
+    }
+    // Modify by orientation
+    plane.normal = orientation * plane.normal;
+    up = orientation * up;
+
+
+    // Check to see if existing plane
+    v1::MeshManager& mm = v1::MeshManager::getSingleton();
+    v1::MeshPtr planeMesh = mm.getByName(meshName, groupName);
+    if(!planeMesh.isNull())
+    {
+        // destroy existing
+        mm.remove(planeMesh->getHandle());
+    }
+    // Create new
+    Real planeSize = distance * 2;
+    const int BOX_SEGMENTS = 1;
+    planeMesh = mm.createPlane(meshName, groupName, plane, planeSize, planeSize, 
+        BOX_SEGMENTS, BOX_SEGMENTS, false, 1, 1, 1, up);
+
+    //planeMesh->_dumpContents(meshName);
+
+    return planeMesh;
+
+}
+//-----------------------------------------------------------------------
+v1::MeshPtr SceneManager::createSkydomePlane(
+                                       BoxPlane bp,
+                                       Real curvature,
+                                       Real tiling,
+                                       Real distance,
+                                       const Quaternion& orientation,
+                                       int xsegments, int ysegments, int ysegments_keep, 
+                                       const String& groupName)
+{
+
+    Plane plane;
+    String meshName;
+    Vector3 up;
+
+    meshName = mName + "SkyDomePlane_";
+    // Set up plane equation
+    plane.d = distance;
+    switch(bp)
+    {
+    case BP_FRONT:
+        plane.normal = Vector3::UNIT_Z;
+        up = Vector3::UNIT_Y;
+        meshName += "Front";
+        break;
+    case BP_BACK:
+        plane.normal = -Vector3::UNIT_Z;
+        up = Vector3::UNIT_Y;
+        meshName += "Back";
+        break;
+    case BP_LEFT:
+        plane.normal = Vector3::UNIT_X;
+        up = Vector3::UNIT_Y;
+        meshName += "Left";
+        break;
+    case BP_RIGHT:
+        plane.normal = -Vector3::UNIT_X;
+        up = Vector3::UNIT_Y;
+        meshName += "Right";
+        break;
+    case BP_UP:
+        plane.normal = -Vector3::UNIT_Y;
+        up = Vector3::UNIT_Z;
+        meshName += "Up";
+        break;
+    case BP_DOWN:
+        // no down
+        return v1::MeshPtr();
+    }
+    // Modify by orientation
+    plane.normal = orientation * plane.normal;
+    up = orientation * up;
+
+    // Check to see if existing plane
+    v1::MeshManager& mm = v1::MeshManager::getSingleton();
+    v1::MeshPtr planeMesh = mm.getByName(meshName, groupName);
+    if(!planeMesh.isNull())
+    {
+        // destroy existing
+        mm.remove(planeMesh->getHandle());
+    }
+    // Create new
+    Real planeSize = distance * 2;
+    planeMesh = mm.createCurvedIllusionPlane(meshName, groupName, plane, 
+        planeSize, planeSize, curvature, 
+        xsegments, ysegments, false, 1, tiling, tiling, up, 
+        orientation, v1::HardwareBuffer::HBU_DYNAMIC_WRITE_ONLY,
+        v1::HardwareBuffer::HBU_STATIC_WRITE_ONLY,
+        false, false, ysegments_keep);
+
+    //planeMesh->_dumpContents(meshName);
+
+    return planeMesh;
+
 }
 //-----------------------------------------------------------------------
 void SceneManager::notifyStaticAabbDirty( MovableObject *movableObject )
@@ -1917,6 +2332,28 @@ void SceneManager::updateAllLods( const Camera *lodCamera, Real lodBias, uint8 f
     fireWorkerThreadsAndWait();
 }
 //-----------------------------------------------------------------------
+void SceneManager::instanceBatchCullFrustumThread( const InstanceBatchCullRequest &request,
+                                                   size_t threadIdx )
+{
+    VisibleObjectsPerRq::const_iterator it = mVisibleObjects[threadIdx].begin();
+    VisibleObjectsPerRq::const_iterator en = mVisibleObjects[threadIdx].begin();
+
+    while( it != en )
+    {
+        MovableObject::MovableObjectArray::const_iterator itor = it->begin();
+        MovableObject::MovableObjectArray::const_iterator end  = it->end();
+
+        while( itor != end )
+        {
+            (*itor)->instanceBatchCullFrustumThreaded( request.frustum, request.lodCamera,
+                                                       request.combinedVisibilityFlags );
+            ++itor;
+        }
+
+        ++it;
+    }
+}
+//-----------------------------------------------------------------------
 void SceneManager::cullFrustum( const CullFrustumRequest &request, size_t threadIdx )
 {
     VisibleObjectsPerRq &visibleObjectsPerRq = *(mVisibleObjects.begin() + threadIdx);
@@ -1936,7 +2373,7 @@ void SceneManager::cullFrustum( const CullFrustumRequest &request, size_t thread
     const Camera *lodCamera = request.lodCamera;
 
     const uint32 visibilityMask = request.cullingLights ?
-                (camera->getLastViewport()->getLightVisibilityMask() & mLightMask) :
+                camera->getLastViewport()->getLightVisibilityMask() :
                 ((camera->getLastViewport()->getVisibilityMask() & this->getVisibilityMask()) |
                  (camera->getLastViewport()->getVisibilityMask() &
                                     ~VisibilityFlags::RESERVED_VISIBILITY_FLAGS));
@@ -2061,8 +2498,6 @@ void SceneManager::buildLightList()
         ObjectMemoryManagerVec::const_iterator it = mLightsMemoryManagerCulledList.begin();
         ObjectMemoryManagerVec::const_iterator en = mLightsMemoryManagerCulledList.end();
 
-        const uint32 visibilityMask = mLightMask;
-
         size_t idx = 0;
 
         while( it != en )
@@ -2084,7 +2519,7 @@ void SceneManager::buildLightList()
                     {
                         const bool isVisible = (objData.mVisibilityFlags[j] &
                                                 VisibilityFlags::LAYER_VISIBILITY) != 0;
-                        if( isVisible && objData.mVisibilityFlags[j] & visibilityMask )
+                        if( isVisible )
                         {
                             mGlobalLightList.visibilityMask[idx] = objData.mVisibilityFlags[j];
                             mGlobalLightList.boundingSphere[idx] = Sphere(
@@ -2268,7 +2703,7 @@ void SceneManager::buildLightListThread01( const BuildLightListRequest &buildLig
             numObjs = std::min( numObjs, totalObjs - toAdvance );
             objData.advancePack( toAdvance / ARRAY_PACKED_REALS );
 
-            Light::cullLights( numObjs, objData, mLightMask, threadLocalLightList,
+            Light::cullLights( numObjs, objData, threadLocalLightList,
                                mVisibleCameras, mCubeMapCameras );
         }
 
@@ -2377,6 +2812,10 @@ void SceneManager::updateSceneGraph()
     updateAllTransforms();
     updateAllAnimations();
     updateAllTagPoints();
+#ifdef OGRE_LEGACY_ANIMATIONS
+    updateInstanceManagerAnimations();
+#endif
+    updateInstanceManagers();
     updateAllBounds( mEntitiesMemoryManagerUpdateList );
     updateAllBounds( mLightsMemoryManagerCulledList );
 
@@ -2699,7 +3138,7 @@ void SceneManager::renderSingleObject(Renderable* rend, const Pass* pass,
                         continue;
 
                     if (pass->getLightScissoringEnabled())
-                        scissored = buildAndSetScissor(*pLightListToUse, mCamerasInProgress.renderingCamera);
+                        scissored = buildAndSetScissor(*pLightListToUse, mCameraInProgress);
                 
                     if (pass->getLightClipPlanesEnabled())
                         clipped = buildAndSetLightClip(*pLightListToUse);
@@ -2795,7 +3234,7 @@ void SceneManager::renderSingleObject(Renderable* rend, const Pass* pass,
                 ClipResult clipped = CLIPPED_NONE;
                 if (lightScissoringClipping && pass->getLightScissoringEnabled())
                 {
-                    scissored = buildAndSetScissor( *lightList, mCamerasInProgress.renderingCamera );
+                    scissored = buildAndSetScissor( *lightList, mCameraInProgress );
                 }
                 if (lightScissoringClipping && pass->getLightClipPlanesEnabled())
                 {
@@ -2858,24 +3297,13 @@ void SceneManager::renderSingleObject(Renderable* rend, const Pass* pass,
 void SceneManager::setAmbientLight( const ColourValue &upperHemisphere,
                                     const ColourValue &lowerHemisphere,
                                     const Vector3 &hemisphereDir,
-                                    Real envmapScale, uint32 envFeatures )
+                                    Real envmapScale )
 {
     mAmbientLight[0] = upperHemisphere;
     mAmbientLight[1] = lowerHemisphere;
     mAmbientLightHemisphereDir = hemisphereDir;
     mAmbientLightHemisphereDir.normalise();
     mAmbientLight[0].a = envmapScale;
-    mEnvFeatures = envFeatures;
-}
-//-----------------------------------------------------------------------
-void SceneManager::setSphericalHarmonics( Vector3 ambientSphericalHarmonics[9] )
-{
-    for( size_t i = 0u; i < 9u; ++i )
-    {
-        mAmbientSphericalHarmonics[i * 3u + 0u] = (float)ambientSphericalHarmonics[i].x;
-        mAmbientSphericalHarmonics[i * 3u + 1u] = (float)ambientSphericalHarmonics[i].y;
-        mAmbientSphericalHarmonics[i * 3u + 2u] = (float)ambientSphericalHarmonics[i].z;
-    }
 }
 //-----------------------------------------------------------------------
 ViewPoint SceneManager::getSuggestedViewpoint(bool random)
@@ -3142,13 +3570,42 @@ void SceneManager::resetViewProjMode(bool fixedFunction)
     {
         // Coming back from flat projection
         if (fixedFunction)
-            mDestRenderSystem->_setProjectionMatrix( Matrix4::IDENTITY );
+            mDestRenderSystem->_setProjectionMatrix(mCameraInProgress->getProjectionMatrixRS());
         mGpuParamsDirty |= (uint16)GPV_GLOBAL;
 
         mResetIdentityProj = false;
     }
     
 
+}
+//---------------------------------------------------------------------
+void SceneManager::_queueSkiesForRendering(Camera* cam)
+{
+    // Update nodes
+    // Translate the box by the camera position (constant distance)
+    if (mSkyPlaneNode)
+    {
+        // The plane position relative to the camera has already been set up
+        mSkyPlaneNode->setPosition(cam->getDerivedPosition());
+        mSkyPlaneNode->_getDerivedPositionUpdated();
+        mSkyPlaneEntity->getWorldAabbUpdated();
+    }
+
+    if (mSkyBoxNode)
+    {
+        mSkyBoxNode->setPosition(cam->getDerivedPosition());
+        mSkyBoxNode->_getDerivedPositionUpdated();
+        mSkyBoxObj->getWorldAabbUpdated();
+    }
+
+    if (mSkyDomeNode)
+    {
+        mSkyDomeNode->setPosition(cam->getDerivedPosition());
+        mSkyDomeNode->_getDerivedPositionUpdated();
+
+        for (size_t i = 0; i < 5; ++i)
+            mSkyDomeEntity[i]->getWorldAabbUpdated();
+    }
 }
 //---------------------------------------------------------------------
 void SceneManager::addRenderQueueListener(RenderQueueListener* newListener)
@@ -3202,19 +3659,6 @@ void SceneManager::_setCurrentShadowNode( CompositorShadowNode *shadowNode, bool
     if( !shadowNode )
         mShadowNodeIsReused = false;
     mAutoParamDataSource->setCurrentShadowNode( shadowNode );
-}
-//---------------------------------------------------------------------
-bool SceneManager::isUsingInstancedStereo(void) const
-{
-    bool retVal = false;
-    if( mCurrentPass && mCurrentPass->getType() == PASS_SCENE )
-    {
-        OGRE_ASSERT_HIGH( dynamic_cast<const CompositorPassSceneDef*>( mCurrentPass->getDefinition() ) );
-        CompositorPassSceneDef const *passSceneDef = static_cast<const CompositorPassSceneDef*>(
-                                                         mCurrentPass->getDefinition() );
-        retVal = passSceneDef->mInstancedStereo;
-    }
-    return retVal;
 }
 //---------------------------------------------------------------------
 void SceneManager::addListener(Listener* newListener)
@@ -3333,21 +3777,14 @@ void SceneManager::fireSceneManagerDestroyed()
     }
 }
 //---------------------------------------------------------------------
-void SceneManager::setViewports( Viewport **vp, size_t numViewports )
+void SceneManager::setViewport(Viewport* vp)
 {
-    if( numViewports >= 1u )
-        mCurrentViewport0 = vp[0];
-    else
-        mCurrentViewport0 = 0;
-
+    mCurrentViewport = vp;
     // Set viewport in render system
-    if( mAutoParamDataSource )
-        mAutoParamDataSource->setCurrentViewport( mCurrentViewport0 );
-    if( mCurrentViewport0 )
-    {
-        // Set the active material scheme for this viewport
-        MaterialManager::getSingleton().setActiveScheme( mCurrentViewport0->getMaterialScheme() );
-    }
+    mDestRenderSystem->_setViewport(vp);
+    mAutoParamDataSource->setCurrentViewport(vp);
+    // Set the active material scheme for this viewport
+    MaterialManager::getSingleton().setActiveScheme(vp->getMaterialScheme());
 }
 //---------------------------------------------------------------------
 void SceneManager::showBoundingBoxes(bool bShow) 
@@ -3748,6 +4185,13 @@ void SceneManager::setRelativeOrigin( const Vector3 &relativeOrigin, bool bPerma
             mSceneRoot[i]->setPosition( Vector3::ZERO );
             propagateRelativeOrigin( mSceneRoot[i], relativeOrigin );
         }
+
+        if( mSkyPlaneNode )
+            propagateRelativeOrigin( mSkyPlaneNode, relativeOrigin );
+        if( mSkyDomeNode )
+            propagateRelativeOrigin( mSkyDomeNode, relativeOrigin );
+        if( mSkyBoxNode )
+            propagateRelativeOrigin( mSkyBoxNode, relativeOrigin );
     }
 
     notifyStaticDirty( mSceneRoot[SCENE_STATIC] );
@@ -3995,8 +4439,8 @@ SceneManager::RenderContext* SceneManager::_pauseRendering()
 {
     RenderContext* context = new RenderContext;
     context->renderQueue = mRenderQueue;
-    //context->viewport = mCurrentViewport;
-    context->camerasInProgress = mCamerasInProgress;
+    context->viewport = mCurrentViewport;
+    context->camera = mCameraInProgress;
 
     context->rsContext = mDestRenderSystem->_pauseFrame();
     mRenderQueue = 0;
@@ -4008,10 +4452,10 @@ void SceneManager::_resumeRendering(SceneManager::RenderContext* context)
     delete mRenderQueue;
     mRenderQueue = context->renderQueue;
     Ogre::Viewport* vp = context->viewport;
-    const Ogre::Camera* camera = context->camerasInProgress.renderingCamera;
+    Ogre::Camera* camera = context->camera;
 
     // Tell params about viewport
-    //setViewport(vp);
+    setViewport(vp);
 
     // Tell params about camera
     mAutoParamDataSource->setCurrentCamera(camera);
@@ -4030,13 +4474,13 @@ void SceneManager::_resumeRendering(SceneManager::RenderContext* context)
             mDestRenderSystem->setClipPlanes(camera->getWindowPlanes());
         }
     }
-    mCamerasInProgress = context->camerasInProgress;
+    mCameraInProgress = context->camera;
     mDestRenderSystem->_resumeFrame(context->rsContext);
 
     // Set initial camera state
-    mDestRenderSystem->_setProjectionMatrix( Matrix4::IDENTITY );
+    mDestRenderSystem->_setProjectionMatrix(mCameraInProgress->getProjectionMatrixRS());
     
-    mCachedViewMatrix = mCamerasInProgress.renderingCamera->getViewMatrix(true);
+    mCachedViewMatrix = mCameraInProgress->getViewMatrix(true);
 
     setViewMatrix(mCachedViewMatrix);
     delete context;
@@ -4099,6 +4543,159 @@ void SceneManager::destroyAllStaticGeometry(void)
         OGRE_DELETE i->second;
     }
     mStaticGeometryList.clear();
+}
+//---------------------------------------------------------------------
+v1::InstanceManager* SceneManager::createInstanceManager( const String &customName,
+                                                          const String &meshName,
+                                                          const String &groupName,
+                                                          v1::InstanceManager::InstancingTechnique technique,
+                                                          size_t numInstancesPerBatch, uint16 flags,
+                                                          unsigned short subMeshIdx )
+{
+    InstanceManagerVec::iterator itor = std::lower_bound( mInstanceManagers.begin(),
+                                                          mInstanceManagers.end(),
+                                                          customName, v1::InstanceManagerCmp() );
+    if (itor != mInstanceManagers.end() && (*itor)->getName() == customName )
+    {
+        OGRE_EXCEPT( Exception::ERR_DUPLICATE_ITEM, 
+            "InstancedManager with name '" + customName + "' already exists!", 
+            "SceneManager::createInstanceManager");
+    }
+
+    v1::InstanceManager *retVal = new v1::InstanceManager( customName, this, meshName, groupName,
+                                                           technique, flags, numInstancesPerBatch,
+                                                           subMeshIdx );
+
+    mInstanceManagers.insert( itor, retVal );
+    return retVal;
+}
+//---------------------------------------------------------------------
+v1::InstanceManager* SceneManager::getInstanceManager( IdString managerName ) const
+{
+    InstanceManagerVec::const_iterator itor = std::lower_bound( mInstanceManagers.begin(),
+                                                                mInstanceManagers.end(),
+                                                                managerName, v1::InstanceManagerCmp() );
+    if (itor == mInstanceManagers.end() || (*itor)->getName() != managerName )
+    {
+        OGRE_EXCEPT(Exception::ERR_ITEM_NOT_FOUND, 
+                "InstancedManager with name '" + managerName.getFriendlyText() + "' not found",
+                "SceneManager::getInstanceManager");
+    }
+
+    return *itor;
+}
+//---------------------------------------------------------------------
+bool SceneManager::hasInstanceManager( IdString managerName ) const
+{
+    InstanceManagerVec::const_iterator itor = std::lower_bound( mInstanceManagers.begin(),
+                                                                mInstanceManagers.end(),
+                                                                managerName, v1::InstanceManagerCmp() );
+    return itor != mInstanceManagers.end() && (*itor)->getName() == managerName;
+}
+//---------------------------------------------------------------------
+void SceneManager::destroyInstanceManager( IdString name )
+{
+    InstanceManagerVec::iterator itor = std::lower_bound( mInstanceManagers.begin(),
+                                                            mInstanceManagers.end(),
+                                                            name, v1::InstanceManagerCmp() );
+    if (itor != mInstanceManagers.end() && (*itor)->getName() == name )
+    {
+        OGRE_DELETE *itor;
+        mInstanceManagers.erase( itor );
+    }
+}
+//---------------------------------------------------------------------
+void SceneManager::destroyInstanceManager( v1::InstanceManager *instanceManager )
+{
+    destroyInstanceManager( instanceManager->getName() );
+}
+//---------------------------------------------------------------------
+void SceneManager::destroyAllInstanceManagers(void)
+{
+    InstanceManagerVec::iterator itor = mInstanceManagers.begin();
+    InstanceManagerVec::iterator end  = mInstanceManagers.end();
+
+    while( itor != end )
+        OGRE_DELETE *itor++;
+
+    mInstanceManagers.clear();
+}
+//---------------------------------------------------------------------
+size_t SceneManager::getNumInstancesPerBatch( const String &meshName, const String &groupName,
+                                              const String &materialName,
+                                              v1::InstanceManager::InstancingTechnique technique,
+                                              size_t numInstancesPerBatch, uint16 flags,
+                                              unsigned short subMeshIdx )
+{
+    v1::InstanceManager tmpMgr( "TmpInstanceManager", this, meshName, groupName,
+                                technique, flags, numInstancesPerBatch, subMeshIdx );
+    
+    return tmpMgr.getMaxOrBestNumInstancesPerBatch( materialName, numInstancesPerBatch, flags );
+}
+//---------------------------------------------------------------------
+v1::InstancedEntity* SceneManager::createInstancedEntity( const String &materialName,
+                                                          const String &managerName )
+{
+    InstanceManagerVec::const_iterator itor = std::lower_bound( mInstanceManagers.begin(),
+                                                                mInstanceManagers.end(),
+                                                                managerName, v1::InstanceManagerCmp() );
+
+    if (itor == mInstanceManagers.end() || (*itor)->getName() != managerName )
+    {
+        OGRE_EXCEPT(Exception::ERR_ITEM_NOT_FOUND, 
+                "InstancedManager with name '" + managerName + "' not found", 
+                "SceneManager::createInstanceEntity");
+    }
+
+    return (*itor)->createInstancedEntity( materialName );
+}
+//---------------------------------------------------------------------
+void SceneManager::destroyInstancedEntity( v1::InstancedEntity *instancedEntity )
+{
+    instancedEntity->_getOwner()->removeInstancedEntity( instancedEntity );
+}
+//---------------------------------------------------------------------
+#ifdef OGRE_LEGACY_ANIMATIONS
+void SceneManager::updateInstanceManagerAnimations(void)
+{
+    InstanceManagerVec::const_iterator itor = mInstanceManagers.begin();
+    InstanceManagerVec::const_iterator end  = mInstanceManagers.end();
+
+    while( itor != end )
+    {
+        (*itor)->_updateAnimations();
+        ++itor;
+    }
+}
+#endif
+//---------------------------------------------------------------------
+void SceneManager::updateInstanceManagersThread( size_t threadIdx )
+{
+    InstanceManagerVec::const_iterator itor = mInstanceManagers.begin();
+    InstanceManagerVec::const_iterator end  = mInstanceManagers.end();
+
+    while( itor != end )
+    {
+        (*itor)->_updateDirtyBatchesThread( threadIdx );
+        ++itor;
+    }
+}
+//---------------------------------------------------------------------
+void SceneManager::updateInstanceManagers(void)
+{
+    // First update the individual instances from multiple threads
+    mRequestType = UPDATE_INSTANCE_MANAGERS;
+    fireWorkerThreadsAndWait();
+
+    // Now perform the final pass from a single thread
+    InstanceManagerVec::const_iterator itor = mInstanceManagers.begin();
+    InstanceManagerVec::const_iterator end  = mInstanceManagers.end();
+
+    while( itor != end )
+    {
+        (*itor)->_updateDirtyBatches();
+        ++itor;
+    }
 }
 //---------------------------------------------------------------------
 AxisAlignedBoxSceneQuery* 
@@ -4432,9 +5029,9 @@ RenderSystem *SceneManager::getDestinationRenderSystem()
 uint32 SceneManager::_getCombinedVisibilityMask(void) const
 {
     //Always preserve the settings of the reserved visibility flags in the viewport.
-    return mCurrentViewport0 ?
-        ((mCurrentViewport0->getVisibilityMask() & mVisibilityMask) |
-        (mCurrentViewport0->getVisibilityMask() & ~VisibilityFlags::RESERVED_VISIBILITY_FLAGS)) :
+    return mCurrentViewport ?
+        (mCurrentViewport->getVisibilityMask() & mVisibilityMask) |
+        (mCurrentViewport->getVisibilityMask() & ~VisibilityFlags::RESERVED_VISIBILITY_FLAGS) :
                 mVisibilityMask;
 
 }
@@ -4633,6 +5230,15 @@ void SceneManager::fireCullFrustumThreads( const CullFrustumRequest &request )
     fireWorkerThreadsAndWait();
 }
 //---------------------------------------------------------------------
+void SceneManager::fireCullFrustumInstanceBatchThreads( const InstanceBatchCullRequest &request )
+{
+    mInstanceBatchCullRequest = request;
+    mRequestType = CULL_FRUSTUM_INSTANCEDENTS;
+    mInstanceBatchCullRequest.frustum->getFrustumPlanes(); // Ensure they're up to date.
+    mInstanceBatchCullRequest.lodCamera->getFrustumPlanes(); // Ensure they're up to date.
+    fireWorkerThreadsAndWait();
+}
+//---------------------------------------------------------------------
 void SceneManager::executeUserScalableTask( UniformScalableTask *task, bool bBlock )
 {
     mRequestType = USER_UNIFORM_SCALABLE_TASK;
@@ -4733,6 +5339,9 @@ inline bool SceneManager::updateWorkerThreadImpl( size_t threadIdx )
     case UPDATE_ALL_LODS:
         updateAllLodsThread( mUpdateLodRequest, threadIdx );
         break;
+    case UPDATE_INSTANCE_MANAGERS:
+        updateInstanceManagersThread( threadIdx );
+        break;
     case BUILD_LIGHT_LIST01:
         buildLightListThread01( mBuildLightListRequestPerThread[threadIdx], threadIdx );
         break;
@@ -4751,5 +5360,4 @@ inline bool SceneManager::updateWorkerThreadImpl( size_t threadIdx )
 
     return exitThread;
 }
-SceneManagerFactory::~SceneManagerFactory() {}
 }

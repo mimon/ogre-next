@@ -39,7 +39,7 @@ THE SOFTWARE.
 #include "OgreEntity.h"
 #include "OgreDecal.h"
 #include "OgreHlms.h"
-#include "OgreTextureGpuManager.h"
+#include "OgreHlmsTextureManager.h"
 
 #include "OgreMeshSerializer.h"
 #include "OgreMesh2Serializer.h"
@@ -49,8 +49,6 @@ THE SOFTWARE.
 #include "InstantRadiosity/OgreInstantRadiosity.h"
 #include "OgreIrradianceVolume.h"
 
-#include "OgreImage2.h"
-
 #include "Cubemaps/OgreParallaxCorrectedCubemap.h"
 #include "Compositor/OgreCompositorWorkspaceDef.h"
 
@@ -58,8 +56,6 @@ THE SOFTWARE.
 #include "OgreForwardClustered.h"
 
 #include "math.h"
-
-#include <queue>
 
 #if OGRE_COMPILER == OGRE_COMPILER_MSVC && OGRE_COMP_VER < 1800
     inline float isfinite( float x )
@@ -94,7 +90,7 @@ namespace Ogre
         for( int i=0; i<3; ++i )
         {
             mDecalsTexNames[i].clear();
-            mDecalsTex[i] = 0;
+            mDecalsTex[i].reset();
             mDecalsTexManaged[i] = false;
         }
     }
@@ -580,49 +576,54 @@ namespace Ogre
         if( !decalTex.texture )
             return;
 
-        TextureGpuManager *textureManager = decalTex.texture->getTextureManager();
+        HlmsManager *hlmsManager = mRoot->getHlmsManager();
+        HlmsTextureManager *hlmsTextureManager = hlmsManager->getTextureManager();
 
-        const String *resName = textureManager->findResourceNameStr( decalTex.texture->getName() );
-
-        if( decalTex.texture->hasAutomaticBatching() && resName )
+        HlmsTextureManager::TextureLocation texLocation;
+        texLocation.texture = decalTex.texture;
+        texLocation.xIdx = decalTex.xIdx;
+        texLocation.yIdx = 0;
+        texLocation.divisor = 1;
+        const String *aliasName = hlmsTextureManager->findAliasName( texLocation );
+        if( aliasName )
         {
-            const String aliasName = decalTex.texture->getNameStr();
             if( decalTex.texture == mDecalsTex[texTypeIndex] && mDecalsTexNames[texTypeIndex].empty() )
             {
-                mDecalsTexNames[texTypeIndex] = aliasName;
+                mDecalsTexNames[texTypeIndex] = *aliasName;
                 mDecalsTexManaged[texTypeIndex] = true;
             }
-            uint32 poolId = decalTex.texture->getTexturePoolId();
-            jsonStr.a( "\n\t\t\t\"", decalTex.texTypeName ,"_managed\" : [ \"", aliasName.c_str(),
+            uint32 poolId = 0;
+            const String *resName = hlmsTextureManager->findResourceNameFromAlias( *aliasName, poolId );
+            jsonStr.a( "\n\t\t\t\"", decalTex.texTypeName ,"_managed\" : [ \"", aliasName->c_str(),
                        "\", \"", resName->c_str(), "\", " );
             jsonStr.a( poolId, " ]," );
 
             if( exportFlags & (SceneFlags::TexturesOitd|SceneFlags::TexturesOriginal) )
             {
-                textureManager->saveTexture( decalTex.texture, mCurrentExportFolder + "/textures/",
-                                             savedTextures, exportFlags & SceneFlags::TexturesOitd,
-                                             exportFlags & SceneFlags::TexturesOriginal,
-                                             mListener );
+                hlmsTextureManager->saveTexture( texLocation, mCurrentExportFolder + "/textures/",
+                                                 savedTextures, exportFlags & SceneFlags::TexturesOitd,
+                                                 exportFlags & SceneFlags::TexturesOriginal,
+                                                 texLocation.xIdx, 1u, mListener );
             }
         }
         else
         {
             if( decalTex.texture == mDecalsTex[texTypeIndex] && mDecalsTexNames[texTypeIndex].empty() )
             {
-                mDecalsTexNames[texTypeIndex] = decalTex.texture->getNameStr() + ".oitd";
+                mDecalsTexNames[texTypeIndex] = decalTex.texture->getName() + ".oitd";
                 mDecalsTexManaged[texTypeIndex] = false;
             }
 
             //Texture not managed by HlmsTextureManager
             jsonStr.a( "\n\t\t\t\"", decalTex.texTypeName, "_raw\" : [ \"",
-                       decalTex.texture->getNameStr().c_str(), ".oitd\", " );
+                       decalTex.texture->getName().c_str(), ".oitd\", " );
             jsonStr.a( decalTex.xIdx, " ]," );
 
             if( exportFlags & SceneFlags::TexturesOitd )
             {
-                textureManager->saveTexture( decalTex.texture, mCurrentExportFolder + "/textures/",
-                                             savedTextures, true, false,
-                                             mListener );
+                hlmsTextureManager->saveTexture( texLocation, mCurrentExportFolder + "/textures/",
+                                                 savedTextures, true, false,
+                                                 0, decalTex.texture->getDepth(), mListener );
             }
         }
 
@@ -755,36 +756,31 @@ namespace Ogre
         if( !hlmsPbs )
             return;
 
-        ParallaxCorrectedCubemapBase *pccBase = hlmsPbs->getParallaxCorrectedCubemap();
+        ParallaxCorrectedCubemap *pcc = hlmsPbs->getParallaxCorrectedCubemap();
 
-        if( !pccBase )
+        if( !pcc )
             return;
 
-        TextureGpu *pccBlendTex = pccBase->getBindTexture();
+        TexturePtr pccBlendTex = pcc->getBlendCubemap();
 
         jsonStr.a( ",\n\t\t\"parallax_corrected_cubemaps\" :"
                    "\n\t\t{" );
-        jsonStr.a( "\n\t\t\t\"paused\" : ", toQuotedStr( pccBase->mPaused ) );
-        if( !pccBase->getAutomaticMode() )
-        {
-            OGRE_ASSERT_HIGH( dynamic_cast<ParallaxCorrectedCubemap*>( pccBase ) );
-            ParallaxCorrectedCubemap *pcc = static_cast<ParallaxCorrectedCubemap*>( pccBase );
-            jsonStr.a( ",\n\t\t\t\"mask\" : ", pcc->mMask );
-            jsonStr.a( ",\n\t\t\t\"reserved_rq_id\" : ", pcc->getProxyReservedRenderQueueId() );
-            jsonStr.a( ",\n\t\t\t\"proxy_visibility_mask\" : ", pcc->getProxyReservedVisibilityMask() );
-        }
+        jsonStr.a( "\n\t\t\t\"paused\" : ", toQuotedStr( pcc->mPaused ) );
+        jsonStr.a( ",\n\t\t\t\"mask\" : ", pcc->mMask );
+        jsonStr.a( ",\n\t\t\t\"reserved_rq_id\" : ", pcc->getProxyReservedRenderQueueId() );
+        jsonStr.a( ",\n\t\t\t\"proxy_visibility_mask\" : ", pcc->getProxyReservedVisibilityMask() );
         if( pccBlendTex )
         {
             jsonStr.a( ",\n\t\t\t\"max_width\" : ", pccBlendTex->getWidth() );
             jsonStr.a( ",\n\t\t\t\"max_height\" : ", pccBlendTex->getHeight() );
             jsonStr.a( ",\n\t\t\t\"pixel_format\" : \"",
-                       PixelFormatGpuUtils::toString( pccBlendTex->getPixelFormat() ), "\"" );
+                       PixelUtil::getFormatName( pccBlendTex->getFormat() ).c_str(), "\"" );
         }
 
-        const CompositorWorkspaceDef *workspaceDef = pccBase->getDefaultWorkspaceDef();
+        const CompositorWorkspaceDef *workspaceDef = pcc->getDefaultWorkspaceDef();
         jsonStr.a( ",\n\t\t\t\"workspace\" : \"", workspaceDef->getNameStr().c_str(), "\"" );
 
-        const CubemapProbeVec& probes = pccBase->getProbes();
+        const CubemapProbeVec& probes = pcc->getProbes();
 
         if( !probes.empty() )
         {
@@ -804,18 +800,17 @@ namespace Ogre
 
                 jsonStr.a( "\n\t\t\t\t\t\"static\" : ", toQuotedStr( probe->getStatic() ) );
 
-                TextureGpu *probeTex = probe->getInternalTexture();
+                TexturePtr probeTex = probe->getInternalTexture();
 
                 if( probeTex )
                 {
                     jsonStr.a( ",\n\t\t\t\t\t\"width\" : ", probeTex->getWidth() );
                     jsonStr.a( ",\n\t\t\t\t\t\"height\" : ", probeTex->getHeight() );
-                    jsonStr.a( ",\n\t\t\t\t\t\"msaa\" : ",
-                               probeTex->getSampleDescription().getColourSamples() );
+                    jsonStr.a( ",\n\t\t\t\t\t\"msaa\" : ", probeTex->getFSAA() );
                     jsonStr.a( ",\n\t\t\t\t\t\"pixel_format\" : \"",
-                               PixelFormatGpuUtils::toString( probeTex->getPixelFormat() ), "\"" );
+                               PixelUtil::getFormatName( probeTex->getFormat() ).c_str(), "\"" );
                     jsonStr.a( ",\n\t\t\t\t\t\"use_manual\" : ",
-                               toQuotedStr( probeTex->allowsAutoMipmaps() ) );
+                               toQuotedStr( (probeTex->getUsage() & TU_AUTOMIPMAP) != 0 ) );
                 }
 
                 jsonStr.a( ",\n\t\t\t\t\t\"camera_pos\" : " );
@@ -910,13 +905,12 @@ namespace Ogre
 
             if( hlmsPbs && hlmsPbs->getAreaLightMasks() )
             {
-                TextureGpu *areaLightMask = hlmsPbs->getAreaLightMasks();
-                Image2 image;
-                image.convertFromTexture( areaLightMask, 0, areaLightMask->getNumMipmaps() );
-                jsonStr.a( ",\n\t\t\"area_light_masks\" : \"",
-                           areaLightMask->getNameStr().c_str(), "\"" );
-                image.save( mCurrentExportFolder + "/textures/" + areaLightMask->getNameStr() + ".oitd",
-                            0, areaLightMask->getNumMipmaps() );
+                TexturePtr areaLightMask = hlmsPbs->getAreaLightMasks();
+                Image image;
+                areaLightMask->convertToImage( image, true );
+
+                jsonStr.a( ",\n\t\t\"area_light_masks\" : \"", areaLightMask->getName().c_str(), "\"" );
+                image.save( mCurrentExportFolder + "/textures/" + areaLightMask->getName() + ".oitd" );
             }
         }
 
@@ -955,7 +949,7 @@ namespace Ogre
         for( int i=0; i<3; ++i )
         {
             mDecalsTexNames[i].clear();
-            mDecalsTex[i] = 0;
+            mDecalsTex[i].reset();
             mDecalsTexManaged[i] = false;
         }
 
@@ -978,10 +972,6 @@ namespace Ogre
         jsonStr.a( ",\n\t\"use_binary_floating_point\" : ", toQuotedStr( mUseBinaryFloatingPoint ) );
         jsonStr.a( ",\n\t\"MovableObject_msDefaultVisibilityFlags\" : ",
                    MovableObject::getDefaultVisibilityFlags() );
-        jsonStr.a( ",\n\t\"MovableObject_msDefaultQueryFlags\" : ",
-                   MovableObject::getDefaultQueryFlags() );
-        jsonStr.a( ",\n\t\"MovableObject_msDefaultLightMask\" : ",
-                   MovableObject::getDefaultLightMask() );
 
         if( exportFlags & SceneFlags::TexturesOitd )
             jsonStr.a( ",\n\t\"saved_oitd_textures\" : true" );
@@ -1220,11 +1210,11 @@ namespace Ogre
 
         if( exportFlags & (SceneFlags::TexturesOitd|SceneFlags::TexturesOriginal)  )
         {
+            HlmsManager *hlmsManager = mRoot->getHlmsManager();
             {
                 String jsonString;
-                TextureGpuManager *textureManager =
-                        mSceneManager->getDestinationRenderSystem()->getTextureGpuManager();
-                textureManager->exportTextureMetadataCache( jsonString );
+                HlmsTextureManager *hlmsTextureManager = hlmsManager->getTextureManager();
+                hlmsTextureManager->exportTextureMetadataCache( jsonString );
 
                 const String scenePath = folderPath + "/textureMetadataCache.json";
                 std::ofstream file( scenePath.c_str(), std::ios::binary | std::ios::out );
@@ -1233,7 +1223,6 @@ namespace Ogre
                 file.close();
             }
 
-            HlmsManager *hlmsManager = mRoot->getHlmsManager();
             for( size_t i=HLMS_LOW_LEVEL + 1u; i<HLMS_MAX; ++i )
             {
                 Hlms *hlms = hlmsManager->getHlms( static_cast<HlmsTypes>( i ) );

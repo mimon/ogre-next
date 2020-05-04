@@ -48,7 +48,7 @@ namespace Ogre
         destroyAllTexBufferViews();
     }
     //-----------------------------------------------------------------------------------
-    TexBufferPacked* UavBufferPacked::getAsTexBufferView( PixelFormatGpu pixelFormat )
+    TexBufferPacked* UavBufferPacked::getAsTexBufferView( PixelFormat pixelFormat )
     {
         assert( mBindFlags & BB_FLAG_TEX && "Buffer must've been created with BB_FLAG_TEX" );
 
@@ -63,12 +63,12 @@ namespace Ogre
         }
 
         if( !retVal )
-            retVal = getAsTexBufferImpl( pixelFormat );
+            getAsTexBufferImpl( pixelFormat );
 
         return retVal;
     }
     //-----------------------------------------------------------------------------------
-    void UavBufferPacked::destroyTexBufferView( PixelFormatGpu pixelFormat )
+    void UavBufferPacked::destroyTexBufferView( PixelFormat pixelFormat )
     {
         vector<TexBufferPacked*>::type::const_iterator itor = mTexBufferViews.begin();
         vector<TexBufferPacked*>::type::const_iterator end  = mTexBufferViews.end();

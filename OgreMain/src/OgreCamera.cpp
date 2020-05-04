@@ -45,7 +45,6 @@ namespace Ogre {
         mSceneMgr(sm),
         mOrientation(Quaternion::IDENTITY),
         mPosition(Vector3::ZERO),
-        mVrData(0),
         mAutoTrackTarget(0),
         mAutoTrackOffset(Vector3::ZERO),
         mSceneLodFactor(1.0f),
@@ -73,6 +72,7 @@ namespace Ogre {
 
         // Init matrices
         mViewMatrix = Matrix4::ZERO;
+        mProjMatrixRS = Matrix4::ZERO;
 
         mParentNode = 0;
 
@@ -371,8 +371,7 @@ namespace Ogre {
         mSceneMgr->_setLightCullingVisibility( this, collectLights, isCubemap );
     }
     //-----------------------------------------------------------------------
-    void Camera::_cullScenePhase01( Camera *renderCamera, const Camera *lodCamera, Viewport *vp,
-                                    uint8 firstRq, uint8 lastRq, bool reuseCullData )
+    void Camera::_cullScenePhase01( const Camera *lodCamera, Viewport *vp, uint8 firstRq, uint8 lastRq )
     {
         OgreProfileBeginGPUEvent("Camera: " + getName());
 
@@ -394,14 +393,14 @@ namespace Ogre {
         }
 
         //render scene
-        mSceneMgr->_cullPhase01( this, renderCamera, lodCamera, firstRq, lastRq, reuseCullData );
+        mSceneMgr->_cullPhase01( this, lodCamera, vp, firstRq, lastRq );
     }
     //-----------------------------------------------------------------------
-    void Camera::_renderScenePhase02( const Camera *lodCamera,
-                                      uint8 firstRq, uint8 lastRq, bool includeOverlays )
+    void Camera::_renderScenePhase02(const Camera *lodCamera, Viewport *vp,
+                                     uint8 firstRq, uint8 lastRq, bool includeOverlays)
     {
         //render scene
-        mSceneMgr->_renderPhase02( this, lodCamera, firstRq, lastRq, includeOverlays );
+        mSceneMgr->_renderPhase02( this, lodCamera, vp, firstRq, lastRq, includeOverlays );
 
         // Listener list may have changed
         ListenerList listenersCopy = mListeners;
@@ -806,7 +805,7 @@ namespace Ogre {
 
     }
     // -------------------------------------------------------------------
-    const PlaneList& Camera::getWindowPlanes(void) const
+    const vector<Plane>::type& Camera::getWindowPlanes(void) const
     {
         updateView();
         setWindowImpl();
@@ -832,27 +831,6 @@ namespace Ogre {
     const Quaternion& Camera::getOrientationForViewUpdate(void) const
     {
         return mRealOrientation;
-    }
-    //-----------------------------------------------------------------------
-    void Camera::setVrData( VrData *vrData )
-    {
-        mVrData = vrData;
-    }
-    //-----------------------------------------------------------------------
-    Matrix4 Camera::getVrViewMatrix( size_t eyeIdx ) const
-    {
-        Matrix4 retVal = getViewMatrix( true );
-        if( mVrData )
-            retVal = mVrData->mHeadToEye[eyeIdx].concatenateAffine( retVal );
-        return retVal;
-    }
-    //-----------------------------------------------------------------------
-    Matrix4 Camera::getVrProjectionMatrix( size_t eyeIdx ) const
-    {
-        if( mVrData )
-            return mVrData->mProjectionMatrix[eyeIdx];
-        else
-            return getProjectionMatrixWithRSDepth();
     }
     //-----------------------------------------------------------------------
     bool Camera::getAutoAspectRatio(void) const
@@ -1154,6 +1132,6 @@ namespace Ogre {
         for( size_t i=rqStart; i<rqEnd; ++i )
             mRenderedRqs[i] = true;
     }
-    //-----------------------------------------------------------------------
-    Camera::Listener::~Listener() {}
+
+
 } // namespace Ogre

@@ -29,22 +29,26 @@ THE SOFTWARE.
 #define _OgreParallaxCorrectedCubemap_H_
 
 #include "OgreHlmsPbsPrerequisites.h"
-#include "Cubemaps/OgreParallaxCorrectedCubemapBase.h"
+#include "Cubemaps/OgreCubemapProbe.h"
+#include "OgreIdString.h"
+#include "OgreId.h"
 #include "OgreFrameListener.h"
-#include "OgreGpuProgramParams.h"
 #include "Compositor/OgreCompositorWorkspaceListener.h"
 #include "OgreHeaderPrefix.h"
 
 namespace Ogre
 {
 #define OGRE_MAX_CUBE_PROBES 4u
+    typedef vector<CubemapProbe*>::type CubemapProbeVec;
 
     /**
     @see HlmsPbsDatablock::setCubemapProbe
     */
-    class _OgreHlmsPbsExport ParallaxCorrectedCubemap : public ParallaxCorrectedCubemapBase,
+    class _OgreHlmsPbsExport ParallaxCorrectedCubemap : public IdObject,
+                                                        public CompositorWorkspaceListener,
                                                         public FrameListener
     {
+        CubemapProbeVec mProbes;
         CubemapProbe    *mCollectedProbes[OGRE_MAX_CUBE_PROBES];
         uint32          mNumCollectedProbes;
         Real            mProbeNDFs[OGRE_MAX_CUBE_PROBES];
@@ -57,6 +61,7 @@ namespace Ogre
 
         bool            mBlendedProbeNeedsUpdate;
 
+        public: bool                    mPaused;
         /// This variable should be updated every frame and often represents the camera position,
         /// but it can also be used set to other things like the player's character position.
         public: Vector3                 mTrackedPosition;
@@ -64,6 +69,7 @@ namespace Ogre
         /// to select the closest probe based on which one has approximately the largest volume
         /// shown on camera. See setUpdatedTrackedDataFromCamera if you don't know how to set this
         public: Matrix4                 mTrackedViewProjMatrix;
+        public: uint32                  mMask; /// @see CubemapProbe::mMask
     private:
         GpuProgramParametersSharedPtr   mBlendCubemapParamsVs[OGRE_MAX_CUBE_PROBES];
         GpuProgramParametersSharedPtr   mBlendCubemapParams[OGRE_MAX_CUBE_PROBES];
@@ -75,7 +81,9 @@ namespace Ogre
         Camera                          *mBlendProxyCamera;
         CompositorWorkspace             *mBlendWorkspace;
         CompositorWorkspace             *mCopyWorkspace;
+        TexturePtr                      mBlendCubemap;
         HlmsSamplerblock const          *mSamplerblockPoint;
+        HlmsSamplerblock const          *mSamplerblockTrilinear;
         float                           mCurrentMip;
         uint32                          mProxyVisibilityMask;
         uint8                           mReservedRqId;
@@ -83,9 +91,13 @@ namespace Ogre
         Item                            *mProxyItems[OGRE_MAX_CUBE_PROBES];
         SceneNode                       *mProxyNodes[OGRE_MAX_CUBE_PROBES];
 
+        Root                            *mRoot;
+        SceneManager                    *mSceneManager;
+        CompositorWorkspaceDef const    *mDefaultWorkspaceDef;
+
         struct TempRtt
         {
-            TextureGpu  *texture;
+            TexturePtr  texture;
             uint32      refCount;
         };
 
@@ -101,7 +113,6 @@ namespace Ogre
         /// resolution and format.
         typedef vector<TempRtt>::type TempRttVec;
         TempRttVec  mTmpRtt;
-        TempRttVec  mIblRtt;
 
         void createProxyGeometry(void);
         void destroyProxyGeometry(void);
@@ -132,14 +143,25 @@ namespace Ogre
                                   uint8 reservedRqId, uint32 proxyVisibilityMask );
         ~ParallaxCorrectedCubemap();
 
-        virtual void destroyAllProbes(void);
+        /// Adds a cubemap probe.
+        CubemapProbe* createProbe(void);
+        void destroyProbe( CubemapProbe *probe );
+        void destroyAllProbes(void);
 
+        /// Creates the Proxy Items. Useful if you need to call sceneManager->clearScene();
+        /// See destroyProxyItems.
         void createProxyItems(void);
+
+        /// Destroys the Proxy Items. Useful if you need to call sceneManager->clearScene();
+        /// The you MUST call this function before. i.e.
+        ///     pcc->destroyProxyItems();
+        ///     sceneManager->clearScene();
+        ///     pcc->createProxyItems();
+        /// Updating ParallaxCorrectedCubemap without calling createProxyItems again will
+        /// result in a crash.
         void destroyProxyItems(void);
 
-        /// @copydoc ParallaxCorrectedCubemapBase::prepareForClearScene
-        virtual void prepareForClearScene(void);
-        virtual void restoreFromClearScene(void);
+        const CubemapProbeVec& getProbes(void) const        { return mProbes; }
 
         /** Will update both mTrackedPosition & mTrackedViewProjMatrix with appropiate settings
             every time it's called. Must be called every time the camera changes.
@@ -167,9 +189,9 @@ namespace Ogre
         @param maxHeight
             See maxHeight.
         @param pixelFormat
-            PixelFormatGpu of the final blended/merged cubemap.
+            PixelFormat of the final blended/merged cubemap.
         */
-        void setEnabled( bool bEnabled, uint32 maxWidth, uint32 maxHeight, PixelFormatGpu pixelFormat );
+        void setEnabled( bool bEnabled, uint32 maxWidth, uint32 maxHeight, PixelFormat pixelFormat );
         bool getEnabled(void) const;
 
         /// By default the probes will be constructed when the user enters its vecinity.
@@ -177,29 +199,29 @@ namespace Ogre
         /// at once (i.e. at loading time)
         void updateAllDirtyProbes(void);
 
-        virtual void _notifyPreparePassHash( const Matrix4 &viewMatrix );
-        virtual size_t getConstBufferSize(void);
-        static size_t getConstBufferSizeStatic(void);
-        virtual void fillConstBufferData( const Matrix4 &viewMatrix,
-                                          float * RESTRICT_ALIAS passBufferPtr ) const;
+        void _notifyPreparePassHash( const Matrix4 &viewMatrix );
 
-    protected:
-        TextureGpu *findRtt( const TextureGpu *baseParams, TempRttVec &container, uint32 textureFlags,
-                             bool fullMipmaps );
-        void releaseRtt( const TextureGpu *rtt, TempRttVec &container );
-
-    public:
+        static size_t getConstBufferSize(void);
+        void fillConstBufferData( const Matrix4 &viewMatrix,
+                                  float * RESTRICT_ALIAS passBufferPtr ) const;
+        void fillConstBufferData( const CubemapProbe &probe,
+                                  const Matrix4 &viewMatrix,
+                                  const Matrix3 &invViewMat3,
+                                  float * RESTRICT_ALIAS passBufferPtr ) const;
 
         /// See mTmpRtt. Finds an RTT that is compatible to copy to baseParams.
         /// Creates one if none found.
-        virtual TextureGpu* findTmpRtt( const TextureGpu *baseParams );
-        virtual void releaseTmpRtt( const TextureGpu *tmpRtt );
+        TexturePtr findTmpRtt( const TexturePtr &baseParams );
+        void releaseTmpRtt( const TexturePtr &tmpRtt );
 
-        virtual TextureGpu* findIbl( const TextureGpu *baseParams );
-        virtual void releaseIbl( const TextureGpu *tmpRtt );
+        void _addManuallyActiveProbe( CubemapProbe *probe );
+        void _removeManuallyActiveProbe( CubemapProbe *probe );
 
-        virtual void _addManuallyActiveProbe( CubemapProbe *probe );
-        virtual void _removeManuallyActiveProbe( CubemapProbe *probe );
+        SceneManager* getSceneManager(void) const;
+        const CompositorWorkspaceDef* getDefaultWorkspaceDef(void) const;
+
+        TexturePtr getBlendCubemap(void) const          { return mBlendCubemap; }
+        const HlmsSamplerblock* getBlendCubemapTrilinearSamplerblock(void)  { return mSamplerblockTrilinear; }
 
         /// Returns the RenderQueue ID you told us you reserved for storing our internal objects.
         /// Do not attempt to render the objects that match in that Rq ID & visibility mask.
