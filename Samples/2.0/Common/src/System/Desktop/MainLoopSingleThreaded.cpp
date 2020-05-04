@@ -36,7 +36,7 @@ THE SOFTWARE.
 #include "GameState.h"
 #include "SdlInputHandler.h"
 
-#include "OgreWindow.h"
+#include "OgreRenderWindow.h"
 #include "OgreTimer.h"
 
 #include "Threading/OgreThreads.h"
@@ -76,7 +76,7 @@ int Demo::MainEntryPoints::mainAppSingleThreaded( int argc, const char *argv[] )
             return 0; //User cancelled config
         }
 
-        Ogre::Window *renderWindow = graphicsSystem->getRenderWindow();
+        Ogre::RenderWindow *renderWindow = graphicsSystem->getRenderWindow();
 
         graphicsSystem->createScene01();
         if( logicSystem )

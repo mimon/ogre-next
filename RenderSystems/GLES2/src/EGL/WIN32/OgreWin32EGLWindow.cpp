@@ -42,7 +42,6 @@ THE SOFTWARE.
 #include <iostream>
 #include <algorithm>
 #include <climits>
-#include <sstream>
 
 
 namespace Ogre {
@@ -249,7 +248,7 @@ namespace Ogre {
 
             WindowEventUtilities::_addRenderWindow(this);
 
-            *LogManager::getSingleton().stream().raw()
+            LogManager::getSingleton().stream()
                 << "Created Win32Window '"
                 << mName << "' : " << mWidth << "x" << mHeight
                 << ", " << mColourDepth << "bpp";

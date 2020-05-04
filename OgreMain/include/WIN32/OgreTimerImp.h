@@ -38,8 +38,6 @@ THE SOFTWARE.
 #endif
 #include <windows.h>
 
-#include <time.h>
-
 namespace Ogre
 {
     /** \addtogroup Core

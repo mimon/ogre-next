@@ -52,19 +52,18 @@ namespace Ogre {
         SPFM_NONE
     };
 
-    struct _OgreExport SharedPtrInfo {
+    struct SharedPtrInfo {
         inline SharedPtrInfo() 
             : useCount(1)
         {}
 
-        virtual ~SharedPtrInfo();
+        virtual ~SharedPtrInfo() {}
 
         AtomicScalar<unsigned>  useCount;
     };
 
-    struct _OgreExport SharedPtrInfoNone : public SharedPtrInfo
+    struct SharedPtrInfoNone : public SharedPtrInfo
     {
-        virtual ~SharedPtrInfoNone();
     };
 
     template <class T>

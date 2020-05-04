@@ -33,8 +33,6 @@ THE SOFTWARE.
 
 #include "Vao/OgreBufferPacked.h"
 
-#include "ogrestd/vector.h"
-
 namespace Ogre
 {
     /** D3D11 doesn't support mapping the same buffer twice even if the regions

@@ -34,7 +34,6 @@ THE SOFTWARE.
 #include "OgreHlmsJsonCompute.h"
 #include "OgreHlmsManager.h"
 #include "OgreHlms.h"
-#include "OgreRenderSystem.h"
 #include "OgreVector2.h"
 #include "OgreLwString.h"
 #include "OgreStringConverter.h"
@@ -504,8 +503,8 @@ namespace Ogre
                                                                       filename, resourceGroup );
                     loadDatablockCommon( itor->value, blocks, datablock );
 
-                    hlms->_loadJson( itor->value, blocks, datablock, resourceGroup,
-                                     mListener, additionalTextureExtension );
+                    hlms->_loadJson( itor->value, blocks, datablock, mListener,
+                                     additionalTextureExtension );
                 }
                 catch( Exception &e )
                 {
@@ -628,9 +627,8 @@ namespace Ogre
 
             if( typeName == "compute" )
             {
-                HlmsJsonCompute jsonCompute( mHlmsManager,
-                                             mHlmsManager->getRenderSystem()->getTextureGpuManager() );
-                jsonCompute.loadJobs( itDatablock->value, blocks, resourceGroup );
+                HlmsJsonCompute jsonCompute( mHlmsManager );
+                jsonCompute.loadJobs( itDatablock->value, blocks );
             }
 
             ++itDatablock;

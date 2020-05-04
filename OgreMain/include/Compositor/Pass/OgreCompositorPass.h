@@ -32,18 +32,12 @@ THE SOFTWARE.
 #include "OgreHeaderPrefix.h"
 
 #include "Compositor/Pass/OgreCompositorPassDef.h"
-#include "OgrePixelFormatGpu.h"
-
-#include "ogrestd/map.h"
 
 namespace Ogre
 {
     class RenderTarget;
-    typedef TextureGpu* CompositorChannel;
+    struct CompositorChannel;
     class CompositorNode;
-    struct RenderTargetViewDef;
-    struct RenderTargetViewEntry;
-    typedef vector<TextureGpu*>::type TextureGpuVec;
 
     /** \addtogroup Core
     *  @{
@@ -51,13 +45,16 @@ namespace Ogre
     /** \addtogroup Effects
     *  @{
     */
+
+    typedef vector<TexturePtr>::type TextureVec;
+
     struct CompositorTexture
     {
-        IdString    name;
-        TextureGpu  *texture;
+        IdString            name;
+        TextureVec const    *textures;
 
-        CompositorTexture( IdString _name, TextureGpu *_texture ) :
-                name( _name ), texture( _texture ) {}
+        CompositorTexture( IdString _name, const TextureVec *_textures ) :
+                name( _name ), textures( _textures ) {}
 
         bool operator == ( IdString right ) const
         {
@@ -69,7 +66,7 @@ namespace Ogre
 
     struct BoundUav
     {
-        GpuTrackedResource              *rttOrBuffer;
+        GpuResource                    *rttOrBuffer;
         ResourceAccess::ResourceAccess  boundAccess;
     };
 
@@ -89,16 +86,14 @@ namespace Ogre
     protected:
         static const Quaternion CubemapRotations[6];
 
-        RenderPassDescriptor    *mRenderPassDesc;
-        /// Contains the first valid texture in mRenderPassDesc, to be used for reference
-        /// (e.g. width, height, etc). Could be colour, depth, stencil, or nullptr.
-        TextureGpu              *mAnyTargetTexture;
-        uint8                   mAnyMipLevel;
+        RenderTarget    *mTarget;
+        Viewport        *mViewport;
 
         uint32          mNumPassesLeft;
 
         CompositorNode  *mParentNode;
 
+        CompositorTexture       mTargetTexture;
         CompositorTextureVec    mTextureDependencies;
 
         typedef vector<ResourceTransition>::type ResourceTransitionVec;
@@ -110,43 +105,15 @@ namespace Ogre
         /// mNumValidResourceTransitions = mResourceTransitions.size()
         uint32                  mNumValidResourceTransitions;
 
-        /// MUST be called by derived class.
-        void initialize( const RenderTargetViewDef *rtv, bool supportsNoRtv=false );
-
-        /// Modifies mRenderPassDesc
-        void setupRenderPassDesc( const RenderTargetViewDef *rtv );
-        /**
-        @param renderPassTargetAttachment
-        @param rtvEntry
-        @param linkedColourAttachment
-            When setting depth & stencil, we'll use this argument for finding
-            a depth buffer in the same depth pool (unless the depth buffer is
-            explicit)
-        */
-        void setupRenderPassTarget( RenderPassTargetBase *renderPassTargetAttachment,
-                                    const RenderTargetViewEntry &rtvEntry,
-                                    bool isColourAttachment,
-                                    TextureGpu *linkedColourAttachment=0, uint16 depthBufferId = 0,
-                                    bool preferDepthTexture = false,
-                                    PixelFormatGpu depthBufferFormat = PFG_UNKNOWN );
-
-        virtual bool allowResolveStoreActionsWithoutResolveTexture(void) const { return false; }
-        /// Called by setupRenderPassDesc right before calling renderPassDesc->entriesModified
-        /// in case derived class wants to make some changes.
-        virtual void postRenderPassDescriptorSetup( RenderPassDescriptor *renderPassDesc ) {}
-
-        void setRenderPassDescToCurrent(void);
-
         void populateTextureDependenciesFromExposedTextures(void);
 
         void executeResourceTransitions(void);
 
-        void notifyPassEarlyPreExecuteListeners(void);
-        void notifyPassPreExecuteListeners(void);
-        void notifyPassPosExecuteListeners(void);
+        RenderTarget* calculateRenderTarget( size_t rtIndex, const CompositorChannel &source );
 
     public:
-        CompositorPass( const CompositorPassDef *definition, CompositorNode *parentNode );
+        CompositorPass( const CompositorPassDef *definition, const CompositorChannel &target,
+                        CompositorNode *parentNode );
         virtual ~CompositorPass();
 
         void profilingBegin(void);
@@ -184,11 +151,12 @@ namespace Ogre
         void _removeAllBarriers(void);
 
         /// @See CompositorNode::notifyRecreated
-        virtual bool notifyRecreated( const TextureGpu *channel );
+        virtual void notifyRecreated( const CompositorChannel &oldChannel,
+                                        const CompositorChannel &newChannel );
         virtual void notifyRecreated( const UavBufferPacked *oldBuffer, UavBufferPacked *newBuffer );
 
         /// @See CompositorNode::notifyDestroyed
-        virtual void notifyDestroyed( TextureGpu *channel );
+        virtual void notifyDestroyed( const CompositorChannel &channel );
         virtual void notifyDestroyed( const UavBufferPacked *buffer );
 
         /// @See CompositorNode::_notifyCleared
@@ -196,16 +164,17 @@ namespace Ogre
 
         void resetNumPassesLeft(void);
 
-        Vector2 getActualDimensions(void) const;
-
         CompositorPassType getType() const  { return mDefinition->getType(); }
 
-        RenderPassDescriptor* getRenderPassDesc(void) const { return mRenderPassDesc; }
+        Viewport* getViewport() const       { return mViewport; }
+
+        RenderTarget* getRenderTarget(void) const           { return mTarget; }
 
         const CompositorPassDef* getDefinition(void) const  { return mDefinition; }
 
 		const CompositorNode* getParentNode(void) const		{ return mParentNode; }
 
+        const CompositorTexture& getTargetTexture(void) const           { return mTargetTexture; }
         const CompositorTextureVec& getTextureDependencies(void) const  { return mTextureDependencies; }
     };
 

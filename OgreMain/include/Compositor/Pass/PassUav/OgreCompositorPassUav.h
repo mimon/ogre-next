@@ -33,7 +33,6 @@ THE SOFTWARE.
 
 #include "Compositor/Pass/OgreCompositorPass.h"
 #include "Compositor/OgreCompositorCommon.h"
-#include "OgreTextureGpuListener.h"
 
 namespace Ogre
 {
@@ -57,31 +56,20 @@ namespace Ogre
     @version
         1.0
     */
-    class _OgreExport CompositorPassUav : public CompositorPass, public TextureGpuListener
+    class _OgreExport CompositorPassUav : public CompositorPass
     {
         CompositorPassUavDef const *mDefinition;
     protected:
-        DescriptorSetUav const *mDescriptorSetUav;
-
-        uint32 calculateNumberUavSlots(void) const;
-        void setupDescriptorSetUav(void);
-        void destroyDescriptorSetUav(void);
 
     public:
         CompositorPassUav( const CompositorPassUavDef *definition, CompositorNode *parentNode,
-                           const RenderTargetViewDef *rtv );
-        virtual ~CompositorPassUav();
+                           const CompositorChannel &target );
 
         virtual void execute( const Camera *lodCamera );
 
         virtual void _placeBarriersAndEmulateUavExecution( BoundUav boundUavs[64],
                                                            ResourceAccessMap &uavsAccess,
                                                            ResourceLayoutMap &resourcesLayout );
-
-        virtual void notifyRecreated( const UavBufferPacked *oldBuffer, UavBufferPacked *newBuffer );
-        // TextureGpuListener overloads
-        virtual void notifyTextureChanged( TextureGpu *texture, TextureGpuListener::Reason reason,
-                                           void *extraData );
     };
 
     /** @} */

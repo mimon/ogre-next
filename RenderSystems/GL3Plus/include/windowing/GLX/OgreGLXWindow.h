@@ -26,74 +26,72 @@ THE SOFTWARE.
 -----------------------------------------------------------------------------
 */
 
-#ifndef _OgreGLXWindow_H_
-#define _OgreGLXWindow_H_
+#ifndef __GLXWindow_H__
+#define __GLXWindow_H__
 
-#include "OgreWindow.h"
+#include "OgreRenderWindow.h"
 #include "OgreGLXContext.h"
 #include "OgreGLXGLSupport.h"
 #include <X11/Xlib.h>
 
 namespace Ogre 
 {
-    class _OgrePrivate GLXWindow : public Window
+    class _OgrePrivate GLXWindow : public RenderWindow
     {
-    protected:
-        bool mClosed;
-        bool mVisible;
-        bool mHidden;
-        bool mIsTopLevel;
-        bool mIsExternal;
-        bool mIsExternalGLControl;
-
-        GLXGLSupport* mGLSupport;
-        ::Window      mWindow;
-        GLXContext*   mContext;
-
-        void switchFullScreen( bool fullscreen );
-
-        void create( PixelFormatGpu depthStencilFormat, const NameValuePairList *miscParams );
-
     public:
-        GLXWindow( const String &title, uint32 width, uint32 height, bool fullscreenMode,
-                   PixelFormatGpu depthStencilFormat, const NameValuePairList *miscParams,
-                   GLXGLSupport* glsupport );
-        virtual ~GLXWindow();
-
-        virtual void _initialize( TextureGpuManager *textureManager );
-
-        virtual void setVSync( bool vSync, uint32 vSyncInterval );
-        virtual void reposition( int32 left, int32 top);
+        GLXWindow(GLXGLSupport* glsupport);
+        ~GLXWindow();
         
-        void requestFullscreenSwitch( bool goFullscreen, bool borderless, uint32 monitorIdx,
-                                      uint32 width, uint32 height,
-                                      uint32 frequencyNumerator, uint32 frequencyDenominator );
+        void create(const String& name, unsigned int width, unsigned int height,
+                    bool fullScreen, const NameValuePairList *miscParams);
+        
+        /** @copydoc see RenderWindow::setFullscreen */
+        void setFullscreen (bool fullscreen, uint width, uint height);
         
         /** @copydoc see RenderWindow::destroy */
-        virtual void destroy(void);
+        void destroy(void);
         
         /** @copydoc see RenderWindow::isClosed */
-        virtual bool isClosed(void) const;
+        bool isClosed(void) const;
         
         /** @copydoc see RenderWindow::isVisible */
         bool isVisible(void) const;
-
-        virtual void _setVisible(bool visible);
+        
+        /** @copydoc see RenderWindow::setVisible */
+        void setVisible(bool visible);
 
         /** @copydoc see RenderWindow::isHidden */
         bool isHidden(void) const { return mHidden; }
 
         /** @copydoc see RenderWindow::setHidden */
         void setHidden(bool hidden);
+
+        /** @copydoc see RenderWindow::setVSyncEnabled */
+        void setVSyncEnabled(bool vsync);
+
+        /** @copydoc see RenderWindow::isVSyncEnabled */
+        bool isVSyncEnabled() const;
+
+        /** @copydoc see RenderWindow::setVSyncInterval */
+        void setVSyncInterval(unsigned int interval);
+
+        /** @copydoc see RenderWindow::getVSyncInterval */
+        unsigned int getVSyncInterval() const;
+        
+        /** @copydoc see RenderWindow::reposition */
+        void reposition(int left, int top);
         
         /** @copydoc see RenderWindow::resize */
-        void requestResolution( uint32 width, uint32 height );
+        void resize(unsigned int width, unsigned int height);
 
         /** @copydoc see RenderWindow::windowMovedOrResized */
         void windowMovedOrResized();
         
         /** @copydoc see RenderWindow::swapBuffers */
         void swapBuffers();
+        
+        /** @copydoc see RenderTarget::copyContentsToMemory */
+        void copyContentsToMemory(const Box& src, const PixelBox &dst, FrameBuffer buffer);
         
         /**
            @remarks
@@ -104,9 +102,24 @@ namespace Ogre
            * DISPLAYNAME    The X Server name for the connected display.
            * ATOM          The X Atom used in client delete events.
            */
-        virtual void getCustomAttribute( IdString name, void* pData );
+        void getCustomAttribute(const String& name, void* pData);
         
         bool requiresTextureFlipping() const { return false; }
+
+    private:
+        bool mClosed;
+        bool mVisible;
+        bool mHidden;
+        bool mIsTopLevel;
+        bool mIsExternal;
+        bool mIsExternalGLControl;
+        bool mVSync;
+        int mVSyncInterval;
+        
+        GLXGLSupport* mGLSupport;
+        ::Window      mWindow;
+        GLXContext*   mContext;
+        void switchFullScreen(bool fullscreen);
     };
 }
 

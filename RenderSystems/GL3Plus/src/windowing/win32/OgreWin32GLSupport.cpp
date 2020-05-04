@@ -28,16 +28,14 @@
 #include "OgreRoot.h"
 #include "OgreException.h"
 #include "OgreLogManager.h"
-#include "OgrePixelFormatGpuUtils.h"
 #include "OgreStringConverter.h"
 
 #include <algorithm>
 
 #include "OgreWin32GLSupport.h"
+#include "OgreGL3PlusTexture.h"
 #include "OgreWin32Window.h"
 #include <GL/wglext.h>
-
-#include <sstream>
 
 using namespace Ogre;
 
@@ -138,7 +136,7 @@ namespace Ogre {
 
         optFSAA.name = "FSAA";
         optFSAA.immutable = false;
-        optFSAA.possibleValues.push_back("1");
+        optFSAA.possibleValues.push_back("0");
         for (vector<int>::type::iterator it = mFSAALevels.begin(); it != mFSAALevels.end(); ++it)
         {
             String val = StringConverter::toString(*it);
@@ -149,7 +147,7 @@ namespace Ogre {
             */
 
         }
-        optFSAA.currentValue = "1";
+        optFSAA.currentValue = "0";
 
         optRTTMode.name = "RTT Preferred Mode";
         optRTTMode.possibleValues.push_back("FBO");
@@ -163,7 +161,7 @@ namespace Ogre {
         optSRGB.name = "sRGB Gamma Conversion";
         optSRGB.possibleValues.push_back("Yes");
         optSRGB.possibleValues.push_back("No");
-        optSRGB.currentValue = "Yes";
+        optSRGB.currentValue = "No";
         optSRGB.immutable = false;
 
 #if OGRE_NO_QUAD_BUFFER_STEREO == 0
@@ -264,8 +262,7 @@ namespace Ogre {
         return BLANKSTRING;
     }
 
-    Window *Win32GLSupport::createWindow( bool autoCreateWindow, GL3PlusRenderSystem* renderSystem,
-                                          const String& windowTitle )
+    RenderWindow* Win32GLSupport::createWindow(bool autoCreateWindow, GL3PlusRenderSystem* renderSystem, const String& windowTitle)
     {
         if (autoCreateWindow)
         {
@@ -314,14 +311,13 @@ namespace Ogre {
             }
 
             opt = mOptions.find("FSAA");
-            if( opt == mOptions.end() )
-            {
-                OGRE_EXCEPT( Exception::ERR_INVALIDPARAMS,
-                             "Can't find FSAA options!",
-                             "Win32GLSupport::createWindow" );
-            }
-            String fsaa = opt->second.currentValue;
-            winOptions["FSAA"] = fsaa;
+            if (opt == mOptions.end())
+                OGRE_EXCEPT(Exception::ERR_INVALIDPARAMS, "Can't find FSAA options!", "Win32GLSupport::createWindow");
+            StringVector aavalues = StringUtil::split(opt->second.currentValue, " ", 1);
+            unsigned int multisample = StringConverter::parseUnsignedInt(aavalues[0]);
+            String multisample_hint;
+            if (aavalues.size() > 1)
+                multisample_hint = aavalues[1];
 
 #if OGRE_NO_QUAD_BUFFER_STEREO == 0
 			opt = mOptions.find("Stereo Mode");
@@ -330,6 +326,9 @@ namespace Ogre {
 			winOptions["stereoMode"] = opt->second.currentValue;
 			mStereoMode = StringConverter::parseStereoMode(opt->second.currentValue);
 #endif
+
+            winOptions["FSAA"] = StringConverter::toString(multisample);
+            winOptions["FSAAHint"] = multisample_hint;
 
             opt = mOptions.find("sRGB Gamma Conversion");
             if (opt == mOptions.end())
@@ -370,11 +369,10 @@ namespace Ogre {
     }
 
 
-    Window *Win32GLSupport::newWindow( const String &name, uint32 width, uint32 height,
-                                       bool fullScreen, const NameValuePairList *miscParams )
+    RenderWindow* Win32GLSupport::newWindow(const String &name, unsigned int width, 
+        unsigned int height, bool fullScreen, const NameValuePairList *miscParams)
     {       
-        Win32Window* window = OGRE_NEW Win32Window( name, width, height, fullScreen, PFG_UNKNOWN,
-                                                    miscParams, *this );
+        Win32Window* window = OGRE_NEW Win32Window(*this);
         NameValuePairList newParams;
     
         if (miscParams != NULL)
@@ -425,6 +423,8 @@ namespace Ogre {
             newParams["monitorHandle"] = StringConverter::toString((size_t)hMonitor);                                                               
         }
 
+        window->create(name, width, height, fullScreen, miscParams);
+
         if(!mInitialWindow)
             mInitialWindow = window;
         return window;
@@ -453,7 +453,7 @@ namespace Ogre {
         if(!_wglGetExtensionsStringARB)
             return;
         const char *wgl_extensions = _wglGetExtensionsStringARB(mInitialWindow->getHDC());
-        *LogManager::getSingleton().stream().raw()
+        LogManager::getSingleton().stream()
             << "Supported WGL extensions: " << wgl_extensions;
         // Parse them, and add them to the main list
         StringStream ext;
@@ -633,8 +633,7 @@ namespace Ogre {
         return DefWindowProc(hwnd, umsg, wp, lp);
     }
 
-    bool Win32GLSupport::selectPixelFormat( HDC hdc, int colourDepth, int multisample,
-                                            PixelFormatGpu depthStencilFormat, bool hwGamma )
+    bool Win32GLSupport::selectPixelFormat(HDC hdc, int colourDepth, int multisample, bool hwGamma)
     {
         PIXELFORMATDESCRIPTOR pfd;
         memset(&pfd, 0, sizeof(pfd));
@@ -646,31 +645,6 @@ namespace Ogre {
         pfd.cAlphaBits = (colourDepth > 16)? 8 : 0;
         pfd.cDepthBits = 24;
         pfd.cStencilBits = 8;
-
-        if( depthStencilFormat == PFG_D24_UNORM_S8_UINT || depthStencilFormat == PFG_D24_UNORM ||
-            depthStencilFormat == PFG_UNKNOWN )
-        {
-            pfd.cDepthBits = 24;
-        }
-        else if( depthStencilFormat == PFG_D32_FLOAT ||
-                 depthStencilFormat == PFG_D32_FLOAT_S8X24_UINT )
-        {
-            pfd.cDepthBits = 32;
-        }
-        else if( depthStencilFormat == PFG_NULL )
-        {
-            pfd.cDepthBits = 0;
-        }
-
-        if( PixelFormatGpuUtils::isStencil( depthStencilFormat ) ||
-            depthStencilFormat == PFG_UNKNOWN )
-        {
-            pfd.cStencilBits = 8;
-        }
-        else
-        {
-            pfd.cStencilBits = 0;
-        }
 
 #if OGRE_NO_QUAD_BUFFER_STEREO == 0
 		if (SMT_FRAME_SEQUENTIAL == mStereoMode)
@@ -699,8 +673,8 @@ namespace Ogre {
             attribList.push_back(WGL_ACCELERATION_ARB); attribList.push_back(WGL_FULL_ACCELERATION_ARB);
             attribList.push_back(WGL_COLOR_BITS_ARB); attribList.push_back(pfd.cColorBits);
             attribList.push_back(WGL_ALPHA_BITS_ARB); attribList.push_back(pfd.cAlphaBits);
-            attribList.push_back(WGL_DEPTH_BITS_ARB); attribList.push_back(pfd.cDepthBits);
-            attribList.push_back(WGL_STENCIL_BITS_ARB); attribList.push_back(pfd.cStencilBits);
+            attribList.push_back(WGL_DEPTH_BITS_ARB); attribList.push_back(24);
+            attribList.push_back(WGL_STENCIL_BITS_ARB); attribList.push_back(8);
             attribList.push_back(WGL_SAMPLES_ARB); attribList.push_back(multisample);
 			
 #if OGRE_NO_QUAD_BUFFER_STEREO == 0

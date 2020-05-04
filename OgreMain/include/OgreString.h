@@ -29,9 +29,6 @@ THE SOFTWARE.
 #define _String_H__
 
 #include "OgrePrerequisites.h"
-
-#include "ogrestd/vector.h"
-
 #include "OgreHeaderPrefix.h"
 
 // If we're using the GCC 3.1 C++ Std lib
@@ -66,10 +63,6 @@ namespace __gnu_cxx
 }
 #   endif
 
-#endif
-
-#if OGRE_COMPILER == OGRE_COMPILER_MSVC
-    #include <xhash>
 #endif
 
 namespace Ogre {

@@ -32,8 +32,6 @@
 #include "OgreLodPrerequisites.h"
 #include "OgreSharedPtr.h"
 
-#include "ogrestd/vector.h"
-
 namespace Ogre
 {
 /// Thread-safe buffer for storing Hardware index buffer

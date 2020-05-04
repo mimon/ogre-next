@@ -33,8 +33,6 @@ THE SOFTWARE.
 #include "OgreStringConverter.h"
 #include "OgreProfiler.h"
 
-#include <sstream>
-
 namespace Ogre
 {
     //---------------------------------------------------------------------------
@@ -184,7 +182,7 @@ namespace Ogre
             catch (const Exception& e)
             {
                 // will already have been logged
-                *LogManager::getSingleton().stream().raw()
+                LogManager::getSingleton().stream()
                     << "High-level program " << mName << " encountered an error "
                     << "during loading and is thus not supported.\n"
                     << e.getFullDescription();
@@ -267,10 +265,6 @@ namespace Ogre
                     //(e.g. Metal can include system headers)
                     startPos = endPos;
                 }
-            }
-            else
-            {
-                startPos += sizeof( "#include " ) - 1u;
             }
 
             startPos = source.find( includeKeyword, startPos );

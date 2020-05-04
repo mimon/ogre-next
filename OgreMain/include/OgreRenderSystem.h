@@ -40,8 +40,6 @@ THE SOFTWARE.
 #include "OgrePlane.h"
 #include "OgreHardwareVertexBuffer.h"
 #include "OgreResourceTransition.h"
-#include "OgrePixelFormatGpu.h"
-#include "OgreViewport.h"
 #include "OgreHeaderPrefix.h"
 
 namespace Ogre
@@ -53,9 +51,11 @@ namespace Ogre
     *  @{
     */
 
-    typedef vector<TextureGpu*>::type TextureGpuVec;
-    typedef map< uint16, TextureGpuVec >::type DepthBufferMap2;
+    typedef vector<DepthBuffer*>::type DepthBufferVec;
+    typedef map< uint16, DepthBufferVec >::type DepthBufferMap;
+    typedef map< String, RenderTarget * >::type RenderTargetMap;
 
+    class TextureManager;
     /// Enum describing the ways to generate texture coordinates
     enum TexCoordCalcMethod
     {
@@ -71,18 +71,6 @@ namespace Ogre
         TEXCALC_PROJECTIVE_TEXTURE
     };
 
-    /// Render window creation parameters.
-    struct RenderWindowDescription
-    {
-        String              name;
-        unsigned int        width;
-        unsigned int        height;
-        bool                useFullScreen;
-        NameValuePairList   miscParams;
-    };
-
-    /// Render window creation parameters container.
-    typedef vector<RenderWindowDescription>::type RenderWindowDescriptionList;
 
     /** Defines the functionality of a 3D API
     @remarks
@@ -198,8 +186,7 @@ namespace Ogre
         @return
         A pointer to the automatically created window, if requested, otherwise null.
         */
-        virtual Window* _initialise( bool autoCreateWindow,
-                                     const String& windowTitle = "OGRE Render Window" );
+        virtual RenderWindow* _initialise(bool autoCreateWindow, const String& windowTitle = "OGRE Render Window");
 
         /*
         Returns whether under the current render system buffers marked as TU_STATIC can be locked for update
@@ -247,11 +234,6 @@ namespace Ogre
         /** Returns true if the renderer will try to use W-buffers when available.
         */
         bool getWBufferEnabled(void) const;
-
-        /** Returns supported sample description for requested FSAA mode, with graceful downgrading.
-        */
-        virtual SampleDescription validateSampleDescription( const SampleDescription &sampleDesc,
-                                                             PixelFormatGpu format );
 
         /** Creates a new rendering window.
         @remarks
@@ -406,16 +388,16 @@ namespace Ogre
              <td>&nbsp;</td>
          </tr>
          <tr>
-            <td>MSAA</td>
-            <td>Positive integer (usually 1, 2, 4, 8, 16)</td>
-            <td>1</td>
-            <td>Multisample antialiasing factor</td>
+            <td>FSAA</td>
+            <td>Positive integer (usually 0, 2, 4, 8, 16)</td>
+            <td>0</td>
+            <td>Full screen antialiasing factor</td>
             <td>&nbsp;</td>
         </tr>
         <tr>
-            <td>MSAA_Quality</td>
+            <td>FSAAHint</td>
             <td>Depends on RenderSystem and hardware. Currently supports:<br/>
-            0 ... infinite number (depends on HW)</td>
+            "Quality": on systems that have an option to prefer higher AA quality over speed, use it</td>
             <td>Blank</td>
             <td>Full screen antialiasing hint</td>
             <td>&nbsp;</td>
@@ -523,9 +505,8 @@ namespace Ogre
             <td>Android Specific</td>
         </tr>
         */
-        virtual Window* _createRenderWindow( const String &name, uint32 width, uint32 height,
-                                             bool fullScreen,
-                                             const NameValuePairList *miscParams = 0 ) = 0;
+        virtual RenderWindow* _createRenderWindow(const String &name, unsigned int width, unsigned int height, 
+            bool fullScreen, const NameValuePairList *miscParams = 0) = 0;
 
         /** Creates multiple rendering windows.     
         @param
@@ -543,11 +524,43 @@ namespace Ogre
         true on success.        
         */
         virtual bool _createRenderWindows(const RenderWindowDescriptionList& renderWindowDescriptions, 
-            WindowList &createdWindows);
+            RenderWindowList& createdWindows);
+
+        
+        /** Create a MultiRenderTarget, which is a render target that renders to multiple RenderTextures
+        at once. Surfaces can be bound and unbound at will.
+        This fails if mCapabilities->getNumMultiRenderTargets() is smaller than 2.
+        */
+        virtual MultiRenderTarget * createMultiRenderTarget(const String & name) = 0; 
 
         /** Destroys a render window */
-        virtual void destroyRenderWindow( Window *window );
+        virtual void destroyRenderWindow(const String& name);
+        /** Destroys a render texture */
+        virtual void destroyRenderTexture(const String& name);
+        /** Destroys a render target of any sort */
+        virtual void destroyRenderTarget(const String& name);
 
+        /** Attaches the passed render target to the render system.
+        */
+        virtual void attachRenderTarget( RenderTarget &target );
+        /** Returns a pointer to the render target with the passed name, or NULL if that
+        render target cannot be found.
+        */
+        virtual RenderTarget * getRenderTarget( const String &name );
+        /** Detaches the render target with the passed name from the render system and
+        returns a pointer to it.
+        @note
+        If the render target cannot be found, NULL is returned.
+        */
+        virtual RenderTarget * detachRenderTarget( const String &name );
+
+        /// Iterator over RenderTargets
+        typedef MapIterator<Ogre::RenderTargetMap> RenderTargetIterator;
+
+        /** Returns a specialised MapIterator over all render targets attached to the RenderSystem. */
+        virtual RenderTargetIterator getRenderTargetIterator(void) {
+            return RenderTargetIterator( mRenderTargets.begin(), mRenderTargets.end() );
+        }
         /** Returns a description of an error code.
         */
         virtual String getErrorDescription(long errorNumber) const = 0;
@@ -571,6 +584,16 @@ namespace Ogre
         */
         void setGlobalNumberOfInstances(const size_t val);
 
+        /** Retrieves an existing DepthBuffer or creates a new one suited for the given RenderTarget
+            and sets it.
+            @remarks
+                RenderTarget's pool ID is respected. @see RenderTarget::setDepthBufferPool()
+        */
+        virtual void setDepthBufferFor( RenderTarget *renderTarget, bool exactMatch );
+
+        virtual void createUniqueDepthBufferFor( RenderTarget *renderTarget, bool exactMatch );
+
+        virtual void _destroyDepthBuffer( DepthBuffer *depthBuffer );
 
         // ------------------------------------------------------------------------
         //                     Internal Rendering Access
@@ -602,6 +625,10 @@ namespace Ogre
         virtual void _setTextureUnitSettings(size_t texUnit, TextureUnitState& tl);
         /** Set texture unit binding type */
         virtual void _setBindingType(TextureUnitState::BindingType bindigType);
+        /** Turns off a texture unit. */
+        virtual void _disableTextureUnit(size_t texUnit);
+        /** Disables all texture units from the given unit upwards */
+        virtual void _disableTextureUnitsFrom(size_t texUnit);
         /** Sets the surface properties to be used for future rendering.
 
         This method sets the the properties of the surfaces of objects
@@ -673,85 +700,14 @@ namespace Ogre
         @param enabled Boolean to turn the unit on/off
         @param texPtr Pointer to the texture to use.
         */
-        virtual void _setTexture( size_t unit, TextureGpu *texPtr ) = 0;
-
-        /** Because Ogre doesn't (yet) have the notion of a 'device' or 'GL context',
-            this function lets Ogre know which device should be used by providing
-            a texture.
-        @param texture
-            Cannot be null.
-        */
-        virtual void _setCurrentDeviceFromTexture( TextureGpu *texture ) = 0;
-
-        virtual RenderPassDescriptor* createRenderPassDescriptor(void) = 0;
-        void destroyRenderPassDescriptor( RenderPassDescriptor *renderPassDesc );
-
-        RenderPassDescriptor* getCurrentPassDescriptor(void)    { return mCurrentRenderPassDescriptor; }
-        Viewport& _getCurrentRenderViewport(void)               { return mCurrentRenderViewport[0]; }
-        Viewport* getCurrentRenderViewports(void)				{ return mCurrentRenderViewport; }
-        uint32 getMaxBoundViewports(void)						{ return mMaxBoundViewports; }
-
-        /** When the descriptor is set to Load clear, two possible things may happen:
-                1. The region is cleared.
-                2. The whole texture is cleared.
-            What actually happens is undefined (depends on the API). But calling
-            "beginRenderPassDescriptor( desc, viewportSettings );" with the same
-            descriptor but different viewports (without changing the desc)
-            guarantees that each region is cleared:
-                1. Each time the subregion is switched
-                2. Only once (the whole texture), when the first viewport was set.
-        @par
-            When switching between render targets, two beginRenderPassDescriptor
-            in a row automatically implies calls endRenderPassDescriptor.
-            In fact this is faster to perfom than calling beginRenderPassDescriptor -
-            endRenderPassDescriptor in pairs, because we can smartly flush only what
-            needs to be flushed.
-            endRenderPassDescriptor only needs to be called when no other
-            beginRenderPassDescriptor will follow (i.e. at the end of the frame or
-            when starting compute jobs)
-        @param desc
-        @param anyTarget
-            Contains the first valid texture in mRenderPassDesc, to be used for reference
-            (e.g. width, height, etc). Could be colour, depth, stencil, or nullptr.
-        @param mipLevel
-            Mip at which anyTarget is bound
-        @param viewportSize
-        @param warnIfRtvWasFlushed
-            See CompositorPassDef::mWarnIfRtvWasFlushed
-        */
-        virtual void beginRenderPassDescriptor( RenderPassDescriptor *desc,
-                                                TextureGpu *anyTarget, uint8 mipLevel,
-                                                const Vector4 *viewportSizes,
-                                                const Vector4 *scissors,
-                                                uint32 numViewports,
-                                                bool overlaysEnabled,
-                                                bool warnIfRtvWasFlushed );
-        /// Metal needs to delay RenderCommand creation to the last minute, because
-        /// we can't issue blit operations (e.g. buffer copies) which a lot of v1
-        /// code relies on otherwise the RenderCommand gets canceled.
-        /// Even if we were to get rid of v1 operations, the user may want to hook
-        /// listeners for _renderPhase02 and perform forbidden operations.
-        /// Therefore it's easier to split the process done in beginRenderPassDescriptor
-        /// in two steps (beginRenderPassDescriptor and executeRenderPassDescriptorDelayedActions)
-        /// for Metal.
-        virtual void executeRenderPassDescriptorDelayedActions(void);
-        virtual void endRenderPassDescriptor(void);
-
-    protected:
-        virtual TextureGpu* createDepthBufferFor( TextureGpu *colourTexture, bool preferDepthTexture,
-                                                  PixelFormatGpu depthBufferFormat );
-
-    public:
-        virtual TextureGpu* getDepthBufferFor( TextureGpu *colourTexture, uint16 poolId,
-                                               bool preferDepthTexture,
-                                               PixelFormatGpu depthBufferFormat );
+        virtual void _setTexture(size_t unit, bool enabled,  Texture *texPtr) = 0;
 
         /** In Direct3D11, UAV & RenderTargets share the same slots. Because of this,
             we enforce the same behavior on all RenderSystems.
             An unfortunate consequence is that if you attach an MRT consisting of 3 RTs;
             the UAV needs to set at slot 3; not slot 0.
-            This setting lets you tell Ogre the starting slot; so queueBindUAVs( descSet )
-            goes from slot 3 onwards if you call setUavStartingSlot( 3 )
+            This setting lets you tell Ogre the starting slot; so queueBindUAV( 0, ... )
+            can goes to slot 3 if you call setUavStartingSlot( 3 )
         @par
             Ogre will raise an exception in D3D11 if the starting slot is lower than
             the number of attached RTs, but will let it pass if you're using GL3+
@@ -761,39 +717,80 @@ namespace Ogre
         @param startingSlot
             Default value: 1.
         */
-        void setUavStartingSlot( uint32 startingSlot );
+        virtual void setUavStartingSlot( uint32 startingSlot );
 
         /** Queues the binding of an UAV to the binding point/slot.
             It won't actually take effect until you flush the UAVs or set another RTT.
-        @remarks
-            Internal Developer Notes:
-            D3D11 keeps UAVs that affect rendering separate from UAVs that affect Compute Shaders.
-            Hence queueBindUAVs & _setTextureCS are independent.
-
-            OpenGL however, does not make this distinction. Hence once we switch back to
-            3D rendering, we need to restore UAVs set via queueBindUAV.
+        @param bindPoint
+            The buffer binding location for shader access. For OpenGL this must be unique and
+            is not related to the texture binding point.
+        @param access
+            The texture access privileges given to the shader.
+        @param mipmapLevel
+            The texture mipmap level to use.
+        @param textureArrayIndex
+            The index of the texture array to use. If texture is not a texture array, set to 0.
+        @param format
+            Texture format to be read in by shader. This may be different than the bound texture format.
+            Will be the same is left as PF_UNKNOWN
         */
-        void queueBindUAVs( const DescriptorSetUav *descSetUav );
+        virtual void queueBindUAV( uint32 slot, TexturePtr texture,
+                                   ResourceAccess::ResourceAccess access = ResourceAccess::ReadWrite,
+                                   int32 mipmapLevel = 0, int32 textureArrayIndex = 0,
+                                   PixelFormat pixelFormat = PF_UNKNOWN ) = 0;
+
+        /** See other overload. The slots are shared with the textures'
+        @param offset
+            Offset to bind, in bytes
+        @param sizeBytes
+            Size to bind, in bytes. Use 0 to bind until the end of the buffer.
+        */
+        virtual void queueBindUAV( uint32 slot, UavBufferPacked *buffer,
+                                   ResourceAccess::ResourceAccess access = ResourceAccess::ReadWrite,
+                                   size_t offset = 0, size_t sizeBytes = 0 ) = 0;
+
+        /// By default queueBindUAV will keep all other slots intact. Calling this function
+        /// will unset all bound UAVs. Will take effect after flushUAVs or setting a new RT.
+        virtual void clearUAVs(void) = 0;
 
         /// Forces to take effect all the queued UAV binding requests. @see _queueBindUAV.
         /// You don't need to call this if you're going to set the render target next.
         virtual void flushUAVs(void) = 0;
 
-        /**
-        @param slotStart
-        @param set
-        @param hazardousTexIdx
-            When hazardousTexIdx < set->mTextures.size(); it means that we need to check
-            if set->mTextures[hazardousTexIdx] is not the same as the currently bound RTT.
+        /** Binds an UAV texture to a Compute Shader.
+        @remarks
+            @see queueBindUAV param description.
+        @par
+            Internal Developer Notes:
+            D3D11 keeps UAVs that affect rendering separate from UAVs that affect Compute Shaders.
+            Hence queueBindUAV & _bindTextureUavCS are independent.
+
+            OpenGL however, does not make this distinction. Hence once we switch back to
+            3D rendering, we need to restore UAVs set via queueBindUAV.
         */
-        virtual void _setTextures( uint32 slotStart, const DescriptorSetTexture *set,
-                                   uint32 hazardousTexIdx ) = 0;
-        virtual void _setTextures( uint32 slotStart, const DescriptorSetTexture2 *set ) = 0;
-        virtual void _setSamplers( uint32 slotStart, const DescriptorSetSampler *set ) = 0;
-        virtual void _setTexturesCS( uint32 slotStart, const DescriptorSetTexture *set ) = 0;
-        virtual void _setTexturesCS( uint32 slotStart, const DescriptorSetTexture2 *set ) = 0;
-        virtual void _setSamplersCS( uint32 slotStart, const DescriptorSetSampler *set ) = 0;
-        virtual void _setUavCS( uint32 slotStart, const DescriptorSetUav *set ) = 0;
+        virtual void _bindTextureUavCS( uint32 slot, Texture *texture,
+                                        ResourceAccess::ResourceAccess access,
+                                        int32 mipmapLevel, int32 textureArrayIndex,
+                                        PixelFormat pixelFormat ) = 0;
+
+        /// Binds a regular texture to a Compute Shader.
+        virtual void _setTextureCS( uint32 slot, bool enabled, Texture *texPtr ) = 0;
+        virtual void _setHlmsSamplerblockCS( uint8 texUnit, const HlmsSamplerblock *Samplerblock ) = 0;
+
+        /**
+        Sets the texture to bind to a given texture unit.
+
+        User processes would not normally call this direct unless rendering
+        primitives themselves.
+
+        @param unit The index of the texture unit to modify. Multitexturing 
+        hardware can support multiple units (see 
+        RenderSystemCapabilites::getNumTextureUnits)
+        @param enabled Boolean to turn the unit on/off
+        @param texname The name of the texture to use - this should have
+        already been loaded with TextureManager::load.
+        */
+        virtual void _setTexture(size_t unit, bool enabled, const String &texname);
 
         virtual void _resourceTransitionCreated( ResourceTransition *resTransition )    {}
         virtual void _resourceTransitionDestroyed( ResourceTransition *resTransition )  {}
@@ -807,14 +804,6 @@ namespace Ogre
         virtual void _hlmsBlendblockDestroyed( HlmsBlendblock *block ) {}
         virtual void _hlmsSamplerblockCreated( HlmsSamplerblock *newBlock ) {}
         virtual void _hlmsSamplerblockDestroyed( HlmsSamplerblock *block ) {}
-        virtual void _descriptorSetTextureCreated( DescriptorSetTexture *newSet ) {}
-        virtual void _descriptorSetTextureDestroyed( DescriptorSetTexture *set ) {}
-        virtual void _descriptorSetTexture2Created( DescriptorSetTexture2 *newSet ) {}
-        virtual void _descriptorSetTexture2Destroyed( DescriptorSetTexture2 *set ) {}
-        virtual void _descriptorSetSamplerCreated( DescriptorSetSampler *newSet ) {}
-        virtual void _descriptorSetSamplerDestroyed( DescriptorSetSampler *set ) {}
-        virtual void _descriptorSetUavCreated( DescriptorSetUav *newSet ) {}
-        virtual void _descriptorSetUavDestroyed( DescriptorSetUav *set ) {}
 
         virtual void _setIndirectBuffer( IndirectBufferPacked *indirectBuffer ) = 0;
 
@@ -831,10 +820,21 @@ namespace Ogre
         fragment units; calling this method will throw an exception.
         @see RenderSystemCapabilites::getVertexTextureUnitsShared
         */
-        virtual void _setVertexTexture(size_t unit, TextureGpu *tex);
-        virtual void _setGeometryTexture(size_t unit, TextureGpu *tex);
-        virtual void _setTessellationHullTexture(size_t unit, TextureGpu *tex);
-        virtual void _setTessellationDomainTexture(size_t unit, TextureGpu *tex);
+        virtual void _setVertexTexture(size_t unit, const TexturePtr& tex);
+        virtual void _setGeometryTexture(size_t unit, const TexturePtr& tex);
+        virtual void _setTessellationHullTexture(size_t unit, const TexturePtr& tex);
+        virtual void _setTessellationDomainTexture(size_t unit, const TexturePtr& tex);
+
+        /**
+        Sets the texture coordinate set to use for a texture unit.
+
+        Meant for use internally - not generally used directly by apps - the Material and TextureUnitState
+        classes let you manage textures far more easily.
+
+        @param unit Texture unit as above
+        @param index The index of the texture coordinate set to use.
+        */
+        virtual void _setTextureCoordSet(size_t unit, size_t index) = 0;
 
         /**
         Sets a method for automatically calculating texture coordinates for a stage.
@@ -865,12 +865,31 @@ namespace Ogre
         */
         virtual void _setTextureProjectionRelativeTo(bool enabled, const Vector3& pos);
 
+        /** Creates a DepthBuffer that can be attached to the specified RenderTarget
+            @remarks
+                It doesn't attach anything, it just returns a pointer to a new DepthBuffer
+                Caller is responsible for putting this buffer into the right pool, for
+                attaching, and deleting it. Here's where API-specific magic happens.
+                Don't call this directly unless you know what you're doing.
+        */
+        virtual DepthBuffer* _createDepthBufferFor( RenderTarget *renderTarget,
+                                                    bool exactMatchFormat ) = 0;
+
+        /** Removes all depth buffers. Should be called on device lost and shutdown
+            @remarks
+                Advanced users can call this directly with bCleanManualBuffers=false to
+                remove all depth buffers created for RTTs; when they think the pool has
+                grown too big or they've used lots of depth buffers they don't need anymore,
+                freeing GPU RAM.
+        */
+        void _cleanupDepthBuffers( bool bCleanManualBuffers=true );
+
         /// Signifies the beginning of the main frame. i.e. will only be called once per frame,
         /// not per viewport
         virtual void _beginFrameOnce(void);
         /// Called once per frame, regardless of how many active workspaces there are.
         /// Gets called AFTER all RenderWindows have been swapped.
-        virtual void _endFrameOnce(void);
+        virtual void _endFrameOnce(void) {}
 
         /**
         * Signifies the beginning of a frame, i.e. the start of rendering on a single viewport. Will occur
@@ -906,7 +925,20 @@ namespace Ogre
         /// This gives the renderer a chance to perform the compositor update in a special way.
         /// When the render system is ready to perform the actual update it should just
         /// compositorManager->_updateImplementation.
-        virtual void updateCompositorManager( CompositorManager2 *compositorManager );
+        virtual void updateCompositorManager( CompositorManager2 *compositorManager,
+                                              SceneManagerEnumerator &sceneManagers,
+                                              HlmsManager *hlmsManager );
+
+        /**
+        Sets the provided viewport as the active one for future
+        rendering operations. This viewport is aware of it's own
+        camera and render target. Must be implemented by subclass.
+
+        @param vp Pointer to the appropriate viewport.
+        */
+        virtual void _setViewport(Viewport *vp) = 0;
+        /** Get the current active viewport for rendering. */
+        virtual Viewport* _getViewport(void);
 
         /// @See HlmsSamplerblock. This function MUST be called after _setTexture, not before.
         /// Otherwise not all APIs may see the change.
@@ -943,49 +975,63 @@ namespace Ogre
         */
         virtual VertexElementType getColourVertexElementType(void) const = 0;
 
-        /** Reverts the compare order e.g. greater_equal becomes less_equal
-            Used by reverse depth
-        @param depthFunc
-        @return
-        */
-        static CompareFunction reverseCompareFunction( CompareFunction depthFunc );
-
-        /** Takes a regular source projection matrix in range [-1; 1] and converts it to a projection
-            matrix in 'dest' with reverse Z range [1; 0]
-
-            _convertProjectionMatrix does the same thing but is more generic. This version
-            assumes a standard projection matrix (i.e. not oblique) to maximize precision
-        @param matrix
-        @param dest
-        @param nearPlane
-        @param farPlane
-        @param projectionType
-        */
-        virtual void _makeRsProjectionMatrix( const Matrix4& matrix,
-                                              Matrix4& dest, Real nearPlane,
-                                              Real farPlane, ProjectionType projectionType );
-
         /** Converts a uniform projection matrix to suitable for this render system.
         @remarks
         Because different APIs have different requirements (some incompatible) for the
         projection matrix, this method allows each to implement their own correctly and pass
         back a generic OGRE matrix for storage in the engine.
         */
-        virtual void _convertProjectionMatrix( const Matrix4& matrix, Matrix4& dest );
-
-        /** Converts an OpenVR projection matrix to have the proper depth range and
-            reverse Z settings
-        @param matrix
-        @param dest
-        */
-        virtual void _convertOpenVrProjectionMatrix( const Matrix4& matrix, Matrix4& dest );
+        virtual void _convertProjectionMatrix(const Matrix4& matrix,
+            Matrix4& dest, bool forGpuProgram = false) = 0;
 
         /// OpenGL depth is in range [-1;1] so it returns 2.0f;
         /// D3D11 & Metal are in range [0;1] so it returns 1.0f;
-        ///
-        /// Note OpenGL may behave like D3D11, and thus we'll return 1.0f too.
-        /// This is decided at runtime, not at compile time.
-        virtual Real getRSDepthRange(void) const { return 1.0f; }
+        virtual Real getRSDepthRange(void) const { return 2.0f; }
+
+        /** Builds a perspective projection matrix suitable for this render system.
+        @remarks
+        Because different APIs have different requirements (some incompatible) for the
+        projection matrix, this method allows each to implement their own correctly and pass
+        back a generic OGRE matrix for storage in the engine.
+        */
+        virtual void _makeProjectionMatrix(const Radian& fovy, Real aspect, Real nearPlane, Real farPlane, 
+            Matrix4& dest, bool forGpuProgram = false) = 0;
+
+        /** Builds a perspective projection matrix for the case when frustum is
+        not centered around camera.
+        @remarks
+        Viewport coordinates are in camera coordinate frame, i.e. camera is 
+        at the origin.
+        */
+        virtual void _makeProjectionMatrix(Real left, Real right, Real bottom, Real top, 
+            Real nearPlane, Real farPlane, Matrix4& dest, bool forGpuProgram = false) = 0;
+        /** Builds an orthographic projection matrix suitable for this render system.
+        @remarks
+        Because different APIs have different requirements (some incompatible) for the
+        projection matrix, this method allows each to implement their own correctly and pass
+        back a generic OGRE matrix for storage in the engine.
+        */
+        virtual void _makeOrthoMatrix(const Radian& fovy, Real aspect, Real nearPlane, Real farPlane, 
+            Matrix4& dest, bool forGpuProgram = false) = 0;
+
+        /** Update a perspective projection matrix to use 'oblique depth projection'.
+        @remarks
+        This method can be used to change the nature of a perspective 
+        transform in order to make the near plane not perpendicular to the 
+        camera view direction, but to be at some different orientation. 
+        This can be useful for performing arbitrary clipping (e.g. to a 
+        reflection plane) which could otherwise only be done using user
+        clip planes, which are more expensive, and not necessarily supported
+        on all cards.
+        @param matrix The existing projection matrix. Note that this must be a
+        perspective transform (not orthographic), and must not have already
+        been altered by this method. The matrix will be altered in-place.
+        @param plane The plane which is to be used as the clipping plane. This
+        plane must be in CAMERA (view) space.
+        @param forGpuProgram Is this for use with a Gpu program or fixed-function
+        */
+        virtual void _applyObliqueDepthProjection(Matrix4& matrix, const Plane& plane, 
+            bool forGpuProgram) = 0;
 
         /** This method allows you to set all the stencil buffer parameters in one call.
         @remarks
@@ -1056,6 +1102,8 @@ namespace Ogre
         virtual void _renderNoBaseInstance( const v1::CbDrawCallIndexed *cmd ) {}
         virtual void _renderNoBaseInstance( const v1::CbDrawCallStrip *cmd ) {}
 
+        virtual void _renderUsingReadBackAsTexture(unsigned int secondPass,Ogre::String variableName,unsigned int StartSlot);
+
         /** Gets the capabilities of the render system. */
         const RenderSystemCapabilities* getCapabilities(void) const { return mCurrentCapabilities; }
 
@@ -1092,8 +1140,6 @@ namespace Ogre
 
         VaoManager* getVaoManager(void) const           { return mVaoManager; }
 
-        TextureGpuManager* getTextureGpuManager(void) const { return mTextureGpuManager; }
-
         /**
          * Gets the native shading language version for this render system.
          * Formatted so that it can be used within a shading program. 
@@ -1114,6 +1160,9 @@ namespace Ogre
         */
         virtual void resetClipPlanes();
 
+        /** Utility method for initialising all render targets attached to this rendering system. */
+        virtual void _initRenderTargets(void);
+
         /** Sets whether or not vertex windings set should be inverted; this can be important
         for rendering reflections. */
         void setInvertVertexWinding(bool invert);
@@ -1123,19 +1172,19 @@ namespace Ogre
         */
         virtual bool getInvertVertexWinding(void) const;
 
-        /** Immediately clears the whole frame buffer on the selected RenderPassDescriptor.
-            Prefer clearing using the LoadAction semantics in the RenderPassDescriptor.
-            This function is provided for two reasons:
-                1. Backwards compatibility (i.e. easier porting from 2.1)
-                2. Non-tilers desktop GPUs may be faster to clear the whole framebuffer at once.
-        @remarks
-            Will break an existing RenderPassDescriptor set via beginRenderPassDescriptor.
-        @param renderPassDesc
-            RenderPassDescriptor filled with LoadActions set to clear and StoreActions
-            set to Store.
+        /** Clears one or more frame buffers on the active render target. 
+        @param buffers Combination of one or more elements of FrameBufferType
+        denoting which buffers are to be cleared
+        @param colour The colour to clear the colour buffer with, if enabled
+        @param depth The value to initialise the depth buffer with, if enabled
+        @param stencil The value to initialise the stencil buffer with, if enabled.
         */
-        virtual void clearFrameBuffer( RenderPassDescriptor *renderPassDesc,
-                                       TextureGpu *anyTarget, uint8 mipLevel ) = 0;
+        virtual void clearFrameBuffer(unsigned int buffers, 
+            const ColourValue& colour = ColourValue::Black, 
+            Real depth = 1.0f, unsigned short stencil = 0) = 0;
+
+        /// @copydoc Viewport::discard
+        virtual void discardFrameBuffer( unsigned int buffers ) = 0;
 
         /** Returns the horizontal texel offset value required for mapping 
         texel origins to pixel origins in this rendersystem.
@@ -1201,6 +1250,54 @@ namespace Ogre
             mDerivedDepthBiasSlopeScale = slopeScale;
         }
 
+        /**
+         * Set current render target to target, enabling its device context if needed
+        @param viewportRenderTargetFlags
+            See ViewportRenderTargetFlags
+            See CompositorPassDef::mColourWrite
+            The RenderTarget is needed to know the depth/stencil information.
+         */
+        virtual void _setRenderTarget( RenderTarget *target, uint8 viewportRenderTargetFlags ) = 0;
+
+        /** This function was created because of Metal. The Metal API doesn't have a
+            'device->clear( texture )' function. Instead we must specify we want to
+            start rendering to a cleared surface. This allows mobile TBDR GPUs to begin
+            rendering without having to load any data from memory (saves a lot of bandwidth
+            and battery).
+        @par
+            But it also means Ogre must do an effort to delay the clear operation as much as
+            possible (until actual rendering to it, or until the texture is used for
+            reading/sampling).
+        @par
+            Normally, we'd want to stop deferring a clear and immediately issue it when
+            _setRenderTarget gets called with a different pointer. However, the following
+            scenario is too common:
+            target rtt
+            {
+                pass clear {}
+                pass render_scene
+                {
+                    shadows myShadowNode
+                }
+            }
+
+            Ogre will first issue a clear, then begin executing the shadow node (which switches
+            to the shadow map) then switch back to the original rtt to resume regular rendinering.
+            In this common case we want to delay the clear, but _setRenderTarget is clearly
+            not an trusted indication (we would get many false positives).
+        @par
+            Therefore the compositor has much better knowledge, and it informs of this fact
+            via this call.
+        @remarks
+            TODO: This function will eventually be removed. The Compositor should be creating
+            a resource transition. We only need to force clear when we're going to be using
+            the target as a texture for reading/sampling. That's exactly what
+            ResourceTransitions are for.
+        @param previousRenderTarget
+            RenderTarget that was being used (and we should clear if we have to).
+        */
+        virtual void _notifyCompositorNodeSwitchedRenderTarget( RenderTarget *previousTarget ) {}
+
         /** Defines a listener on the custom events that this render system 
         can raise.
         @see RenderSystem::addListener
@@ -1209,7 +1306,7 @@ namespace Ogre
         {
         public:
             Listener() {}
-            virtual ~Listener();
+            virtual ~Listener() {}
 
             /** A rendersystem-specific event occurred.
             @param eventName The name of the event which has occurred
@@ -1362,33 +1459,20 @@ namespace Ogre
         void setDebugShaders( bool bDebugShaders );
         bool getDebugShaders(void) const                        { return mDebugShaders; }
 
-        bool isReverseDepth(void) const                         { return mReverseDepth; }
-
-        /// On D3D11 calls ClearState followed by Flush().
-        /// On GL3+ it calls glFlush
-        ///
-        /// Do not call this function while inside rendering internals, as it will clear
-        /// the device state, thus leaving it inconsistent with what we think it is set to.
-        virtual void _clearStateAndFlushCommandBuffer(void);
-
-        virtual void flushCommands(void) = 0;
-
         virtual const PixelFormatToShaderType* getPixelFormatToShaderType(void) const = 0;
    
     protected:
 
-        void destroyAllRenderPassDescriptors(void);
+        void cleanReleasedDepthBuffers(void);
 
-        DepthBufferMap2 mDepthBufferPool2;
+        /** DepthBuffers to be attached to render targets */
+        DepthBufferMap  mDepthBufferPool;
+        DepthBufferVec  mReleasedDepthBuffers;
 
-        typedef set<RenderPassDescriptor*>::type RenderPassDescriptorSet;
-        RenderPassDescriptorSet mRenderPassDescs;
-        RenderPassDescriptor    *mCurrentRenderPassDescriptor;
-        Viewport                mCurrentRenderViewport[16];
-        uint32                  mMaxBoundViewports;
-
-        typedef set<Window*>::type WindowSet;
-        WindowSet mWindows;
+        /** The render targets. */
+        RenderTargetMap mRenderTargets;
+        /** The Active render target. */
+        RenderTarget * mActiveRenderTarget;
 
         StencilParams   mStencilParams;
 
@@ -1400,8 +1484,16 @@ namespace Ogre
         GpuProgramParametersSharedPtr mActiveTessellationDomainGpuProgramParameters;
         GpuProgramParametersSharedPtr mActiveComputeGpuProgramParameters;
 
-        VaoManager          *mVaoManager;
-        TextureGpuManager   *mTextureGpuManager;
+        // Texture manager
+        // A concrete class of this will be created and
+        // made available under the TextureManager singleton,
+        // managed by the RenderSystem
+        TextureManager* mTextureManager;
+
+        VaoManager   *mVaoManager;
+
+        // Active viewport (dest for future rendering operations)
+        Viewport* mActiveViewport;
 
         bool mDebugShaders;
         bool mWBuffer;
@@ -1427,9 +1519,7 @@ namespace Ogre
         float mDerivedDepthBiasMultiplier;
         float mDerivedDepthBiasSlopeScale;
 
-        bool                    mUavRenderingDirty;
-        uint32                  mUavStartingSlot;
-        DescriptorSetUav const  *mUavRenderingDescSet;
+        uint32  mUavStartingSlot;
 
         /// a global vertex buffer for global instancing
         v1::HardwareVertexBufferSharedPtr mGlobalInstanceVertexBuffer;
@@ -1478,7 +1568,7 @@ namespace Ogre
         virtual void setClipPlanesImpl(const PlaneList& clipPlanes) = 0;
 
         /** Initialize the render system from the capabilities*/
-        virtual void initialiseFromRenderSystemCapabilities(RenderSystemCapabilities* caps, Window* primary) = 0;
+        virtual void initialiseFromRenderSystemCapabilities(RenderSystemCapabilities* caps, RenderTarget* primary) = 0;
 
 
         DriverVersion mDriverVersion;
@@ -1487,7 +1577,7 @@ namespace Ogre
         bool mTexProjRelative;
         Vector3 mTexProjRelativeOrigin;
 
-        bool mReverseDepth;
+
 
     };
     /** @} */

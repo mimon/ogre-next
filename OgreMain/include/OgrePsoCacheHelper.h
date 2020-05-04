@@ -220,7 +220,7 @@ namespace Ogre
             This function is a PASS state changing function, and its information is
             not part of getRenderableHash.
         */
-        void setRenderTarget( const RenderPassDescriptor *renderPassDesc );
+        void setRenderTarget( RenderTarget *renderTarget );
 
         /// This function can be skipped if no vertex buffer is used (e.g.
         /// you use gl_VertexID or other trickery) or if you have a renderableHash.

@@ -5,10 +5,11 @@
 
 #include "OgreRoot.h"
 #include "Compositor/OgreCompositorManager2.h"
-#include "Compositor/OgreCompositorWorkspace.h"
-#include "Compositor/OgreCompositorNode.h"
+//#include "Compositor/OgreCompositorWorkspace.h"
+//#include "Compositor/OgreCompositorNode.h"
 #include "Compositor/OgreCompositorNodeDef.h"
-#include "Compositor/Pass/OgreCompositorPass.h"
+//#include "Compositor/Pass/PassClear/OgreCompositorPassClear.h"
+#include "Compositor/Pass/PassClear/OgreCompositorPassClearDef.h"
 
 #include "OgreMaterialManager.h"
 #include "OgreMaterial.h"
@@ -50,10 +51,9 @@ namespace Demo
     }
     //-----------------------------------------------------------------------------------
     void HdrUtils::setSkyColour( const Ogre::ColourValue &colour,
-                                 float multiplier,
-                                 Ogre::CompositorWorkspace *workspace )
+                                 float multiplier )
     {
-        Ogre::CompositorNode *node = workspace->findNode( "HdrRenderingNode" );
+        /*Ogre::CompositorNode *node = workspace->findNode( "HdrRenderingNode" );
 
         if( !node )
         {
@@ -67,11 +67,11 @@ namespace Demo
         assert( passes.size() >= 1 );
         Ogre::CompositorPass *pass = passes[0];
 
-        Ogre::RenderPassDescriptor *renderPassDesc = pass->getRenderPassDesc();
-        renderPassDesc->setClearColour( colour * multiplier );
+        assert( pass->getType() == Ogre::PASS_CLEAR &&
+                dynamic_cast<Ogre::CompositorPassClear*>(pass) );
 
-        //Set the definition as well, although this isn't strictly necessary.
-        Ogre::CompositorManager2 *compositorManager = workspace->getCompositorManager();
+        Ogre::CompositorPassClear *passClear = static_cast<Ogre::CompositorPassClear*>( pass );*/
+        Ogre::CompositorManager2 *compositorManager = Ogre::Root::getSingleton().getCompositorManager2();
         Ogre::CompositorNodeDef *nodeDef =
                 compositorManager->getNodeDefinitionNonConst( "HdrRenderingNode" );
 
@@ -83,7 +83,11 @@ namespace Demo
         assert( passDefs.size() >= 1 );
         Ogre::CompositorPassDef *passDef = passDefs[0];
 
-        passDef->setAllClearColours( colour * multiplier );
+        assert( passDef->getType() == Ogre::PASS_CLEAR &&
+                dynamic_cast<Ogre::CompositorPassClearDef*>(passDef) );
+
+        Ogre::CompositorPassClearDef *clearDef = static_cast<Ogre::CompositorPassClearDef*>( passDef );
+        clearDef->mColourValue = colour * multiplier;
     }
     //-----------------------------------------------------------------------------------
     void HdrUtils::setExposure( float exposure, float minAutoExposure, float maxAutoExposure )

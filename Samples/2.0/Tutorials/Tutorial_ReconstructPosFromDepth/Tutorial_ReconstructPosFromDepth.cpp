@@ -2,7 +2,7 @@
 #include "GraphicsSystem.h"
 #include "Tutorial_ReconstructPosFromDepthGameState.h"
 
-#include "OgreWindow.h"
+#include "OgreRenderWindow.h"
 
 #include "OgreRoot.h"
 #include "Compositor/OgreCompositorManager2.h"
@@ -28,7 +28,7 @@ namespace Demo
         virtual Ogre::CompositorWorkspace* setupCompositor()
         {
             Ogre::CompositorManager2 *compositorManager = mRoot->getCompositorManager2();
-            return compositorManager->addWorkspace( mSceneManager, mRenderWindow->getTexture(), mCamera,
+            return compositorManager->addWorkspace( mSceneManager, mRenderWindow, mCamera,
                                                     "Tutorial_ReconstructPosFromDepthWorkspace", true );
         }
 

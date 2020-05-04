@@ -31,7 +31,7 @@
 
 @property( hlms_num_shadow_map_lights )
     @piece( custom_ps_preLights )fShadow *= inPs.terrainShadow;@end
-@else
+@end @property( !hlms_num_shadow_map_lights )
     @piece( custom_ps_preLights )float fShadow = inPs.terrainShadow;@end
     @piece( DarkenWithShadowFirstLight )* fShadow@end
 @end

@@ -32,17 +32,22 @@ THE SOFTWARE.
 #include "OgreVector3.h"
 #include "Math/Simple/OgreAabb.h"
 #include "OgreIdString.h"
-#include "OgreTextureGpu.h"
+#include "OgrePixelFormat.h"
+#include "OgreTexture.h"
 #include "OgreHeaderPrefix.h"
-#include "Compositor/OgreCompositorChannel.h"
+
+//It's slightly more accurate if we render the cubemaps and generate the cubemaps, then blend.
+//But Ogre doesn't yet support RTT to mipmaps, so we generate the mipmaps after blending.
+#define GENERATE_MIPMAPS_ON_BLEND 1
 
 namespace Ogre
 {
+    class ParallaxCorrectedCubemap;
+    class CompositorWorkspaceDef;
+
     class _OgreHlmsPbsExport CubemapProbe : public UtilityAlloc
     {
-        friend class ParallaxCorrectedCubemapBase;
         friend class ParallaxCorrectedCubemap;
-        friend class ParallaxCorrectedCubemapAuto;
 
         /// Where to position the camera while constructing the probe.
         Vector3 mProbeCameraPos;
@@ -56,23 +61,18 @@ namespace Ogre
         /// The general shape this probe is supposed to represent.
         Aabb    mProbeShape;
 
-        TextureGpu  *mTexture;
-        uint16      mCubemapArrayIdx;
-        SampleDescription mSampleDescription;
+        TexturePtr  mTexture;
+        uint8       mFsaa;
 
         IdString            mWorkspaceDefName;
         CompositorWorkspace *mClearWorkspace;
         CompositorWorkspace *mWorkspace;
         Camera              *mCamera;
 
-        ParallaxCorrectedCubemapBase *mCreator;
-
-        InternalCubemapProbe    *mInternalProbe;
+        ParallaxCorrectedCubemap *mCreator;
 
         ConstBufferPacked   *mConstBufferForManualProbes;
         uint32              mNumDatablockUsers;
-
-        uint16  mPriority;
 
         /// False if it should be updated every frame. True if only updated when dirty
         bool    mStatic;
@@ -104,61 +104,34 @@ namespace Ogre
     protected:
         void destroyTexture(void);
 
-        void acquireTextureAuto(void);
-        void releaseTextureAuto(void);
-        void createInternalProbe(void);
-        void destroyInternalProbe(void);
-        void switchInternalProbeStaticValue(void);
-        void syncInternalProbe(void);
-
-        void restoreFromClearScene( SceneNode *rootNode );
-
     public:
-        CubemapProbe( ParallaxCorrectedCubemapBase *creator );
+        CubemapProbe( ParallaxCorrectedCubemap *creator );
         ~CubemapProbe();
 
         /**
-        @remarks
-            When this CubemapProbe belongs to ParallaxCorrectedCubemapAuto,
-            all parameters except isStatic are ignored!
-            This call is still required.
         @param width
         @param height
         @param pf
         @param isStatic
             Set to False if it should be updated every frame. True if only updated when dirty
-        @param sampleDesc
+        @param fsaa
         @param useManual
             Set to true if you plan on using thie probe for manually rendering, so we keep
             mipmaps at the probe level. User is responsible for supplying a workspace
             definition that will generate mipmaps though!
         */
         void setTextureParams( uint32 width, uint32 height, bool useManual=false,
-                               PixelFormatGpu pf=PFG_RGBA8_UNORM_SRGB, bool isStatic=true,
-                               SampleDescription sampleDesc=SampleDescription() );
+                               PixelFormat pf=PF_A8B8G8R8, bool isStatic=true, uint8 fsaa=0 );
 
         /** Initializes the workspace so we can actually render to the cubemap.
             You must call setTextureParams first.
-        @param mipmapsExecutionMask
-            When ParallaxCorrectedCubemapAuto needs to use DPM via 2D Array (see
-            ParallaxCorrectedCubemapAuto::setUseDpm2DArray), you will most likely *NOT* want
-            to execute the mipmap pass in the workspace you provide, as the system will
-            automatically generate mipmaps for you in the 2D Array instead.
-            We will be using this value to skip that pass.
-            We'll be calling:
-            @code
-                compositorManager->addWorkspace( ..., executionMask = ~mipmapsExecutionMask);
-            @endcode
-            But only when ParallaxCorrectedCubemapAuto::getUseDpm2DArray is true.
         @param workspaceDefOverride
             Pass a null IdString() to use the default workspace definition passed to
             ParallaxCorrectedCubemap.
             This value allows you to override it with a different workspace definition.
         */
         void initWorkspace( float cameraNear = 0.5f, float cameraFar = 500.0f,
-                            IdString workspaceDefOverride = IdString(),
-                            const CompositorChannelVec &additionalChannels = CompositorChannelVec(),
-                            uint8 executionMask = 0xFF );
+                            IdString workspaceDefOverride=IdString() );
         bool isInitialized(void) const;
 
         /** Sets cubemap probe's parameters.
@@ -192,17 +165,6 @@ namespace Ogre
         void setStatic( bool isStatic );
         bool getStatic(void) const          { return mStatic; }
 
-        /** When two probes overlap, you may want one probe to have particularly more influence
-            than the others. Use this value to decrease/increase the weight when blending the probes.
-        @remarks
-            This value is only useful for Per-Pixel cubemaps
-        @param priority
-            A value in range [1; 65535]
-            A higher value means the probe should have a stronger influence over the others.
-        */
-        void setPriority( uint16 priority );
-        uint16_t getPriority(void) const;
-
         Aabb getAreaLS(void) const          { return Aabb( Vector3::ZERO, mArea.mHalfSize ); }
 
         /** Gets the Normalized Distance Function.
@@ -224,22 +186,13 @@ namespace Ogre
         const Aabb& getArea(void) const                     { return mArea; }
         const Vector3& getAreaInnerRegion(void) const       { return mAreaInnerRegion; }
         const Matrix3& getOrientation(void) const           { return mOrientation; }
-        const Matrix3& getInvOrientation(void) const        { return mInvOrientation; }
         const Aabb& getProbeShape(void) const               { return mProbeShape; }
 
-        CompositorWorkspace *getWorkspace(void) const       { return mWorkspace; }
-
-        TextureGpu* getInternalTexture(void) const          { return mTexture; }
+        TexturePtr getInternalTexture(void) const           { return mTexture; }
         void _addReference(void);
         void _removeReference(void);
 
-        const SceneNode* getInternalCubemapProbeSceneNode(void) const;
-
-        uint16 getInternalSliceToArrayTexture(void) const   { return mCubemapArrayIdx; }
-
         ConstBufferPacked* getConstBufferForManualProbes(void)  { return mConstBufferForManualProbes; }
-
-        ParallaxCorrectedCubemapBase* getCreator(void)      { return mCreator; }
     };
 }
 

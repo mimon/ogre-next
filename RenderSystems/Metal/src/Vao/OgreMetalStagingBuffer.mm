@@ -406,8 +406,7 @@ namespace Ogre
                                     destinationOffset:mInternalBufferStart + freeRegionOffset
                                     size:alignToNextMultiple( srcLength, 4u )];
 #if OGRE_PLATFORM != OGRE_PLATFORM_APPLE_IOS
-        assert( mVboName.storageMode != MTLStorageModeManaged );
-        //[blitEncoder synchronizeResource:mVboName];
+        [blitEncoder synchronizeResource:mVboName];
 #endif
 
         return freeRegionOffset + extraOffset;
@@ -478,8 +477,7 @@ namespace Ogre
                                     destinationOffset:mInternalBufferStart + freeRegionOffset
                                     size:alignToNextMultiple( srcLength, 4u )];
 #if OGRE_PLATFORM != OGRE_PLATFORM_APPLE_IOS
-        assert( mVboName.storageMode != MTLStorageModeManaged );
-        //[blitEncoder synchronizeResource:mVboName];
+        [blitEncoder synchronizeResource:mVboName];
 #endif
 
         return freeRegionOffset + extraOffset;

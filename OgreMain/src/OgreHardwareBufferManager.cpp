@@ -270,17 +270,16 @@ namespace v1 {
             }
         }
 
-        String str;
+        StringStream str;
         if (numFreed)
         {
-            str = "HardwareBufferManager: Freed " + StringConverter::toString( numFreed ) +
-                  " unused temporary vertex buffers.";
+            str << "HardwareBufferManager: Freed " << numFreed << " unused temporary vertex buffers.";
         }
         else
         {
-            str = "HardwareBufferManager: No unused temporary vertex buffers found.";
+            str << "HardwareBufferManager: No unused temporary vertex buffers found.";
         }
-        LogManager::getSingleton().logMessage(str, LML_TRIVIAL);
+        LogManager::getSingleton().logMessage(str.str(), LML_TRIVIAL);
     }
     //-----------------------------------------------------------------------
     void HardwareBufferManagerBase::_releaseBufferCopies(bool forceFreeUnused)
@@ -556,9 +555,6 @@ namespace v1 {
             destNormalBuffer.setNull();
 
     }
-    //-----------------------------------------------------------------------------
-    //-----------------------------------------------------------------------------
-    //-----------------------------------------------------------------------------
-    HardwareBuffer::~HardwareBuffer() {}
+
 }
 }

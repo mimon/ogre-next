@@ -70,8 +70,6 @@ namespace Demo
             }
         }
 
-        const bool bIsHlsl = job->getCreator()->getShaderProfile() == "hlsl";
-
         //Set the shader constants, 16 at a time (since that's the limit of what ManualParam can hold)
         char tmp[32];
         LwString weightsString( LwString::FromEmptyPointer( tmp, sizeof(tmp) ) );
@@ -79,10 +77,7 @@ namespace Demo
         for( uint32 i=0; i<kernelRadius + 1u; i += floatsPerParam )
         {
             weightsString.clear();
-            if( !bIsHlsl )
-                weightsString.a( "c_weights[", i, "]" );
-            else
-                weightsString.a( "c_weights[", ( i >> 2u ), "]" );
+            weightsString.a( "c_weights[", i, "]" );
 
             ShaderParams::Param p;
             p.isAutomatic   = false;

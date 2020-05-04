@@ -46,8 +46,7 @@ namespace Ogre
 
     class HlmsJsonTerra
     {
-        HlmsManager         *mHlmsManager;
-        TextureGpuManager   *mTextureManager;
+        HlmsManager *mHlmsManager;
 
         static TerraBrdf::TerraBrdf parseBrdf( const char *value );
         static void parseOffset( const rapidjson::Value &jsonArray, Vector4 &offsetScale );
@@ -57,11 +56,11 @@ namespace Ogre
 
         void loadTexture( const rapidjson::Value &json, const char *keyName,
                           TerraTextureTypes textureType, HlmsTerraDatablock *datablock,
-                          const String &resourceGroup );
+                          TerraPackedTexture textures[NUM_TERRA_TEXTURE_TYPES] );
 
         void loadTexture( const rapidjson::Value &json, const HlmsJson::NamedBlocks &blocks,
                           TerraTextureTypes textureType, HlmsTerraDatablock *datablock,
-                          const String &resourceGroup );
+                          TerraPackedTexture textures[NUM_TERRA_TEXTURE_TYPES] );
 
         void saveTexture( const char *blockName,
                           TerraTextureTypes textureType,
@@ -78,10 +77,10 @@ namespace Ogre
                           const HlmsTerraDatablock *datablock, String &outString );
 
     public:
-        HlmsJsonTerra( HlmsManager *hlmsManager, TextureGpuManager *textureManager );
+        HlmsJsonTerra( HlmsManager *hlmsManager );
 
         void loadMaterial( const rapidjson::Value &json, const HlmsJson::NamedBlocks &blocks,
-                           HlmsDatablock *datablock , const String &resourceGroup );
+                           HlmsDatablock *datablock );
         void saveMaterial( const HlmsDatablock *datablock, String &outString );
 
         static void collectSamplerblocks( const HlmsDatablock *datablock,

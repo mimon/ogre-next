@@ -29,19 +29,10 @@ THE SOFTWARE.
 #define _OgreHlmsUnlitDatablock_H_
 
 #include "OgreHlmsUnlitPrerequisites.h"
-
-#define _OgreHlmsTextureBaseClassExport _OgreHlmsUnlitExport
-#define OGRE_HLMS_TEXTURE_BASE_CLASS HlmsUnlitBaseTextureDatablock
-#define OGRE_HLMS_TEXTURE_BASE_MAX_TEX NUM_UNLIT_TEXTURE_TYPES
-#define OGRE_HLMS_CREATOR_CLASS HlmsUnlit
-    #include "OgreHlmsTextureBaseClass.h"
-#undef _OgreHlmsTextureBaseClassExport
-#undef OGRE_HLMS_TEXTURE_BASE_CLASS
-#undef OGRE_HLMS_TEXTURE_BASE_MAX_TEX
-#undef OGRE_HLMS_CREATOR_CLASS
-
+#include "OgreHlmsDatablock.h"
+#include "OgreHlmsTextureManager.h"
+#include "OgreConstBufferPool.h"
 #include "OgreMatrix4.h"
-
 #include "OgreHeaderPrefix.h"
 
 namespace Ogre
@@ -53,9 +44,26 @@ namespace Ogre
     *  @{
     */
 
+    struct UnlitBakedTexture
+    {
+        TexturePtr              texture;
+        HlmsSamplerblock const *samplerBlock;
+
+        UnlitBakedTexture() : samplerBlock( 0 ) {}
+        UnlitBakedTexture( const TexturePtr tex, const HlmsSamplerblock *_samplerBlock ) :
+            texture( tex ), samplerBlock( _samplerBlock ) {}
+
+        bool operator == ( const UnlitBakedTexture &_r ) const
+        {
+            return texture == _r.texture && samplerBlock == _r.samplerBlock;
+        }
+    };
+
+    typedef FastArray<UnlitBakedTexture> UnlitBakedTextureArray;
+
     /** Contains information needed by PBS (Physically Based Shading) for OpenGL 3+ & D3D11+
     */
-    class _OgreHlmsUnlitExport HlmsUnlitDatablock : public HlmsUnlitBaseTextureDatablock
+    class _OgreHlmsUnlitExport HlmsUnlitDatablock : public HlmsDatablock, public ConstBufferPoolUser
     {
         friend class HlmsUnlit;
     public:
@@ -70,18 +78,33 @@ namespace Ogre
         uint8   mNumEnabledAnimationMatrices;
         bool    mHasColour;         /// When false; mR, mG, mB & mA aren't passed to the pixel shader
         float   mR, mG, mB, mA;
+        uint16  mTexIndices[NUM_UNLIT_TEXTURE_TYPES];
 
         uint8   mUvSource[NUM_UNLIT_TEXTURE_TYPES];
         uint8   mBlendModes[NUM_UNLIT_TEXTURE_TYPES];
         bool    mEnabledAnimationMatrices[NUM_UNLIT_TEXTURE_TYPES];
         bool    mEnablePlanarReflection[NUM_UNLIT_TEXTURE_TYPES];
 
+        UnlitBakedTextureArray mBakedTextures;
+        /// The way to read this variable is i.e. get diffuse texture 0,
+        /// mBakedTextures[mTexToBakedTextureIdx[0]]
+        /// Then read mTexIndices[0] to know which slice of the texture array.
+        uint8   mTexToBakedTextureIdx[NUM_UNLIT_TEXTURE_TYPES];
         uint8   mTextureSwizzles[NUM_UNLIT_TEXTURE_TYPES];
+
+        HlmsSamplerblock const  *mSamplerblocks[NUM_UNLIT_TEXTURE_TYPES];
 
         virtual void cloneImpl( HlmsDatablock *datablock ) const;
 
-        virtual void uploadToConstBuffer( char *dstPtr, uint8 dirtyFlags );
+        void scheduleConstBufferUpdate(void);
+        virtual void uploadToConstBuffer( char *dstPtr );
         virtual void uploadToExtraBuffer( char *dstPtr );
+
+        /// Sets the appropiate mTexIndices[texUnit], and returns the texture pointer
+        TexturePtr setTexture( const String &name, uint8 texUnit );
+
+        void decompileBakedTextures( UnlitBakedTexture outTextures[NUM_UNLIT_TEXTURE_TYPES] );
+        void bakeTextures( const UnlitBakedTexture textures[NUM_UNLIT_TEXTURE_TYPES] );
 
     public:
         /** Valid parameters in params:
@@ -140,7 +163,7 @@ namespace Ogre
         virtual ~HlmsUnlitDatablock();
 
         /// Controls whether the value in @see setColour is used.
-        /// Calling this function implies calling see HlmsDatablock::flushRenderables.
+        /// Calling this function implies calling @see HlmsDatablock::flushRenderables.
         void setUseColour( bool useColour );
 
         /// If this returns false, the values of mR, mG, mB & mA will be ignored.
@@ -153,9 +176,29 @@ namespace Ogre
         /// Gets the current colour. The returned value is meaningless if mHasColour is false
         ColourValue getColour(void) const               { return ColourValue( mR, mG, mB, mA ); }
 
-        using HlmsUnlitBaseTextureDatablock::setTexture;
+        /** Sets a new texture for rendering. Calling this function may trigger an
+            HlmsDatablock::flushRenderables if the texture or the samplerblock changes.
+            Won't be called if only the arrayIndex changes
+        @param texType
+            Texture unit. Must be in range [0; NUM_UNLIT_TEXTURE_TYPES)
+        @param arrayIndex
+            The index in the array texture.
+        @param newTexture
+            Texture to change to. If it is null and previously wasn't (or viceversa), will
+            trigger HlmsDatablock::flushRenderables.
+        @param params
+            Optional. We'll create (or retrieve an existing) samplerblock based on the input parameters.
+            When null, we leave the previously set samplerblock (if a texture is being set, and if no
+            samplerblock was set, we'll create a default one)
+        */
+        void setTexture( uint8 texType, uint16 arrayIndex, const TexturePtr &newTexture,
+                         const HlmsSamplerblock *refParams=0 );
 
-        void setTexture( uint8 texUnit, const String &name, const HlmsSamplerblock *refParams=0 );
+        TexturePtr getTexture( uint8 texType ) const;
+
+        /// Returns the internal index to the array in a texture array.
+        /// Note: If there is no texture assigned to the given texType, returned value is undefined
+        uint16 _getTextureIdx( uint8 texType ) const                    { return mTexIndices[texType]; }
 
         /** Sets the final swizzle when sampling the given texture. e.g.
             calling setTextureSwizzle( 0, R_MASK, G_MASK, R_MASK, G_MASK );
@@ -179,6 +222,18 @@ namespace Ogre
             Default: A_MASK
         */
         void setTextureSwizzle( uint8 texType, uint8 r, uint8 g, uint8 b, uint8 a );
+
+        /** Sets a new sampler block to be associated with the texture
+            (i.e. filtering mode, addressing modes, etc). If the samplerblock changes,
+            this function will always trigger a HlmsDatablock::flushRenderables
+        @param texType
+            Texture unit. Must be in range [0; NUM_UNLIT_TEXTURE_TYPES)
+        @param params
+            The sampler block to use as reference.
+        */
+        void setSamplerblock( uint8 texType, const HlmsSamplerblock &params );
+
+        const HlmsSamplerblock* getSamplerblock( uint8 texType ) const;
 
         /** Sets which UV set to use for the given texture.
             Calling this function triggers a HlmsDatablock::flushRenderables.
@@ -226,9 +281,9 @@ namespace Ogre
         void setEnablePlanarReflection( uint8 textureUnit, bool bEnable );
         bool getEnablePlanarReflection( uint8 textureUnit ) const;
 
-        virtual ColourValue getDiffuseColour(void) const;
-        virtual ColourValue getEmissiveColour(void) const;
-        virtual TextureGpu* getEmissiveTexture(void) const;
+        /// Returns the index to mBakedTextures. Returns NUM_PBSM_TEXTURE_TYPES if
+        /// there is no texture assigned to texType
+        uint8 getBakedTextureIdx( uint8 texType ) const;
 
         virtual void calculateHash();
 

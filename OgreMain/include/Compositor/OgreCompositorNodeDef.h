@@ -29,12 +29,9 @@ THE SOFTWARE.
 #ifndef __CompositorNodeDef_H__
 #define __CompositorNodeDef_H__
 
-#include "OgrePrerequisites.h"
-
-#include "Compositor/Pass/OgreCompositorPassDef.h"
-#include "Compositor/OgreTextureDefinition.h"
-
 #include "OgreHeaderPrefix.h"
+#include "Compositor/OgreTextureDefinition.h"
+#include "Compositor/Pass/OgreCompositorPassDef.h"
 
 namespace Ogre
 {

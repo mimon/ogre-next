@@ -52,6 +52,8 @@ namespace Ogre
 
     class HlmsPbsDatablock;
 
+    typedef vector<TexturePtr>::type TextureVec;
+
     /** Physically based shading implementation specfically designed for
         OpenGL 3+, D3D11 and other RenderSystems which support uniform buffers.
     */
@@ -69,12 +71,6 @@ namespace Ogre
             /// High quality. Very slow in old hardware (i.e. DX10 level hw and below)
             /// Use RSC_TEXTURE_GATHER to check whether it will be slow or not.
             PCF_4x4,
-
-            /// Better and slower than 4x4, same considerations
-            PCF_5x5,
-
-            /// Better and slower than 5x5, same considerations
-            PCF_6x6,
 
             /// High quality. Produces soft shadows. It's much more expensive but given
             /// its blurry results, you can reduce resolution and/or use less PSSM splits
@@ -99,12 +95,6 @@ namespace Ogre
             /// dynamically very often and this might cause swapping shaders.
             AmbientHemisphere,
 
-            /// Uses spherical harmonics
-            AmbientSh,
-
-            /// Uses spherical harmonics (monochrome / single channel)
-            AmbientShMonochrome,
-
             /// Disable ambient lighting.
             AmbientNone
         };
@@ -115,7 +105,7 @@ namespace Ogre
 
         struct PassData
         {
-            FastArray<TextureGpu*> shadowMaps;
+            FastArray<Texture*> shadowMaps;
             FastArray<float>    vertexShaderSharedBuffer;
             FastArray<float>    pixelShaderSharedBuffer;
 
@@ -124,36 +114,24 @@ namespace Ogre
 
         PassData                mPreparedPass;
         ConstBufferPackedVec    mPassBuffers;
-        ConstBufferPackedVec    mLight0Buffers; // lights
-        ConstBufferPackedVec    mLight1Buffers; // areaApproxLights
-        ConstBufferPackedVec    mLight2Buffers; // areaLtcLights
         HlmsSamplerblock const  *mShadowmapSamplerblock;    /// GL3+ only when not using depth textures
         HlmsSamplerblock const  *mShadowmapCmpSamplerblock; /// For depth textures & D3D11
         HlmsSamplerblock const  *mShadowmapEsmSamplerblock; /// For ESM.
         HlmsSamplerblock const  *mCurrentShadowmapSamplerblock;
-        ParallaxCorrectedCubemapBase *mParallaxCorrectedCubemap;
-        float                   mPccVctMinDistance;
-        float                   mInvPccVctInvDistance;
+        TexturePtr              mTargetEnvMap;
+        ParallaxCorrectedCubemap    *mParallaxCorrectedCubemap;
 
         uint32                  mCurrentPassBuffer;     /// Resets to zero every new frame.
 
         TexBufferPacked         *mGridBuffer;
         TexBufferPacked         *mGlobalLightListBuffer;
 
-
-        float                   mMaxSpecIblMipmap;
         uint32                  mTexUnitSlotStart;
 
-        TextureGpuVec const     *mPrePassTextures;
-        TextureGpu              *mPrePassMsaaDepthTexture;
-        /// Used by techniques: SS Reflections, SS Refractions
-        TextureGpu              *mDepthTexture;
-        TextureGpu              *mSsrTexture;
-        TextureGpu              *mDepthTextureNoMsaa;
-        TextureGpu              *mRefractionsTexture;
+        TextureVec const        *mPrePassTextures;
+        TexturePtr              mPrePassMsaaDepthTexture;
+        TextureVec const        *mSsrTexture;
         IrradianceVolume        *mIrradianceVolume;
-        VctLighting             *mVctLighting;
-        IrradianceField         *mIrradianceField;
 #ifdef OGRE_BUILD_COMPONENT_PLANAR_REFLECTIONS
         //TODO: After texture refactor it should be possible to abstract this,
         //so we don't have to be aware of PlanarReflections class.
@@ -164,44 +142,24 @@ namespace Ogre
         bool                    mHasPlanarReflections;
         uint8                   mLastBoundPlanarReflection;
 #endif
-        TextureGpu              *mAreaLightMasks;
+        TexturePtr              mAreaLightMasks;
         HlmsSamplerblock const  *mAreaLightMasksSamplerblock;
-        LightArray                mAreaLights;
+        LightArray				mAreaLights;
         bool                    mUsingAreaLightMasks;
 
-        TextureGpu              *mLightProfilesTexture;
+        bool                    mUsingLtcMatrix;
+        TexturePtr              mLtcMatrixTexture;
 
-        bool                    mSkipRequestSlotInChangeRS;
-
-        /// LTC matrix texture also contains BRDF LUT for specular IBL.
-        TextureGpu              *mLtcMatrixTexture;
-
-        bool                    mDecalsDiffuseMergedEmissive;
-        TextureGpu              *mDecalsTextures[3];
+        TexturePtr              mDecalsTextures[3];
         HlmsSamplerblock const  *mDecalsSamplerblock;
 
         ConstBufferPool::BufferPool const *mLastBoundPool;
 
-        bool mHasSeparateSamplers;
-        DescriptorSetTexture const *mLastDescTexture;
-        DescriptorSetSampler const *mLastDescSampler;
-        uint8 mReservedTexSlots;
+        uint32 mLastTextureHash;
 #if !OGRE_NO_FINE_LIGHT_MASK_GRANULARITY
         bool mFineLightMaskGranularity;
 #endif
-        bool mSetupWorldMatBuf;
         bool mDebugPssmSplits;
-        bool mPerceptualRoughness;
-
-        bool mAutoSpecIblMaxMipmap;
-        bool mVctFullConeCount;
-
-#if OGRE_ENABLE_LIGHT_OBB_RESTRAINT
-        bool mUseObbRestraintAreaApprox;
-        bool mUseObbRestraintAreaLtc;
-#endif
-
-        bool mUseLightBuffers;
 
         ShadowFilter    mShadowFilter;
         uint16          mEsmK; /// K parameter for ESM.
@@ -223,7 +181,6 @@ namespace Ogre
         void setDetailTextureProperty( const char *propertyName, HlmsPbsDatablock *datablock,
                                        PbsTextureTypes baseTexType, uint8 detailIdx );
 
-        virtual void calculateHashFor( Renderable *renderable, uint32 &outHash, uint32 &outCasterHash );
         virtual void calculateHashForPreCreate( Renderable *renderable, PiecesMap *inOutPieces );
         virtual void calculateHashForPreCaster( Renderable *renderable, PiecesMap *inOutPieces );
 
@@ -264,17 +221,6 @@ namespace Ogre
         virtual void postCommandBufferExecution( CommandBuffer *commandBuffer );
         virtual void frameEnded(void);
 
-        /** By default we see the reflection textures' mipmaps and store the largest one we found.
-            By calling resetIblSpecMipmap; you can reset this process thus if a reflection texture
-            with a large number of mipmaps was removed, these textures can be reevaluated
-        @param numMipmaps
-            When 0; we automatically check for reflection texture.
-            When non-zero, we force the number of mipmaps to the specified value
-        */
-        void resetIblSpecMipmap( uint8 numMipmaps );
-
-        void _notifyIblSpecMipmap( uint8 numMipmaps );
-
         void loadLtcMatrix(void);
 
         /** Fill the provided string and string vector with all the sub-folder needed to instantiate
@@ -307,23 +253,6 @@ namespace Ogre
         void setDebugPssmSplits( bool bDebug );
         bool getDebugPssmSplits(void) const                 { return mDebugPssmSplits; }
 
-        /** Toggle whether the roughness value (set via material parameters and via roughness textures)
-            is perceptual or raw.
-
-            Ogre 2.1 and 2.2.0 used raw roughness<br/>
-            Ogre 2.2.1+ default to perceptual roughness to better match the output of other PBR tools
-
-            If you're porting from Ogre 2.1 you may want to disable this feature unless if you
-            want your materials to look exactly how they did in 2.2.0 and 2.1
-
-            See https://forums.ogre3d.org/viewtopic.php?f=25&t=95523
-        @param bPerceptualRoughness
-            True to enable perceptual roughess (default)
-            False to use raw roughess (Ogre 2.1's behavior)
-        */
-        void setPerceptualRoughness( bool bPerceptualRoughness );
-        bool getPerceptualRoughness( void ) const;
-
         void setShadowSettings( ShadowFilter filter );
         ShadowFilter getShadowFilter(void) const            { return mShadowFilter; }
 
@@ -348,91 +277,28 @@ namespace Ogre
         void setAmbientLightMode( AmbientLightMode mode );
         AmbientLightMode getAmbientLightMode(void) const    { return mAmbientLightMode; }
 
-        /** Sets PCC
-        @remarks
-            PCC is a crude approximation of reflections that works best when the shape
-            of the objects in the scene resemble the rectangle shape set by the PCC probe(s).
-
-            But when they do not, severe distortion could happen.
-
-            When both VCT and PCC are active, VCT can be used to determine whether the PCC
-            approximation is accurate. If it is, it uses the PCC result. If it's not, it uses
-            the VCT one (which is accurate but more 'blocky' due to voxelization)
-
-            This setting determines how much deviation is allowed and smoothly transition
-            between the VCT and PCC results.
-
-            This value *only* affects specular reflections.
-            For diffuse GI, VCT is always preferred over the cubemap's.
-        @param pcc
-            Pointer to PCC
-        @param pccVctMinDistance
-            Value in units (e.g. meters, centimeters, whatever your engine uses)
-            Any discrepancy between PCC and VCT below this threshold means PCC
-            reflections will be used.
-
-            The assertion pccVctMinDistance < pccVctMaxDistance must be true.
-            Use a very high pccVctMinDistance to always use PCC
-        @param pccVctMaxDistance
-            Value in units (e.g. meters, centimeters, whatever your engine uses)
-            Any discrepancy between PCC and VCT above this threshold means VCT
-            reflections will be used.
-
-            Errors between pccVctMinDistance & pccVctMaxDistance will be faded smoothly
-            Use negative pccVctMaxDistance to always use VCT
-        */
-        void setParallaxCorrectedCubemap( ParallaxCorrectedCubemapBase *pcc,
-                                          float pccVctMinDistance = 1.0f,
-                                          float pccVctMaxDistance = 2.0f );
-        ParallaxCorrectedCubemapBase* getParallaxCorrectedCubemap(void) const
+        void setParallaxCorrectedCubemap( ParallaxCorrectedCubemap *pcc )
+                                                            { mParallaxCorrectedCubemap = pcc; }
+        ParallaxCorrectedCubemap* getParallaxCorrectedCubemap(void) const
                                                             { return mParallaxCorrectedCubemap; }
 
         void setIrradianceVolume( IrradianceVolume *irradianceVolume )
                                                     { mIrradianceVolume = irradianceVolume; }
         IrradianceVolume* getIrradianceVolume(void) const  { return mIrradianceVolume; }
 
-        void setVctLighting( VctLighting *vctLighting )     { mVctLighting = vctLighting; }
-        VctLighting* getVctLighting(void)                   { return mVctLighting; }
-
-        void setIrradianceField( IrradianceField *irradianceField )
-                                                    { mIrradianceField = irradianceField; }
-        IrradianceField *getIrradianceField( void ) { return mIrradianceField; }
-
-        /** When false, we will use 4 cones for diffuse VCT.
-            When true, we will use 6 cones instead. This is higher quality but consumes more
-            performance and is usually overkill (benefit / cost ratio).
-
-            Default value is false
-        @param vctFullConeCount
-        */
-        void setVctFullConeCount( bool vctFullConeCount )   { mVctFullConeCount = vctFullConeCount; }
-        bool getVctFullConeCount(void) const                { return mVctFullConeCount; }
-
-        void setAreaLightMasks( TextureGpu *areaLightMask );
-        TextureGpu* getAreaLightMasks(void) const           { return mAreaLightMasks; }
-
-        void setLightProfilesTexture( TextureGpu *lightProfilesTex );
-        TextureGpu *getLightProfilesTexture( void ) const   { return mLightProfilesTexture; }
+        void setAreaLightMasks( const TexturePtr &areaLightMask );
+        const TexturePtr& getAreaLightMasks(void) const     { return mAreaLightMasks; }
 
 #ifdef OGRE_BUILD_COMPONENT_PLANAR_REFLECTIONS
         void setPlanarReflections( PlanarReflections *planarReflections );
         PlanarReflections* getPlanarReflections(void) const;
 #endif
 
-#if OGRE_ENABLE_LIGHT_OBB_RESTRAINT
-        void setUseObbRestraints( bool areaApprox, bool areaLtc );
-        bool getUseObbRestraintsAreaApprox(void) const      { return mUseObbRestraintAreaApprox; }
-        bool getUseObbRestraintsAreaLtc(void) const         { return mUseObbRestraintAreaLtc; }
-#endif
-
-        void setUseLightBuffers(bool b);
-        bool getUseLightBuffers() { return mUseLightBuffers; }
-
 #if !OGRE_NO_JSON
         /// @copydoc Hlms::_loadJson
         virtual void _loadJson( const rapidjson::Value &jsonValue, const HlmsJson::NamedBlocks &blocks,
-                                HlmsDatablock *datablock, const String &resourceGroup,
-                                HlmsJsonListener *listener, const String &additionalTextureExtension ) const;
+                                HlmsDatablock *datablock, HlmsJsonListener *listener,
+                                const String &additionalTextureExtension ) const;
         /// @copydoc Hlms::_saveJson
         virtual void _saveJson( const HlmsDatablock *datablock, String &outString,
                                 HlmsJsonListener *listener,
@@ -446,18 +312,15 @@ namespace Ogre
 
     struct _OgreHlmsPbsExport PbsProperty
     {
-        static const IdString useLightBuffers;
-
         static const IdString HwGammaRead;
         static const IdString HwGammaWrite;
+        static const IdString SignedIntTex;
         static const IdString MaterialsPerBuffer;
         static const IdString LowerGpuOverhead;
         static const IdString DebugPssmSplits;
-        static const IdString PerceptualRoughness;
         static const IdString HasPlanarReflections;
 
         static const IdString NumTextures;
-        static const IdString NumSamplers;
         static const char *DiffuseMap;
         static const char *NormalMapTex;
         static const char *SpecularMap;
@@ -483,11 +346,6 @@ namespace Ogre
         static const IdString TwoSidedLighting;
         static const IdString ReceiveShadows;
         static const IdString UsePlanarReflections;
-
-        static const IdString NormalSamplingFormat;
-        static const IdString NormalLa;
-        static const IdString NormalRgUnorm;
-        static const IdString NormalRgSnorm;
 
         static const IdString NormalWeight;
         static const IdString NormalWeightTex;
@@ -520,7 +378,6 @@ namespace Ogre
 
         static const IdString UvEmissive;
         static const IdString EmissiveConstant;
-        static const IdString EmissiveAsLightmap;
         static const IdString DetailMapsDiffuse;
         static const IdString DetailMapsNormal;
         static const IdString FirstValidDetailMapNm;
@@ -530,34 +387,18 @@ namespace Ogre
         static const IdString BlendModeIndex2;
         static const IdString BlendModeIndex3;
 
-        static const IdString Pcf;
+        static const IdString Pcf3x3;
+        static const IdString Pcf4x4;
         static const IdString PcfIterations;
         static const IdString ExponentialShadowMaps;
 
         static const IdString AmbientHemisphere;
-        static const IdString AmbientSh;
-        static const IdString AmbientShMonochrome;
-        static const IdString LightProfilesTexture;
-        static const IdString LtcTextureAvailable;
         static const IdString EnvMapScale;
         static const IdString AmbientFixed;
         static const IdString TargetEnvprobeMap;
         static const IdString ParallaxCorrectCubemaps;
         static const IdString UseParallaxCorrectCubemaps;
-        static const IdString EnableCubemapsAuto;
-        static const IdString CubemapsUseDpm;
-        static const IdString CubemapsAsDiffuseGi;
         static const IdString IrradianceVolumes;
-        static const IdString VctNumProbes;
-        static const IdString VctConeDirs;
-        static const IdString VctDisableDiffuse;
-        static const IdString VctDisableSpecular;
-        static const IdString VctAnisotropic;
-        static const IdString VctEnableSpecularSdfQuality;
-        static const IdString VctAmbientSphere;
-        static const IdString IrradianceField;
-        static const IdString ObbRestraintApprox;
-        static const IdString ObbRestraintLtc;
 
         static const IdString BrdfDefault;
         static const IdString BrdfCookTorrance;
@@ -566,11 +407,6 @@ namespace Ogre
         static const IdString GgxHeightCorrelated;
         static const IdString LegacyMathBrdf;
         static const IdString RoughnessIsShininess;
-
-        static const IdString UseEnvProbeMap;
-        static const IdString NeedsViewDir;
-        static const IdString NeedsReflDir;
-        static const IdString NeedsEnvBrdf;
 
         static const IdString *UvSourcePtrs[NUM_PBSM_SOURCES];
         static const IdString *BlendModes[4];

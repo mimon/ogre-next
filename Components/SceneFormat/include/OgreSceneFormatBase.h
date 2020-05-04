@@ -79,7 +79,6 @@ namespace Ogre
 
     class SceneFormatListener;
     class ParallaxCorrectedCubemap;
-    class ParallaxCorrectedCubemapAuto;
     class HlmsPbs;
 
     /**
@@ -96,10 +95,10 @@ namespace Ogre
     protected:
         struct DecalTex
         {
-            TextureGpu  *texture;
+            TexturePtr  texture;
             uint16      xIdx;
             const char  *texTypeName;
-            DecalTex( TextureGpu *_texture, uint16 _xIdx, const char *_texTypeName ) :
+            DecalTex( const TexturePtr &_texture, uint16 _xIdx, const char *_texTypeName ) :
                 texture( _texture ), xIdx( _xIdx ), texTypeName( _texTypeName ) {}
         };
 
@@ -145,8 +144,7 @@ namespace Ogre
     {
         uint32 mSceneFlags;
 
-        ParallaxCorrectedCubemap    *mParallaxCorrectedCubemapManual;
-        ParallaxCorrectedCubemapAuto*mParallaxCorrectedCubemapAuto;
+        ParallaxCorrectedCubemap    *mParallaxCorrectedCubemap;
 
         bool hasNoAttachedObjectsOfType( const SceneNode *sceneNode );
 

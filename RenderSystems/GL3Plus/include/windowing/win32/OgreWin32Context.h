@@ -36,7 +36,8 @@ namespace Ogre {
     class _OgreGL3PlusExport Win32Context: public GL3PlusContext
     {
     public:
-        Win32Context( HDC hdc, HGLRC glrc, uint32 contexMajorVersion, uint32 contexMinorVersion );
+        Win32Context(HDC     HDC,
+                     HGLRC   Glrc);
         virtual ~Win32Context();
 
         /** See GL3PlusContext */
@@ -51,8 +52,6 @@ namespace Ogre {
     protected:
         HDC     mHDC;
         HGLRC   mGlrc;
-        uint32  mContexMajorVersion;
-        uint32  mContexMinorVersion;
     };
 }
 

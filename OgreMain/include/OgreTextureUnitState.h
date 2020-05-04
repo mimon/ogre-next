@@ -32,12 +32,8 @@ THE SOFTWARE.
 #include "OgreCommon.h"
 #include "OgreBlendMode.h"
 #include "OgreMatrix4.h"
+#include "OgreTexture.h"
 #include "OgreIdString.h"
-#include "OgreTextureGpu.h"
-#include "OgreTextureGpuListener.h"
-
-#include "ogrestd/map.h"
-
 #include "OgreHeaderPrefix.h"
 
 namespace Ogre {
@@ -62,7 +58,7 @@ namespace Ogre {
         where you do not use vertex or fragment programs (shaders). Programmable 
         pipeline means that for this pass you are using vertex or fragment programs.
     */
-    class _OgreExport TextureUnitState : public TextureUnitStateAlloc, public TextureGpuListener
+    class _OgreExport TextureUnitState : public TextureUnitStateAlloc
     {
         friend class RenderSystem;
     public:
@@ -187,15 +183,14 @@ namespace Ogre {
         @note
             Applies to both fixed-function and programmable pipeline.
         */
-        void setTextureName( const String& name,
-                             TextureTypes::TextureTypes ttype = TextureTypes::Type2D );
+        void setTextureName( const String& name, TextureType ttype = TEX_TYPE_2D);
 
         /** Sets this texture layer to use a single texture, given the
             pointer to the texture to use on this layer.
         @note
             Applies to both fixed-function and programmable pipeline.
         */
-        void setTexture( TextureGpu * texPtr);
+        void setTexture( const TexturePtr& texPtr);
 
         /** Sets this texture layer to use a combination of 6 texture maps, each one relating to a face of a cube.
         @remarks
@@ -330,12 +325,12 @@ namespace Ogre {
         @param texPtrs
             The 6 pointers to the textures which make up the 6 sides of the box. The textures must all 
             be the same size and be powers of 2 in width & height.
-            Must be an Ogre::TextureGpu array with a length of 6 unless forUVW is set to @c true.
+            Must be an Ogre::TexturePtr array with a length of 6 unless forUVW is set to @c true.
         @param forUVW
             Set to @c true if you want a single 3D texture addressable with 3D texture coordinates rather than
             6 separate textures. Useful for cubic environment mapping.
         */
-        void setCubicTexture( TextureGpu * const *texPtrs, bool forUVW = false );
+        void setCubicTexture( const TexturePtr* const texPtrs, bool forUVW = false );
 
         /** Sets the names of the texture images for an animated texture.
         @remarks
@@ -486,23 +481,6 @@ namespace Ogre {
         */
         BindingType getBindingType(void) const;
 
-        /** When a texture is used by both PBS datablocks and V1 materials it can lead to a few issues:
-            1. V1 materials will often expect a Type2D texture to actually be Type2D.
-            2. PBS datablocks will use TextureFlags::AutomaticBatching to group several textures of same
-               resolution and format into the same Type2DArray, and thus lower CPU overhead. This
-               means the 2D texture is not actually Type2D, but rather Type2DArray, and the slice
-               information is also required.
-        @par
-            The default is to disable this option, which means the texture may be loaded *twice*: one
-            for V1 materials, and another for PBS. If you do not want this, call
-            setAutomaticBatching( true ); before loading the texture.
-            Note that you will have to provide the slice index by hand and make sure the shader
-            you wrote understands this is a 2D Array texture.
-        @param automaticBatching
-        */
-        void setAutomaticBatching( bool automaticBatching );
-        bool getAutomaticBatching(void) const;
-
         /** Set the type of content this TextureUnitState references.
         @remarks
             The default is to reference a standard named texture, but this unit
@@ -530,7 +508,15 @@ namespace Ogre {
         @note
             Applies to both fixed-function and programmable pipeline.
         */
-        TextureTypes::TextureTypes getTextureType(void) const;
+        TextureType getTextureType(void) const;
+
+        /** Sets the desired pixel format when load the texture.
+        */
+        void setDesiredFormat(PixelFormat desiredFormat);
+
+        /** Gets the desired pixel format when load the texture.
+        */
+        PixelFormat getDesiredFormat(void) const;
 
         /** Sets how many mipmaps have been requested for the texture.
         */
@@ -999,11 +985,15 @@ namespace Ogre {
             Only valid when content type is compositor.
         @param textureName
             The name of the texture to reference.
+        @param mrtIndex
+            The index of the wanted texture, if referencing an MRT.
         */
-        void setCompositorReference( const String& textureName );
+        void setCompositorReference(const String& textureName, size_t mrtIndex = 0);
 
         /** Gets the name of the texture in the compositor that this texture references. */
         IdString getReferencedTextureName() const { return mCompositorRefTexName; }
+        /** Gets the MRT index of the texture in the compositor that this texture references. */ 
+        size_t getReferencedMRTIndex() const { return mCompositorRefMrtIndex; }
     
         /// Gets the parent Pass object.
         Pass* getParent(void) const { return mParent; }
@@ -1060,14 +1050,14 @@ namespace Ogre {
         void _notifyParent(Pass* parent);
 
         /** Get the texture pointer for the current frame. */
-        TextureGpu* _getTexturePtr(void) const;
+        const TexturePtr& _getTexturePtr(void) const;
         /** Get the texture pointer for a given frame. */
-        TextureGpu* _getTexturePtr(size_t frame) const;
+        const TexturePtr& _getTexturePtr(size_t frame) const;
     
         /** Set the texture pointer for the current frame (internal use only!). */
-        void _setTexturePtr(TextureGpu *texptr);
+        void _setTexturePtr(const TexturePtr& texptr);
         /** Set the texture pointer for a given frame (internal use only!). */
-        void _setTexturePtr(TextureGpu *texptr, size_t frame);
+        void _setTexturePtr(const TexturePtr& texptr, size_t frame);
 
         size_t calculateSize(void) const;
 
@@ -1084,8 +1074,8 @@ protected:
         Real mAnimDuration;
         bool mCubic; /// Is this a series of 6 2D textures to make up a cube?
         
-        bool mAutomaticBatching;
-        TextureTypes::TextureTypes mTextureType;
+        TextureType mTextureType; 
+        PixelFormat mDesiredFormat;
         int mTextureSrcMipmaps; /// Request number of mipmaps.
 
         unsigned int mTextureCoordSetIndex;
@@ -1111,13 +1101,15 @@ protected:
         BindingType mBindingType;
         /// Content type of texture (normal loaded texture, auto-texture).
         ContentType mContentType;
+        /// The index of the referenced texture if referencing an MRT in a compositor.
+        size_t mCompositorRefMrtIndex;
 
         //-----------------------------------------------------------------------------
         // Complex members (those that can't be copied using memcpy) are at the end to 
         // allow for fast copying of the basic members.
         //
         vector<String>::type mFrames;
-        mutable vector<TextureGpu*>::type mFramePtrs;
+        mutable vector<TexturePtr>::type mFramePtrs;
         String mName;               ///< Optional name for the TUS.
         String mTextureNameAlias;   ///< Optional alias for texture frames.
         EffectMap mEffects;
@@ -1151,12 +1143,7 @@ protected:
         /** Internal method for ensuring the texture for a given frame is loaded. */
         void ensureLoaded(size_t frame) const;
 
-        void cleanFramePtrs(void);
 
-        /// TextureGpuListener overload
-        virtual void notifyTextureChanged( TextureGpu *texture,
-                                           TextureGpuListener::Reason reason,
-                                           void *extraData );
     };
 
     /** @} */

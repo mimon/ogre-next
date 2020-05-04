@@ -39,12 +39,9 @@ THE SOFTWARE.
 #include "OgrePass.h"
 
 #include "OgreSceneManager.h"
-#include "OgreRenderQueue.h"
 #include "Compositor/OgreCompositorShadowNode.h"
 
 #include "Animation/OgreSkeletonInstance.h"
-
-#include "Vao/OgreVertexArrayObject.h"
 
 #include "CommandBuffer/OgreCommandBuffer.h"
 #include "CommandBuffer/OgreCbLowLevelMaterial.h"
@@ -194,11 +191,11 @@ namespace Ogre
         retVal.hash += 1;
 
         //TODO: Update auto params here
-        const Camera *camera = sceneManager->getCamerasInProgress().renderingCamera;
+        Camera *camera = sceneManager->getCameraInProgress();
         mAutoParamDataSource->setCurrentCamera( camera );
         mAutoParamDataSource->setCurrentSceneManager( sceneManager );
         mAutoParamDataSource->setCurrentShadowNode( shadowNode );
-        mAutoParamDataSource->setCurrentViewport(sceneManager->getCurrentViewport0());
+        mAutoParamDataSource->setCurrentViewport(sceneManager->getCurrentViewport());
 
         return retVal;
     }
@@ -335,7 +332,7 @@ namespace Ogre
                         "HlmsLowLevel::fillBuffersFor" );
                 }
 
-                pTex->_setTexturePtr( itor->texture );
+                pTex->_setTexturePtr( (*itor->textures)[pTex->getReferencedMRTIndex()] );
             }
 
             mRenderSystem->_setTextureUnitSettings( unit, *pTex );
@@ -343,7 +340,7 @@ namespace Ogre
         }
 
         // Disable remaining texture units
-        //mRenderSystem->_disableTextureUnitsFrom( pass->getNumTextureUnitStates() );
+        mRenderSystem->_disableTextureUnitsFrom( pass->getNumTextureUnitStates() );
 
         pass->_updateAutoParams( mAutoParamDataSource, GPV_ALL );
 

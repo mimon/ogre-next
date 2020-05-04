@@ -16,6 +16,7 @@
 
 #include "OgreRoot.h"
 #include "OgreHlmsManager.h"
+#include "OgreHlmsTextureManager.h"
 #include "OgreHlmsPbs.h"
 
 #include "OgreLwString.h"
@@ -25,6 +26,9 @@
 #include "OgreMaterialManager.h"
 #include "OgreMaterial.h"
 #include "OgreTechnique.h"
+
+#include "OgreTextureManager.h"
+#include "OgreRenderWindow.h"
 
 #include "OgreForward3D.h"
 
@@ -50,7 +54,7 @@ namespace Demo
 //                    Ogre::TEX_TYPE_CUBE_MAP );
         //mScreenSpaceReflections = new ScreenSpaceReflections( globalCubemap );
         ScreenSpaceReflections::setupSSRValues( 1.0 );
-        mScreenSpaceReflections = new ScreenSpaceReflections( 0,
+        mScreenSpaceReflections = new ScreenSpaceReflections( Ogre::TexturePtr(),
                                                               mGraphicsSystem->getRoot()->
                                                               getRenderSystem() );
 

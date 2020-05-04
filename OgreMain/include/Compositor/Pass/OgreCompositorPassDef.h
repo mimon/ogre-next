@@ -34,9 +34,6 @@ THE SOFTWARE.
 #include "OgrePrerequisites.h"
 #include "OgreIdString.h"
 #include "OgreResourceTransition.h"
-#include "OgreRenderPassDescriptor.h"
-
-#include "ogrestd/vector.h"
 
 namespace Ogre
 {
@@ -59,7 +56,6 @@ namespace Ogre
         PASS_DEPTHCOPY,
         PASS_UAV,
         PASS_MIPMAP,
-        PASS_IBL_SPECULAR,
         PASS_COMPUTE,
         PASS_CUSTOM
     };
@@ -94,26 +90,15 @@ namespace Ogre
         CompositorTargetDef *mParentTargetDef;
 
     public:
-        struct ViewportRect
-        {
-            float               mVpLeft;
-            float               mVpTop;
-            float               mVpWidth;
-            float               mVpHeight;
-            float               mVpScissorLeft;
-            float               mVpScissorTop;
-            float               mVpScissorWidth;
-            float               mVpScissorHeight;
-
-            ViewportRect() :
-                mVpLeft( 0 ), mVpTop( 0 ),
-                mVpWidth( 1 ), mVpHeight( 1 ),
-                mVpScissorLeft( 0 ), mVpScissorTop( 0 ),
-                mVpScissorWidth( 1 ), mVpScissorHeight( 1 ) {}
-        };
         /// Viewport's region to draw
-        ViewportRect        mVpRect[16];
-        uint32              mNumViewports;
+        float               mVpLeft;
+        float               mVpTop;
+        float               mVpWidth;
+        float               mVpHeight;
+        float               mVpScissorLeft;
+        float               mVpScissorTop;
+        float               mVpScissorWidth;
+        float               mVpScissorHeight;
 
         /// Shadow map index it belongs to (only filled in passes owned by Shadow Nodes)
         uint32              mShadowMapIdx;
@@ -124,30 +109,11 @@ namespace Ogre
         /// Custom value in case there's a listener attached (to identify the pass)
         uint32              mIdentifier;
 
-        ColourValue mClearColour[OGRE_MAX_MULTIPLE_RENDER_TARGETS];
-        float       mClearDepth;
-        uint32      mClearStencil;
-        LoadAction::LoadAction mLoadActionColour[OGRE_MAX_MULTIPLE_RENDER_TARGETS];
-        LoadAction::LoadAction mLoadActionDepth;
-        LoadAction::LoadAction mLoadActionStencil;
-        StoreAction::StoreAction mStoreActionColour[OGRE_MAX_MULTIPLE_RENDER_TARGETS];
-        StoreAction::StoreAction mStoreActionDepth;
-        StoreAction::StoreAction mStoreActionStencil;
-
-        /** Will issue a warning (by raising an exception) if Ogre is forced to flush
-            the RenderTarget, which is very bad for performance on mobile, and can
-            cause serious performance problems in Desktop if using MSAA, and also
-            cause correctness problems (i.e. bad rendering) if store action is
-            StoreAction::Resolve.
-        @remarks
-            Flushes are caused by splitting rendering to the same RenderTarget
-            in multiple passes while rendering to a different RenderTarget in the middle.
-            It's not always possible to avoid it, but if so, consider doing it.
-        @par
-            No warning will be issued if the RenderTargets getting flushed have their
-            LoadAction set to LoadAction::Clear (or LoadAction::ClearOnTilers on tilers).
-        */
-        bool mWarnIfRtvWasFlushed;
+        /// True if a previous pass doesn't alter the contents of the same render target we do
+        ///TODO: Fill this automatically.
+        bool                mBeginRtUpdate;
+        /// End if we're the last consecutive pass to alter the contents of the same render target
+        bool                mEndRtUpdate;
 
         /// When false will not really bind the RenderTarget for rendering and
         /// use a null colour buffer instead. Useful for depth prepass, or if
@@ -161,18 +127,6 @@ namespace Ogre
             A custom overlay pass is a better alternative (or just use their own RQ)
         */
         bool                mIncludeOverlays;
-
-        /// Whether to flush the command buffer at the end of the pass.
-        /// This can incur in a performance overhead (see OpenGL's glFlush and
-        /// D3D11' ID3D11DeviceContext::Flush) for info.
-        /// Usually you want to leave this off. However for VR applications that
-        /// must meet VSync, profiling may show your workload benefits from
-        /// submitting earlier so the GPU can start right away executing
-        /// rendering commands.
-        ///
-        /// The main reason to use this is in CPU-bound scenarios where
-        /// the GPU starts too late after sitting idle.
-        bool                mFlushCommandBuffers;
 
         uint8               mExecutionMask;
         uint8               mViewportModifierMask;
@@ -209,37 +163,21 @@ namespace Ogre
     public:
         CompositorPassDef( CompositorPassType passType, CompositorTargetDef *parentTargetDef ) :
             mPassType( passType ), mParentTargetDef( parentTargetDef ),
-            mNumViewports( 1u ),
+            mVpLeft( 0 ), mVpTop( 0 ),
+            mVpWidth( 1 ), mVpHeight( 1 ),
+            mVpScissorLeft( 0 ), mVpScissorTop( 0 ),
+            mVpScissorWidth( 1 ), mVpScissorHeight( 1 ),
             mShadowMapIdx( ~0U ),
             mNumInitialPasses( ~0U ), mIdentifier( 0U ),
-            mClearDepth( 1.0f ),
-            mClearStencil( 0 ),
-            mLoadActionDepth( LoadAction::Load ),
-            mLoadActionStencil( LoadAction::Load ),
-            mStoreActionDepth( StoreAction::StoreOrResolve ),
-            mStoreActionStencil( StoreAction::StoreOrResolve ),
-            mWarnIfRtvWasFlushed( false ),
+            mBeginRtUpdate( true ), mEndRtUpdate( true ),
             mColourWrite( true ),
             mReadOnlyDepth( false ),
             mReadOnlyStencil( false ),
             mIncludeOverlays( false ),
-            mFlushCommandBuffers( false ),
             mExecutionMask( 0xFF ),
             mViewportModifierMask( 0xFF ),
-            mShadowMapFullViewport( false )
-        {
-            for( int i=0; i<OGRE_MAX_MULTIPLE_RENDER_TARGETS; ++i )
-            {
-                mClearColour[i] = ColourValue::Black;
-                mLoadActionColour[i] = LoadAction::Load;
-                mStoreActionColour[i] = StoreAction::StoreOrResolve;
-            }
-        }
-        virtual ~CompositorPassDef();
-
-        void setAllClearColours( const ColourValue &clearValue );
-        void setAllLoadActions( LoadAction::LoadAction loadAction );
-        void setAllStoreActions( StoreAction::StoreAction storeAction );
+            mShadowMapFullViewport( false ) {}
+        virtual ~CompositorPassDef() {}
 
         CompositorPassType getType() const              { return mPassType; }
         uint32 getRtIndex(void) const;
@@ -252,8 +190,6 @@ namespace Ogre
     {
         /// Name is local to Node! (unless using 'global_' prefix)
         IdString                mRenderTargetName;
-        String                  mRenderTargetNameStr;
-
         CompositorPassDefVec    mCompositorPasses;
 
         /// Used for cubemaps and 3D textures.
@@ -271,18 +207,15 @@ namespace Ogre
         CompositorNodeDef       *mParentNodeDef;
 
     public:
-        CompositorTargetDef( String renderTargetName, uint32 rtIndex,
+        CompositorTargetDef( IdString renderTargetName, uint32 rtIndex,
                              CompositorNodeDef *parentNodeDef ) :
                 mRenderTargetName( renderTargetName ),
-                mRenderTargetNameStr( renderTargetName ),
                 mRtIndex( rtIndex ),
                 mShadowMapSupportedLightTypes( 0 ),
                 mParentNodeDef( parentNodeDef ) {}
         ~CompositorTargetDef();
 
         IdString getRenderTargetName() const            { return mRenderTargetName; }
-        String getRenderTargetNameStr() const           { return mRenderTargetNameStr; }
-
         uint32 getRtIndex(void) const                   { return mRtIndex; }
 
         void setShadowMapSupportedLightTypes( uint8 types ) { mShadowMapSupportedLightTypes = types; }
@@ -302,8 +235,6 @@ namespace Ogre
 
         /// @copydoc CompositorManager2::getNodeDefinitionNonConst
         CompositorPassDefVec& getCompositorPassesNonConst()     { return mCompositorPasses; }
-
-        const CompositorNodeDef* getParentNodeDef(void) const   { return mParentNodeDef; }
     };
 
     /** @} */

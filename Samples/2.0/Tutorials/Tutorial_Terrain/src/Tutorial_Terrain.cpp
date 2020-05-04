@@ -2,6 +2,8 @@
 #include "GraphicsSystem.h"
 #include "Tutorial_TerrainGameState.h"
 
+#include "OgreRenderWindow.h"
+
 #include "OgreRoot.h"
 #include "Compositor/OgreCompositorManager2.h"
 #include "OgreConfigFile.h"
@@ -13,15 +15,6 @@
 //Declares WinMain / main
 #include "MainEntryPointHelper.h"
 #include "System/MainEntryPoints.h"
-
-#if OGRE_PLATFORM == OGRE_PLATFORM_APPLE || OGRE_PLATFORM == OGRE_PLATFORM_APPLE_IOS
-    #include "OSX/macUtils.h"
-    #if OGRE_PLATFORM == OGRE_PLATFORM_APPLE_IOS
-        #include "System/iOS/iOSUtils.h"
-    #else
-        #include "System/OSX/OSXUtils.h"
-    #endif
-#endif
 
 namespace Demo
 {
@@ -49,16 +42,15 @@ namespace Demo
             else if( *(originalDataFolder.end() - 1) != '/' )
                 originalDataFolder += "/";
 
-            const char *c_locations[5] =
+            const char *c_locations[4] =
             {
                 "2.0/scripts/materials/Tutorial_Terrain",
                 "2.0/scripts/materials/Tutorial_Terrain/GLSL",
                 "2.0/scripts/materials/Tutorial_Terrain/HLSL",
-                "2.0/scripts/materials/Tutorial_Terrain/Metal",
                 "2.0/scripts/materials/Postprocessing/SceneAssets"
             };
 
-            for( size_t i=0; i<5; ++i )
+            for( size_t i=0; i<4; ++i )
             {
                 Ogre::String dataFolder = originalDataFolder + c_locations[i];
                 addResourceLocation( dataFolder, "FileSystem", "General" );
@@ -72,17 +64,12 @@ namespace Demo
             Ogre::ConfigFile cf;
             cf.load(mResourcePath + "resources2.cfg");
 
-#if OGRE_PLATFORM == OGRE_PLATFORM_APPLE || OGRE_PLATFORM == OGRE_PLATFORM_APPLE_IOS
-            Ogre::String rootHlmsFolder = Ogre::macBundlePath() + '/' +
-                                          cf.getSetting( "DoNotUseAsResource", "Hlms", "" );
-#else
-            Ogre::String rootHlmsFolder = mResourcePath +
-                                          cf.getSetting( "DoNotUseAsResource", "Hlms", "" );
-#endif
-            if( rootHlmsFolder.empty() )
-                rootHlmsFolder = "./";
-            else if( *(rootHlmsFolder.end() - 1) != '/' )
-                rootHlmsFolder += "/";
+            Ogre::String dataFolder = cf.getSetting( "DoNotUseAsResource", "Hlms", "" );
+
+            if( dataFolder.empty() )
+                dataFolder = "./";
+            else if( *(dataFolder.end() - 1) != '/' )
+                dataFolder += "/";
 
             Ogre::RenderSystem *renderSystem = mRoot->getRenderSystem();
 
@@ -91,41 +78,32 @@ namespace Demo
                 shaderSyntax = "GLSLES";
             if( renderSystem->getName() == "Direct3D11 Rendering Subsystem" )
                 shaderSyntax = "HLSL";
-            else if( renderSystem->getName() == "Metal Rendering Subsystem" )
-                shaderSyntax = "Metal";
 
-            Ogre::String mainFolderPath;
-            Ogre::StringVector libraryFoldersPaths;
-            Ogre::StringVector::const_iterator libraryFolderPathIt;
-            Ogre::StringVector::const_iterator libraryFolderPathEn;
+            Ogre::Archive *archiveLibrary = Ogre::ArchiveManager::getSingletonPtr()->load(
+                            dataFolder + "Hlms/Common/" + shaderSyntax,
+                            "FileSystem", true );
+            Ogre::Archive *archiveLibraryAny = Ogre::ArchiveManager::getSingletonPtr()->load(
+                            dataFolder + "Hlms/Common/Any",
+                            "FileSystem", true );
+            Ogre::Archive *archivePbsLibraryAny = Ogre::ArchiveManager::getSingletonPtr()->load(
+                            dataFolder + "Hlms/Pbs/Any",
+                            "FileSystem", true );
+            Ogre::Archive *pbsLibrary = Ogre::ArchiveManager::getSingletonPtr()->load(
+                            dataFolder + "Hlms/Pbs/" + shaderSyntax,
+                            "FileSystem", true );
 
-            Ogre::ArchiveManager &archiveManager = Ogre::ArchiveManager::getSingleton();
+            Ogre::ArchiveVec library;
+            library.push_back( archiveLibrary );
+            library.push_back( archiveLibraryAny );
+            library.push_back( archivePbsLibraryAny );
+            library.push_back( pbsLibrary );
 
-            Ogre::HlmsTerra *hlmsTerra = 0;
+            Ogre::Archive *archiveTerra = Ogre::ArchiveManager::getSingletonPtr()->load(
+                            dataFolder + "Hlms/Terra/" + shaderSyntax,
+                            "FileSystem", true );
+            Ogre::HlmsTerra *hlmsTerra = OGRE_NEW Ogre::HlmsTerra( archiveTerra, &library );
             Ogre::HlmsManager *hlmsManager = mRoot->getHlmsManager();
-
-            {
-                //Create & Register HlmsTerra
-                //Get the path to all the subdirectories used by HlmsTerra
-                Ogre::HlmsTerra::getDefaultPaths( mainFolderPath, libraryFoldersPaths );
-                Ogre::Archive *archiveTerra = archiveManager.load( rootHlmsFolder + mainFolderPath,
-                                                                   "FileSystem", true );
-                Ogre::ArchiveVec archiveTerraLibraryFolders;
-                libraryFolderPathIt = libraryFoldersPaths.begin();
-                libraryFolderPathEn = libraryFoldersPaths.end();
-                while( libraryFolderPathIt != libraryFolderPathEn )
-                {
-                    Ogre::Archive *archiveLibrary = archiveManager.load( rootHlmsFolder +
-                                                                         *libraryFolderPathIt,
-                                                                         "FileSystem", true );
-                    archiveTerraLibraryFolders.push_back( archiveLibrary );
-                    ++libraryFolderPathIt;
-                }
-
-                //Create and register the terra Hlms
-                hlmsTerra = OGRE_NEW Ogre::HlmsTerra( archiveTerra, &archiveTerraLibraryFolders );
-                hlmsManager->registerHlms( hlmsTerra );
-            }
+            hlmsManager->registerHlms( hlmsTerra );
 
             //Add Terra's piece files that customize the PBS implementation.
             //These pieces are coded so that they will be activated when
@@ -135,7 +113,7 @@ namespace Demo
             Ogre::Archive *archivePbs = hlmsPbs->getDataFolder();
             Ogre::ArchiveVec libraryPbs = hlmsPbs->getPiecesLibraryAsArchiveVec();
             libraryPbs.push_back( Ogre::ArchiveManager::getSingletonPtr()->load(
-                                      rootHlmsFolder + "Hlms/Terra/" + shaderSyntax + "/PbsTerraShadows",
+                                      dataFolder + "Hlms/Terra/" + shaderSyntax + "/PbsTerraShadows",
                                       "FileSystem", true ) );
             hlmsPbs->reloadFrom( archivePbs, &libraryPbs );
         }

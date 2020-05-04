@@ -27,10 +27,7 @@ THE SOFTWARE.
 */
 
 #include "OgreStableHeaders.h"
-
 #include "OgreLodStrategy.h"
-
-#include "OgreLodListener.h"
 
 #include "OgreCamera.h"
 
@@ -126,7 +123,5 @@ namespace Ogre {
         // If we fall all the way through, use the highest value
         return static_cast<ushort>(materialLodValueArray.size() - 1);
     }
-
-    LodListener::~LodListener () {}
 
 } // namespace

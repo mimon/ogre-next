@@ -31,6 +31,7 @@ THE SOFTWARE.
 #include "OgrePropertyPrerequisites.h"
 #include "OgreAny.h"
 #include "OgreIteratorWrappers.h"
+#include "OgreString.h"
 #include "OgreException.h"
 #include "OgreQuaternion.h"
 #include "OgreMatrix4.h"

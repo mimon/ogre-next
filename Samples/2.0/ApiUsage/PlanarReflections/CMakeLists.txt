@@ -25,4 +25,8 @@ ogre_add_executable(Sample_PlanarReflections WIN32 MACOSX_BUNDLE ${SOURCE_FILES}
 
 target_link_libraries(Sample_PlanarReflections ${OGRE_LIBRARIES} ${OGRE_SAMPLES_LIBRARIES} OgrePlanarReflections )
 ogre_config_sample_lib(Sample_PlanarReflections)
-ogre_config_sample_pkg(Sample_PlanarReflections)
+
+if( APPLE )
+	set_target_properties( Sample_PlanarReflections PROPERTIES RESOURCE "${SAMPLE_COMMON_RESOURCES}" )
+	set_target_properties( Sample_PlanarReflections PROPERTIES MACOSX_BUNDLE_INFO_PLIST ${SAMPLES_PLIST} )
+endif()

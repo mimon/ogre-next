@@ -30,10 +30,6 @@ THE SOFTWARE.
 
 #include "OgrePrerequisites.h"
 #include "Vao/OgreBufferPacked.h"
-
-#include "ogrestd/map.h"
-#include "ogrestd/vector.h"
-
 #include "OgreHeaderPrefix.h"
 
 namespace Ogre
@@ -93,14 +89,6 @@ namespace Ogre
             LowerGpuOverhead
         };
 
-        enum DirtyFlags
-        {
-            DirtyNone           = 0u,
-            DirtyConstBuffer    = 1u << 0u,
-            DirtyTextures       = 1u << 1u,
-            DirtySamplers       = 1u << 2u
-        };
-
     protected:
         typedef vector<BufferPool*>::type           BufferPoolVec;
         typedef map<uint32, BufferPoolVec>::type    BufferPoolVecMap;
@@ -117,7 +105,6 @@ namespace Ogre
     protected:
 
         ConstBufferPoolUserVec mDirtyUsers;
-        ConstBufferPoolUserVec mDirtyUsersTmp;
         ConstBufferPoolUserVec mUsers;
 
         OptimizationStrategy    mOptimizationStrategy;
@@ -125,7 +112,6 @@ namespace Ogre
         void destroyAllPools(void);
 
         void uploadDirtyDatablocks(void);
-        void uploadDirtyDatablocksImpl(void);
 
     public:
         ConstBufferPool( uint32 bytesPerSlot, const ExtraBufferParams &extraBufferParams );
@@ -136,7 +122,7 @@ namespace Ogre
         /// Releases a slot requested with requestSlot.
         void releaseSlot( ConstBufferPoolUser *user );
 
-        void scheduleForUpdate( ConstBufferPoolUser *dirtyUser, uint8 dirtyFlags=DirtyConstBuffer );
+        void scheduleForUpdate( ConstBufferPoolUser *dirtyUser );
 
         /// Gets an ID corresponding to the pool this user was assigned to, unique per hash.
         size_t getPoolIndex( ConstBufferPoolUser *user ) const;
@@ -158,6 +144,7 @@ namespace Ogre
     {
         friend class ConstBufferPool;
     protected:
+
         friend bool OrderConstBufferPoolUserByPoolThenSlot( const ConstBufferPoolUser *_l,
                                                             const ConstBufferPoolUser *_r );
 
@@ -165,11 +152,11 @@ namespace Ogre
         ConstBufferPool::BufferPool *mAssignedPool;
         size_t                      mGlobalIndex;
         //ConstBufferPool             *mPoolOwner;
-        uint8                       mDirtyFlags;
+        bool                        mDirty;
 
         /// Derived class must fill dstPtr. Amount of bytes written can't
         /// exceed the value passed to ConstBufferPool::uploadDirtyDatablocks
-        virtual void uploadToConstBuffer( char *dstPtr, uint8 dirtyFlags ) = 0;
+        virtual void uploadToConstBuffer( char *dstPtr ) = 0;
         virtual void uploadToExtraBuffer( char *dstPtr ) {}
 
         virtual void notifyOptimizationStrategyChanged(void) {}
@@ -179,8 +166,6 @@ namespace Ogre
 
         uint32 getAssignedSlot(void) const                              { return mAssignedSlot; }
         const ConstBufferPool::BufferPool* getAssignedPool(void) const  { return mAssignedPool; }
-
-        uint8 getDirtyFlags(void) const                                 { return mDirtyFlags; }
     };
 
     inline bool OrderConstBufferPoolUserByPoolThenSlot( const ConstBufferPoolUser *_l,

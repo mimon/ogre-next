@@ -30,36 +30,14 @@ Copyright (c) 2000-2017 Torus Knot Software Ltd
 #define _OgreMetalPixelFormatToShaderType_H_
 
 #include "OgreMetalPrerequisites.h"
-#include "OgrePixelFormatGpu.h"
+#include "OgrePixelFormat.h"
 
 namespace Ogre
 {
-    namespace PixelFormatDataTypes
-    {
-        enum PixelFormatDataTypes
-        {
-            Float,
-            Half,
-            Int,
-            Uint,
-            Short,
-            Ushort,
-            Char,
-            Uchar,
-
-            NumPixelFormatDataTypes
-        };
-    }
-
     class _OgreMetalExport MetalPixelFormatToShaderType : public PixelFormatToShaderType
     {
-        static PixelFormatDataTypes::PixelFormatDataTypes getPixelFormatDataType(
-                PixelFormatGpu pixelFormat );
-
     public:
-        virtual const char* getPixelFormatType( PixelFormatGpu pixelFormat ) const;
-        virtual const char* getDataType( PixelFormatGpu pixelFormat, uint32 textureType,
-                                         bool isMsaa, ResourceAccess::ResourceAccess access ) const;
+        virtual const char* getPixelFormatType( PixelFormat pixelFormat ) const;
     };
 }
 

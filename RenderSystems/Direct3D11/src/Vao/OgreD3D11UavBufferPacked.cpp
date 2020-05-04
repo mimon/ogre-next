@@ -62,7 +62,7 @@ namespace Ogre
         }
     }
     //-----------------------------------------------------------------------------------
-    TexBufferPacked* D3D11UavBufferPacked::getAsTexBufferImpl( PixelFormatGpu pixelFormat )
+    TexBufferPacked* D3D11UavBufferPacked::getAsTexBufferImpl( PixelFormat pixelFormat )
     {
         assert( dynamic_cast<D3D11CompatBufferInterface*>( mBufferInterface ) );
 
@@ -73,9 +73,7 @@ namespace Ogre
         TexBufferPacked *retVal = OGRE_NEW D3D11TexBufferPacked(
                     mInternalBufferStart * mBytesPerElement, mNumElements, mBytesPerElement, 0,
                     mBufferType, (void*)0, false, (VaoManager*)0, bufferInterface,
-                    pixelFormat, true, mDevice );
-        //We were overriden by the BufferPacked we just created. Restore this back!
-        bufferInterface->_notifyBuffer( this );
+                    pixelFormat, mDevice );
 
         mTexBufferViews.push_back( retVal );
 
@@ -117,9 +115,8 @@ namespace Ogre
     //-----------------------------------------------------------------------------------
     ID3D11UnorderedAccessView* D3D11UavBufferPacked::_bindBufferCommon( size_t offset, size_t sizeBytes )
     {
-        assert( offset <= getTotalSizeBytes() );
-        assert( sizeBytes <= getTotalSizeBytes() );
-        assert( (offset + sizeBytes) <= getTotalSizeBytes() );
+        assert( offset < (mNumElements - 1) );
+        assert( sizeBytes < mNumElements );
 
         sizeBytes = !sizeBytes ? (mNumElements * mBytesPerElement - offset) : sizeBytes;
 
@@ -148,46 +145,6 @@ namespace Ogre
         }
 
         return resourceView;
-    }
-    //-----------------------------------------------------------------------------------
-    ID3D11UnorderedAccessView* D3D11UavBufferPacked::createUav(
-            const DescriptorSetUav::BufferSlot &bufferSlot ) const
-    {
-        assert( bufferSlot.offset <= getTotalSizeBytes() );
-        assert( bufferSlot.sizeBytes <= getTotalSizeBytes() );
-        assert( (bufferSlot.offset + bufferSlot.sizeBytes) <= getTotalSizeBytes() );
-
-        const size_t sizeBytes = !bufferSlot.sizeBytes ? (mNumElements * mBytesPerElement -
-                                                          bufferSlot.offset) : bufferSlot.sizeBytes;
-
-        D3D11_UNORDERED_ACCESS_VIEW_DESC uavDesc;
-        memset( &uavDesc, 0, sizeof( uavDesc ) );
-
-        // Format must be must be DXGI_FORMAT_UNKNOWN, when creating a View of a Structured Buffer
-        // Format must be DXGI_FORMAT_R32_TYPELESS, when creating Raw Unordered Access View
-        uavDesc.Format               = DXGI_FORMAT_UNKNOWN;
-        uavDesc.ViewDimension        = D3D11_UAV_DIMENSION_BUFFER;
-        uavDesc.Buffer.FirstElement  = (mFinalBufferStart + bufferSlot.offset) / mBytesPerElement;
-        uavDesc.Buffer.NumElements   = sizeBytes / mBytesPerElement;
-        uavDesc.Buffer.Flags         = 0;
-
-        assert( dynamic_cast<D3D11CompatBufferInterface*>( mBufferInterface ) );
-        D3D11CompatBufferInterface *bufferInterface = static_cast<D3D11CompatBufferInterface*>(
-                    mBufferInterface );
-        ID3D11Buffer *vboName = bufferInterface->getVboName();
-
-        ID3D11UnorderedAccessView *retVal = 0;
-        HRESULT hr = mDevice->CreateUnorderedAccessView( vboName, &uavDesc, &retVal );
-        if( FAILED(hr) )
-        {
-            String errorDescription = mDevice.getErrorDescription(hr);
-            OGRE_EXCEPT_EX( Exception::ERR_RENDERINGAPI_ERROR, hr,
-                            "Failed to create UAV view on buffer."
-                            "\nError Description: " + errorDescription,
-                            "D3D11UavBufferPacked::createUav" );
-        }
-
-        return retVal;
     }
     //-----------------------------------------------------------------------------------
 //    void D3D11UavBufferPacked::bindBufferVS( uint16 slot, size_t offset, size_t sizeBytes )

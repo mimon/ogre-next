@@ -34,7 +34,6 @@ namespace Ogre
     //-----------------------------------------------------------------------------------
     void HlmsUnlitDatablock::cloneImpl( HlmsDatablock *datablock ) const
     {
-        HlmsUnlitBaseTextureDatablock::cloneImpl( datablock );
         HlmsUnlitDatablock *datablockImpl = static_cast<HlmsUnlitDatablock*>( datablock );
 
         datablockImpl->mNumEnabledAnimationMatrices = mNumEnabledAnimationMatrices;
@@ -44,9 +43,19 @@ namespace Ogre
         datablockImpl->mB = mB;
         datablockImpl->mA = mA;
 
+        for( size_t i=0; i<mBakedTextures.size(); ++i )
+        {
+            datablockImpl->mBakedTextures.push_back( mBakedTextures[i] );
+        }
+
         for( size_t i=0; i<16; ++i )
         {
             datablockImpl->mTextureMatrices[i] = mTextureMatrices[i];
+        }
+
+        for( size_t i=0; i<16; ++i )
+        {
+            datablockImpl->mTexIndices[i] = mTexIndices[i];
         }
 
         for( size_t i=0; i<16; ++i )
@@ -71,7 +80,19 @@ namespace Ogre
 
         for( size_t i=0; i<16; ++i )
         {
+            datablockImpl->mTexToBakedTextureIdx[i] = mTexToBakedTextureIdx[i];
+        }
+
+        for( size_t i=0; i<16; ++i )
+        {
             datablockImpl->mTextureSwizzles[i] = mTextureSwizzles[i];
+        }
+
+        for( size_t i=0; i<16; ++i )
+        {
+            datablockImpl->mSamplerblocks[i] = mSamplerblocks[i];
+            if( datablockImpl->mSamplerblocks[i] )
+                mCreator->getHlmsManager()->addReference( datablockImpl->mSamplerblocks[i] );
         }
     }
 }

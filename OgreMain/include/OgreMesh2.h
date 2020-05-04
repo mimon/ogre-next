@@ -37,8 +37,6 @@ THE SOFTWARE.
 #include "OgreVertexBoneAssignment.h"
 #include "OgreDataStream.h"
 
-#include "ogrestd/unordered_map.h"
-
 #include "OgreHeaderPrefix.h"
 
 

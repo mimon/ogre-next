@@ -31,9 +31,9 @@ THE SOFTWARE.
 #include "OgreHlmsDatablock.h"
 #include "OgreHlms.h"
 #include "OgreHlmsManager.h"
+#include "OgreTexture.h"
 #include "OgreStringConverter.h"
 #include "OgreLogManager.h"
-#include "OgreString.h"
 
 #include "OgrePass.h"
 #include "OgreProfiler.h"
@@ -68,7 +68,7 @@ namespace Ogre
         BasicBlock( BLOCK_BLEND ),
         mAlphaToCoverageEnabled( false ),
         mBlendChannelMask( BlendChannelAll ),
-        mIsTransparent( 0u ),
+        mIsTransparent( false ),
         mSeparateBlend( false ),
         mSourceBlendFactor( SBF_ONE ),
         mDestBlendFactor( SBF_ZERO ),
@@ -94,14 +94,6 @@ namespace Ogre
         Pass::_getBlendFlags( alpha, mSourceBlendFactorAlpha, mDestBlendFactorAlpha );
     }
     //-----------------------------------------------------------------------------------
-    void HlmsBlendblock::setForceTransparentRenderOrder( bool bForceTransparent )
-    {
-        if( bForceTransparent )
-            mIsTransparent |= 0x02u;
-        else
-            mIsTransparent &= ~0x02u;
-    }
-    //-----------------------------------------------------------------------------------
     //-----------------------------------------------------------------------------------
     HlmsDatablock::HlmsDatablock( IdString name, Hlms *creator, const HlmsMacroblock *macroblock,
                                   const HlmsBlendblock *blendblock,
@@ -110,7 +102,6 @@ namespace Ogre
         mName( name ),
         mTextureHash( 0 ),
         mType( creator->getType() ),
-        mAllowTextureResidencyChange( true ),
         mIgnoreFlushRenderables( false ),
         mAlphaTestCmp( CMPF_ALWAYS_PASS ),
         mAlphaTestShadowCasterOnly( false ),
@@ -452,7 +443,7 @@ namespace Ogre
         mMacroblockHash[casterPass] = ((macroId & 0x1F) << 5) | (blendId & 0x1F);
     }
     //-----------------------------------------------------------------------------------
-    void HlmsDatablock::flushRenderables( bool onlyNullHashes )
+    void HlmsDatablock::flushRenderables(void)
     {
         OgreProfileExhaustiveAggr( "HlmsDatablock::flushRenderables" );
 
@@ -464,11 +455,8 @@ namespace Ogre
             try
             {
                 uint32 hash, casterHash;
-                if( !onlyNullHashes || !(*itor)->getHlmsHash() || !(*itor)->getHlmsCasterHash() )
-                {
-                    mCreator->calculateHashFor( *itor, hash, casterHash );
-                    (*itor)->_setHlmsHashes( hash, casterHash );
-                }
+                mCreator->calculateHashFor( *itor, hash, casterHash );
+                (*itor)->_setHlmsHashes( hash, casterHash );
                 ++itor;
             }
             catch( Exception &e )
@@ -519,26 +507,6 @@ namespace Ogre
 
         //Now compare if they're equal
         return *macroblock0 != macroblock1;
-    }
-    //-----------------------------------------------------------------------------------
-    ColourValue HlmsDatablock::getDiffuseColour(void) const
-    {
-        return ColourValue::White;
-    }
-    //-----------------------------------------------------------------------------------
-    ColourValue HlmsDatablock::getEmissiveColour(void) const
-    {
-        return ColourValue::Black;
-    }
-    //-----------------------------------------------------------------------------------
-    TextureGpu* HlmsDatablock::getDiffuseTexture(void) const
-    {
-        return 0;
-    }
-    //-----------------------------------------------------------------------------------
-    TextureGpu* HlmsDatablock::getEmissiveTexture(void) const
-    {
-        return 0;
     }
     //-----------------------------------------------------------------------------------
     void HlmsDatablock::saveTextures( const String &folderPath, set<String>::type &savedTextures,

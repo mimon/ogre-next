@@ -31,6 +31,7 @@ THE SOFTWARE.
 #include "OgreRoot.h"
 
 #include "OgreRenderSystem.h"
+#include "OgreRenderWindow.h"
 #include "OgreException.h"
 #include "OgreControllerManager.h"
 #include "OgreLogManager.h"
@@ -41,6 +42,7 @@ THE SOFTWARE.
 #include "OgreRenderSystemCapabilitiesManager.h"
 #include "OgreMeshManager.h"
 #include "OgreMeshManager2.h"
+#include "OgreTextureManager.h"
 #include "OgreParticleSystemManager.h"
 #include "OgreOldSkeletonManager.h"
 #include "OgreProfiler.h"
@@ -50,16 +52,13 @@ THE SOFTWARE.
 #include "OgreFileSystem.h"
 #include "OgreResourceBackgroundQueue.h"
 #include "OgreDecal.h"
-#include "OgreInternalCubemapProbe.h"
 #include "OgreEntity.h"
 #include "OgreItem.h"
 #include "OgreBillboardSet.h"
 #include "OgreBillboardChain.h"
 #include "OgreRibbonTrail.h"
 #include "OgreLight.h"
-#include "OgreRectangle2D2.h"
 #include "OgreManualObject.h"
-#include "OgreManualObject2.h"
 #include "OgrePlatformInformation.h"
 #include "OgreConvexBody.h"
 #include "OgreFrameStats.h"
@@ -74,13 +73,12 @@ THE SOFTWARE.
 #include "OgreHlmsLowLevel.h"
 #include "Animation/OgreSkeletonManager.h"
 #include "Compositor/OgreCompositorManager2.h"
-#include "OgreString.h"
 
 #if OGRE_NO_FREEIMAGE == 0
-#include "OgreFreeImageCodec2.h"
+#include "OgreFreeImageCodec.h"
 #endif
 #if OGRE_NO_DDS_CODEC == 0
-#include "OgreDDSCodec2.h"
+#include "OgreDDSCodec.h"
 #endif
 #if OGRE_NO_STBI_CODEC == 0
 #include "OgreSTBICodec.h"
@@ -97,7 +95,6 @@ THE SOFTWARE.
 #include "OgreExternalTextureSourceManager.h"
 #include "OgreScriptCompiler.h"
 #include "OgreWindowEventUtilities.h"
-#include "OgreWindow.h"
 
 #if OGRE_PLATFORM == OGRE_PLATFORM_APPLE || OGRE_PLATFORM == OGRE_PLATFORM_APPLE_IOS
 #include "macUtils.h"
@@ -111,8 +108,6 @@ THE SOFTWARE.
 #if OGRE_NO_ASTC_CODEC == 0
 #  include "OgreASTCCodec.h"
 #endif
-
-#include <sstream>
 
 namespace Ogre {
     //-----------------------------------------------------------------------
@@ -143,10 +138,8 @@ namespace Ogre {
       , mFrameSmoothingTime(0.0f)
       , mRemoveQueueStructuresOnClear(false)
       , mDefaultMinPixelSize(0)
-      , mLightProfilesInvHeight(1.0f)
       , mNextMovableObjectTypeFlag(1)
       , mIsInitialised(false)
-      , mFrameStarted( false )
       , mIsBlendIndicesGpuRedundant(true)
       , mIsBlendWeightsGpuRedundant(true)
     {
@@ -249,13 +242,11 @@ namespace Ogre {
 
 #if OGRE_NO_DDS_CODEC == 0
         // Register image codecs
-        //DDSCodec::startup();
-        DDSCodec2::startup();
+        DDSCodec::startup();
 #endif
 #if OGRE_NO_FREEIMAGE == 0
         // Register image codecs
-        //FreeImageCodec::startup();
-        FreeImageCodec2::startup();
+        FreeImageCodec::startup();
 #endif
 #if OGRE_NO_PVRTC_CODEC == 0
         PVRTCCodec::startup();
@@ -287,16 +278,12 @@ namespace Ogre {
         // instantiate and register base movable factories
         mDecalFactory = OGRE_NEW DecalFactory();
         addMovableObjectFactory(mDecalFactory);
-        mCubemapProbeFactory = OGRE_NEW InternalCubemapProbeFactory();
-        addMovableObjectFactory(mCubemapProbeFactory);
         mEntityFactory = OGRE_NEW v1::EntityFactory();
         addMovableObjectFactory(mEntityFactory);
         mItemFactory = OGRE_NEW ItemFactory();
         addMovableObjectFactory(mItemFactory);
         mLightFactory = OGRE_NEW LightFactory();
         addMovableObjectFactory(mLightFactory);
-        mRectangle2DFactory = OGRE_NEW Rectangle2DFactory();
-        addMovableObjectFactory(mRectangle2DFactory);
         mBillboardSetFactory = OGRE_NEW v1::BillboardSetFactory();
         addMovableObjectFactory(mBillboardSetFactory);
         mManualObjectFactory = OGRE_NEW ManualObjectFactory();
@@ -326,7 +313,7 @@ namespace Ogre {
     //-----------------------------------------------------------------------
     Root::~Root()
     {
-        *LogManager::getSingleton().stream(LML_TRIVIAL).raw()
+        LogManager::getSingleton().stream(LML_TRIVIAL)
             << "Average FPS: " << mFrameStats->getAvgFps() << "\n"
             << "Average time: \t"<< mFrameStats->getAvgTime() << " ms\n"
             << "Best time: \t"  << mFrameStats->getBestTime() << " ms\n"
@@ -345,12 +332,10 @@ namespace Ogre {
 
         OITDCodec::shutdown();
 #if OGRE_NO_FREEIMAGE == 0
-        //FreeImageCodec::shutdown();
-        FreeImageCodec2::shutdown();
+        FreeImageCodec::shutdown();
 #endif
 #if OGRE_NO_DDS_CODEC == 0
-        //DDSCodec::shutdown();
-        DDSCodec2::shutdown();
+        DDSCodec::shutdown();
 #endif
 #if OGRE_NO_PVRTC_CODEC == 0
         PVRTCCodec::shutdown();
@@ -399,11 +384,9 @@ namespace Ogre {
         OGRE_DELETE mResourceGroupManager;
 
         OGRE_DELETE mDecalFactory;
-        OGRE_DELETE mCubemapProbeFactory;
         OGRE_DELETE mEntityFactory;
         OGRE_DELETE mItemFactory;
         OGRE_DELETE mLightFactory;
-        OGRE_DELETE mRectangle2DFactory;
         OGRE_DELETE mBillboardSetFactory;
         OGRE_DELETE mManualObjectFactory;
         OGRE_DELETE mBillboardChainFactory;
@@ -727,8 +710,7 @@ namespace Ogre {
     }
 
     //-----------------------------------------------------------------------
-    Window* Root::initialise( bool autoCreateWindow, const String& windowTitle,
-                              const String& customCapabilitiesConfig )
+    RenderWindow* Root::initialise(bool autoCreateWindow, const String& windowTitle, const String& customCapabilitiesConfig)
     {
         if (!mActiveRenderer)
             OGRE_EXCEPT(Exception::ERR_INVALID_STATE,
@@ -784,7 +766,7 @@ namespace Ogre {
 
 
         PlatformInformation::log(LogManager::getSingleton().getDefaultLog());
-        mAutoWindow = mActiveRenderer->_initialise( autoCreateWindow, windowTitle );
+        mAutoWindow =  mActiveRenderer->_initialise(autoCreateWindow, windowTitle);
 
 
         if (autoCreateWindow && !mFirstTimePostWindowInit)
@@ -844,16 +826,18 @@ namespace Ogre {
 
     }
     //-----------------------------------------------------------------------
-    SceneManager* Root::createSceneManager( const String& typeName, size_t numWorkerThreads,
-                                            const String& instanceName )
+    SceneManager* Root::createSceneManager(const String& typeName, size_t numWorkerThreads,
+        InstancingThreadedCullingMethod threadedCullingMethod, const String& instanceName)
     {
-        return mSceneManagerEnum->createSceneManager( typeName, numWorkerThreads, instanceName );
+        return mSceneManagerEnum->createSceneManager(typeName, numWorkerThreads,
+                                                     threadedCullingMethod, instanceName);
     }
     //-----------------------------------------------------------------------
-    SceneManager* Root::createSceneManager( SceneTypeMask typeMask, size_t numWorkerThreads,
-                                            const String& instanceName )
+    SceneManager* Root::createSceneManager(SceneTypeMask typeMask, size_t numWorkerThreads,
+        InstancingThreadedCullingMethod threadedCullingMethod, const String& instanceName)
     {
-        return mSceneManagerEnum->createSceneManager( typeMask, numWorkerThreads, instanceName );
+        return mSceneManagerEnum->createSceneManager(typeMask, numWorkerThreads,
+                                                     threadedCullingMethod, instanceName);
     }
     //-----------------------------------------------------------------------
     void Root::destroySceneManager(SceneManager* sm)
@@ -874,6 +858,11 @@ namespace Ogre {
     SceneManagerEnumerator::SceneManagerIterator Root::getSceneManagerIterator(void)
     {
         return mSceneManagerEnum->getSceneManagerIterator();
+    }
+    //-----------------------------------------------------------------------
+    TextureManager* Root::getTextureManager(void)
+    {
+        return &TextureManager::getSingleton();
     }
     //-----------------------------------------------------------------------
     v1::MeshManager* Root::getMeshManagerV1(void)
@@ -925,13 +914,10 @@ namespace Ogre {
         _syncAddedRemovedFrameListeners();
 
         // Tell all listeners
+        for (set<FrameListener*>::type::iterator i = mFrameListeners.begin(); i != mFrameListeners.end(); ++i)
         {
-            OgreProfile( "Root::frameStarted Listeners" );
-            for (set<FrameListener*>::type::iterator i = mFrameListeners.begin(); i != mFrameListeners.end(); ++i)
-            {
-                if (!(*i)->frameStarted(evt))
-                    return false;
-            }
+            if (!(*i)->frameStarted(evt))
+                return false;
         }
 
         return true;
@@ -944,13 +930,10 @@ namespace Ogre {
         _syncAddedRemovedFrameListeners();
 
         // Tell all listeners
+        for (set<FrameListener*>::type::iterator i = mFrameListeners.begin(); i != mFrameListeners.end(); ++i)
         {
-            OgreProfile( "Root::frameRenderingQueued Listeners" );
-            for (set<FrameListener*>::type::iterator i = mFrameListeners.begin(); i != mFrameListeners.end(); ++i)
-            {
-                if (!(*i)->frameRenderingQueued(evt))
-                    return false;
-            }
+            if (!(*i)->frameRenderingQueued(evt))
+                return false;
         }
 
         return true;
@@ -962,15 +945,12 @@ namespace Ogre {
 
         // Tell all listeners
         bool ret = true;
+        for (set<FrameListener*>::type::iterator i = mFrameListeners.begin(); i != mFrameListeners.end(); ++i)
         {
-            OgreProfile( "Root::frameEnded Listeners" );
-            for (set<FrameListener*>::type::iterator i = mFrameListeners.begin(); i != mFrameListeners.end(); ++i)
+            if (!(*i)->frameEnded(evt))
             {
-                if (!(*i)->frameEnded(evt))
-                {
-                    ret = false;
-                    break;
-                }
+                ret = false;
+                break;
             }
         }
 
@@ -1077,6 +1057,8 @@ namespace Ogre {
     {
         assert(mActiveRenderer != 0);
 
+        mActiveRenderer->_initRenderTargets();
+
         // Clear event times
         clearEventTimes();
 
@@ -1159,6 +1141,9 @@ namespace Ogre {
     //-----------------------------------------------------------------------
     void Root::shutdown(void)
     {
+        if(mActiveRenderer)
+            mActiveRenderer->_setViewport(NULL);
+
         // Since background thread might be access resources,
         // ensure shutdown before destroying resource manager.
         mResourceBackgroundQueue->shutdown();
@@ -1202,7 +1187,7 @@ namespace Ogre {
         {
 #if OGRE_PLATFORM == OGRE_PLATFORM_WIN32 || OGRE_PLATFORM == OGRE_PLATFORM_WINRT
             pluginDir += "\\";
-#elif OGRE_PLATFORM == OGRE_PLATFORM_LINUX || OGRE_PLATFORM == OGRE_PLATFORM_FREEBSD
+#elif OGRE_PLATFORM == OGRE_PLATFORM_LINUX
             pluginDir += "/";
 #endif
         }
@@ -1345,13 +1330,13 @@ namespace Ogre {
         mActiveRenderer->convertColourValue(colour, pDest);
     }
     //-----------------------------------------------------------------------
-    Window* Root::getAutoCreatedWindow(void)
+    RenderWindow* Root::getAutoCreatedWindow(void)
     {
         return mAutoWindow;
     }
     //-----------------------------------------------------------------------
-    Window* Root::createRenderWindow( const String &name, uint32 width, uint32 height,
-                                      bool fullScreen, const NameValuePairList *miscParams )
+    RenderWindow* Root::createRenderWindow(const String &name, unsigned int width, unsigned int height,
+            bool fullScreen, const NameValuePairList *miscParams)
     {
         if (!mIsInitialised)
         {
@@ -1365,7 +1350,7 @@ namespace Ogre {
             "Cannot create window - no render "
             "system has been selected.", "Root::createRenderWindow");
         }
-        Window* ret;
+        RenderWindow* ret;
         ret = mActiveRenderer->_createRenderWindow(name, width, height, fullScreen, miscParams);
 
         // Initialisation for classes dependent on first window created
@@ -1376,10 +1361,11 @@ namespace Ogre {
         }
 
         return ret;
+
     }
     //-----------------------------------------------------------------------
     bool Root::createRenderWindows(const RenderWindowDescriptionList& renderWindowDescriptions,
-        WindowList &createdWindows)
+        RenderWindowList& createdWindows)
     {
         if (!mIsInitialised)
         {
@@ -1404,6 +1390,54 @@ namespace Ogre {
         }
 
         return success;
+    }
+    //-----------------------------------------------------------------------
+    RenderTarget* Root::detachRenderTarget(RenderTarget* target)
+    {
+        if (!mActiveRenderer)
+        {
+            OGRE_EXCEPT(Exception::ERR_INVALID_STATE,
+            "Cannot detach target - no render "
+            "system has been selected.", "Root::detachRenderTarget");
+        }
+
+        return mActiveRenderer->detachRenderTarget( target->getName() );
+    }
+    //-----------------------------------------------------------------------
+    RenderTarget* Root::detachRenderTarget(const String &name)
+    {
+        if (!mActiveRenderer)
+        {
+            OGRE_EXCEPT(Exception::ERR_INVALID_STATE,
+            "Cannot detach target - no render "
+            "system has been selected.", "Root::detachRenderTarget");
+        }
+
+        return mActiveRenderer->detachRenderTarget( name );
+    }
+    //-----------------------------------------------------------------------
+    void Root::destroyRenderTarget(RenderTarget* target)
+    {
+        detachRenderTarget(target);
+        OGRE_DELETE target;
+    }
+    //-----------------------------------------------------------------------
+    void Root::destroyRenderTarget(const String &name)
+    {
+        RenderTarget* target = getRenderTarget(name);
+        destroyRenderTarget(target);
+    }
+    //-----------------------------------------------------------------------
+    RenderTarget* Root::getRenderTarget(const String &name)
+    {
+        if (!mActiveRenderer)
+        {
+            OGRE_EXCEPT(Exception::ERR_INVALID_STATE,
+            "Cannot get target - no render "
+            "system has been selected.", "Root::getRenderTarget");
+        }
+
+        return mActiveRenderer->getRenderTarget(name);
     }
     //---------------------------------------------------------------------
     void Root::installPlugin(Plugin* plugin)
@@ -1530,7 +1564,7 @@ namespace Ogre {
     {
         // update all targets but don't swap buffers
         //mActiveRenderer->_updateAllRenderTargets(false);
-        mCompositorManager2->_update();
+        mCompositorManager2->_update( *mSceneManagerEnum, mHlmsManager );
 
         // give client app opportunity to use queued GPU time
         bool ret = _fireFrameRenderingQueued();
@@ -1549,7 +1583,7 @@ namespace Ogre {
     bool Root::_updateAllRenderTargets(FrameEvent& evt)
     {
         // update all targets but don't swap buffers
-        mCompositorManager2->_update();
+        mCompositorManager2->_update( *mSceneManagerEnum, mHlmsManager );
         // give client app opportunity to use queued GPU time
         bool ret = _fireFrameRenderingQueued(evt);
         // block for final swap
@@ -1562,37 +1596,6 @@ namespace Ogre {
             it.peekNextValue()->_handleLodEvents();
 
         return ret;
-    }
-    //-----------------------------------------------------------------------
-    void Root::_renderingFrameEnded( void )
-    {
-        if( !mFrameStarted )
-            return;
-
-        SceneManagerEnumerator::SceneManagerIterator sceneManagerItor =
-            mSceneManagerEnum->getSceneManagerIterator();
-
-        while( sceneManagerItor.hasMoreElements() )
-        {
-            SceneManager *sceneManager = sceneManagerItor.getNext();
-            sceneManager->_frameEnded();
-        }
-
-        HlmsManager *hlmsManager = mHlmsManager;
-
-        for( size_t i = 0; i < HLMS_MAX; ++i )
-        {
-            Hlms *hlms = hlmsManager->getHlms( static_cast<HlmsTypes>( i ) );
-            if( hlms )
-                hlms->frameEnded();
-        }
-
-        mFrameStarted = false;
-    }
-    //-----------------------------------------------------------------------
-    void Root::_notifyRenderingFrameStarted( void )
-    {
-        mFrameStarted = true;
     }
     //-----------------------------------------------------------------------
     void Root::clearEventTimes(void)

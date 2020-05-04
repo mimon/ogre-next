@@ -33,36 +33,30 @@ THE SOFTWARE.
 #include "OgreRoot.h"
 #include "OgreMaterialManager.h"
 #include "OgreRenderSystem.h"
+#include "OgreRenderTarget.h"
 #include <iomanip>
 
 namespace Ogre {
     OrientationMode Viewport::mDefaultOrientationMode = OR_DEGREE_0;
     //---------------------------------------------------------------------
-    Viewport::Viewport(Real left, Real top, Real width, Real height)
+    Viewport::Viewport(RenderTarget* target, Real left, Real top, Real width, Real height)
         : mGlobalIndex( -1 )
+        , mTarget(target)
         , mRelLeft(left)
         , mRelTop(top)
         , mRelWidth(width)
         , mRelHeight(height)
-        , mActLeft(0)
-        , mActTop(0)
-        , mActWidth(0)
-        , mActHeight(0)
-        , mCurrentTarget( 0 )
-        , mCurrentMip( 0 )
         , mScissorRelLeft(left)
         , mScissorRelTop(top)
         , mScissorRelWidth(width)
         , mScissorRelHeight(height)
-        , mScissorActLeft(0)
-        , mScissorActTop(0)
-        , mScissorActWidth(0)
-        , mScissorActHeight(0)
-        , mCoversEntireTarget( true )
-        , mScissorsMatchViewport( true )
+        , mCoversEntireTarget(true)
+        , mScissorsMatchViewport(true)
+        , mViewportRenderTargetFlags( VP_RTT_COLOUR_WRITE )
         // Actual dimensions will update later
         , mUpdated(false)
         , mShowOverlays(true)
+        , mShowSkies(true)
         , mVisibilityMask(0)
         , mMaterialSchemeName(MaterialManager::DEFAULT_SCHEME_NAME)
         , mColourBuffer(CBT_BACK)
@@ -71,47 +65,20 @@ namespace Ogre {
         mOrientationMode = mDefaultOrientationMode;
             
         // Set the default material scheme
-        //RenderSystem* rs = Root::getSingleton().getRenderSystem();
-        //mMaterialSchemeName = rs->_getDefaultViewportMaterialScheme();
+        RenderSystem* rs = Root::getSingleton().getRenderSystem();
+        mMaterialSchemeName = rs->_getDefaultViewportMaterialScheme();
         
         // Calculate actual dimensions
         _updateDimensions();
     }
     //---------------------------------------------------------------------
-    Viewport::Viewport() :
-        mGlobalIndex( -1 ),
-        mRelLeft( 0 ),
-        mRelTop( 0 ),
-        mRelWidth( 0 ),
-        mRelHeight( 0 ),
-        mActLeft( 0 ),
-        mActTop( 0 ),
-        mActWidth( 0 ),
-        mActHeight( 0 ),
-        mCurrentTarget( 0 ),
-        mCurrentMip( 0 ),
-        mScissorRelLeft( 0 ),
-        mScissorRelTop( 0 ),
-        mScissorRelWidth( 0 ),
-        mScissorRelHeight( 0 ),
-        mScissorActLeft( 0 ),
-        mScissorActTop( 0 ),
-        mScissorActWidth( 0 ),
-        mScissorActHeight( 0 ),
-        mCoversEntireTarget( true ),
-        mScissorsMatchViewport( true )
-        // Actual dimensions will update later
-        ,
-        mUpdated( false ),
-        mShowOverlays( true ),
-        mVisibilityMask( 0 ),
-        mMaterialSchemeName( MaterialManager::DEFAULT_SCHEME_NAME ),
-        mColourBuffer( CBT_BACK )
-    {
-    }
-    //---------------------------------------------------------------------
     Viewport::~Viewport()
     {
+        RenderSystem* rs = Root::getSingleton().getRenderSystem();
+        if ((rs) && (rs->_getViewport() == this))
+        {
+            rs->_setViewport(NULL);
+        }
     }
     //---------------------------------------------------------------------
     bool Viewport::_isUpdated(void) const
@@ -126,23 +93,8 @@ namespace Ogre {
     //---------------------------------------------------------------------
     void Viewport::_updateDimensions(void)
     {
-        if( !mCurrentTarget )
-        {
-            mActLeft    = 0;
-            mActTop     = 0;
-            mActWidth   = 0;
-            mActHeight  = 0;
-            mScissorActLeft     = 0;
-            mScissorActTop      = 0;
-            mScissorActWidth    = 0;
-            mScissorActHeight   = 0;
-
-            mScissorsMatchViewport = true;
-            mCoversEntireTarget = true;
-            return;
-        }
-        Real height = (Real) (mCurrentTarget->getHeight() >> mCurrentMip);
-        Real width = (Real) (mCurrentTarget->getWidth() >> mCurrentMip);
+        Real height = (Real) mTarget->getHeight();
+        Real width = (Real) mTarget->getWidth();
 
         assert( mScissorRelLeft >= mRelLeft     &&
                 mScissorRelTop >= mRelTop       &&
@@ -169,6 +121,11 @@ namespace Ogre {
                 mScissorsMatchViewport;
 
         mUpdated = true;
+    }
+    //---------------------------------------------------------------------
+    RenderTarget* Viewport::getTarget(void) const
+    {
+        return mTarget;
     }
     //---------------------------------------------------------------------
     Real Viewport::getLeft(void) const
@@ -221,21 +178,20 @@ namespace Ogre {
         return mScissorsMatchViewport;
     }
     //---------------------------------------------------------------------
-    void Viewport::setDimensions( TextureGpu *newTarget, const Vector4 &relativeVp,
-                                  const Vector4 &scissors, uint8 mipLevel )
+    void Viewport::setDimensions(Real left, Real top, Real width, Real height, bool overrideScissors)
     {
-        mCurrentTarget = newTarget;
-        mCurrentMip = mipLevel;
+        mRelLeft = left;
+        mRelTop = top;
+        mRelWidth = width;
+        mRelHeight = height;
 
-        mRelLeft    = relativeVp.x;
-        mRelTop     = relativeVp.y;
-        mRelWidth   = relativeVp.z;
-        mRelHeight  = relativeVp.w;
-
-        mScissorRelLeft     = scissors.x;
-        mScissorRelTop      = scissors.y;
-        mScissorRelWidth    = scissors.z;
-        mScissorRelHeight   = scissors.w;
+        if( overrideScissors )
+        {
+            mScissorRelLeft     = left;
+            mScissorRelTop      = top;
+            mScissorRelWidth    = width;
+            mScissorRelHeight   = height;
+        }
 
         _updateDimensions();
     }
@@ -249,28 +205,28 @@ namespace Ogre {
         _updateDimensions();
     }
     //---------------------------------------------------------------------
-    void Viewport::_updateCullPhase01( Camera* renderCamera, Camera *cullCamera, const Camera *lodCamera,
-                                       uint8 firstRq, uint8 lastRq, bool reuseCullData )
+    void Viewport::_updateCullPhase01( Camera* camera, const Camera *lodCamera,
+                                       uint8 firstRq, uint8 lastRq )
     {
         // Automatic AR cameras are useful for cameras that draw into multiple viewports
         const Real aspectRatio = (Real) mActWidth / (Real) std::max( 1, mActHeight );
-        if( cullCamera->getAutoAspectRatio() && cullCamera->getAspectRatio() != aspectRatio )
+        if( camera->getAutoAspectRatio() && camera->getAspectRatio() != aspectRatio )
         {
-            cullCamera->setAspectRatio( aspectRatio );
+            camera->setAspectRatio( aspectRatio );
 #if OGRE_NO_VIEWPORT_ORIENTATIONMODE == 0
-            cullCamera->setOrientationMode(mOrientationMode);
+            camera->setOrientationMode(mOrientationMode);
 #endif
         }
         // Tell Camera to render into me
-        cullCamera->_notifyViewport(this);
+        camera->_notifyViewport(this);
 
-        cullCamera->_cullScenePhase01( renderCamera, lodCamera, this, firstRq, lastRq, reuseCullData );
+        camera->_cullScenePhase01( lodCamera, this, firstRq, lastRq );
     }
     //---------------------------------------------------------------------
     void Viewport::_updateRenderPhase02( Camera* camera, const Camera *lodCamera,
                                          uint8 firstRq, uint8 lastRq )
     {
-        camera->_renderScenePhase02( lodCamera, firstRq, lastRq, mShowOverlays );
+        camera->_renderScenePhase02( lodCamera, this, firstRq, lastRq, mShowOverlays );
     }
     //---------------------------------------------------------------------
     void Viewport::setOrientationMode(OrientationMode orientationMode, bool setDefault)
@@ -329,6 +285,41 @@ namespace Ogre {
         return mDefaultOrientationMode;
     }
     //---------------------------------------------------------------------
+    void Viewport::clear(unsigned int buffers, const ColourValue& col,  
+                         Real depth, unsigned short stencil)
+    {
+        RenderSystem* rs = Root::getSingleton().getRenderSystem();
+        if (rs)
+        {
+            Viewport* currentvp = rs->_getViewport();
+            if (currentvp == this)
+                rs->clearFrameBuffer(buffers, col, depth, stencil);
+            else
+            {
+                rs->_setViewport(this);
+                rs->clearFrameBuffer(buffers, col, depth, stencil);
+                rs->_setViewport(currentvp);
+            }
+        }
+    }
+    //---------------------------------------------------------------------
+    void Viewport::discard( unsigned int buffers )
+    {
+        RenderSystem* rs = Root::getSingleton().getRenderSystem();
+        if (rs)
+        {
+            Viewport* currentvp = rs->_getViewport();
+            if (currentvp == this)
+                rs->discardFrameBuffer( buffers );
+            else
+            {
+                rs->_setViewport(this);
+                rs->discardFrameBuffer( buffers );
+                rs->_setViewport(currentvp);
+            }
+        }
+    }
+    //---------------------------------------------------------------------
     void Viewport::getActualDimensions(int &left, int&top, int &width, int &height) const
     {
         left = mActLeft;
@@ -346,11 +337,58 @@ namespace Ogre {
     {
         return mShowOverlays;
     }
+    //---------------------------------------------------------------------
+    void Viewport::setSkiesEnabled(bool enabled)
+    {
+        mShowSkies = enabled;
+    }
+    //---------------------------------------------------------------------
+    bool Viewport::getSkiesEnabled(void) const
+    {
+        return mShowSkies;
+    }
     //-----------------------------------------------------------------------
     void Viewport::_setVisibilityMask( uint32 mask, uint32 lightMask )
     {
         mVisibilityMask = mask;
         mLightVisibilityMask = lightMask;
+    }
+    //-----------------------------------------------------------------------
+    void Viewport::setColourWrite( bool colourWrite )
+    {
+        if( !colourWrite )
+            mViewportRenderTargetFlags &= ~VP_RTT_COLOUR_WRITE;
+        else
+            mViewportRenderTargetFlags |= VP_RTT_COLOUR_WRITE;
+        mUpdated = true;
+    }
+    //-----------------------------------------------------------------------
+    bool Viewport::getColourWrite(void) const
+    {
+        return (mViewportRenderTargetFlags & VP_RTT_COLOUR_WRITE) != 0;
+    }
+    //-----------------------------------------------------------------------
+    void Viewport::setReadOnly( bool readOnlyDepth, bool readOnlyStencil )
+    {
+        if( !readOnlyDepth )
+            mViewportRenderTargetFlags &= ~VP_RTT_READ_ONLY_DEPTH;
+        else
+            mViewportRenderTargetFlags |= VP_RTT_READ_ONLY_DEPTH;
+        if( !readOnlyStencil )
+            mViewportRenderTargetFlags &= ~VP_RTT_READ_ONLY_STENCIL;
+        else
+            mViewportRenderTargetFlags |= VP_RTT_READ_ONLY_STENCIL;
+        mUpdated = true;
+    }
+    //-----------------------------------------------------------------------
+    bool Viewport::getReadOnlyDepth(void) const
+    {
+        return (mViewportRenderTargetFlags & VP_RTT_READ_ONLY_DEPTH) != 0;
+    }
+    //-----------------------------------------------------------------------
+    bool Viewport::getReadOnlStencil(void) const
+    {
+        return (mViewportRenderTargetFlags & VP_RTT_READ_ONLY_STENCIL) != 0;
     }
     //-----------------------------------------------------------------------
     void Viewport::pointOrientedToScreen(const Vector2 &v, int orientationMode, Vector2 &outv)

@@ -28,192 +28,123 @@ Copyright (c) 2000-2016 Torus Knot Software Ltd
 
 #include "OgreGL3PlusPixelFormatToShaderType.h"
 
-#include "OgrePixelFormatGpuUtils.h"
-#include "OgreTextureGpu.h"
-
 namespace Ogre
 {
-    const char* GL3PlusPixelFormatToShaderType::getPixelFormatType( PixelFormatGpu pixelFormat ) const
+    const char* GL3PlusPixelFormatToShaderType::getPixelFormatType( PixelFormat pixelFormat ) const
     {
         switch( pixelFormat )
         {
         //UNORM formats
-        case PFG_R8_UNORM:
-        case PFG_A8_UNORM:
+        case PF_L8:
+        case PF_A8:
+        case PF_R8:
             return "r8";
-        case PFG_R16_UNORM:
+        case PF_L16:
             return "r16";
-        case PFG_RG8_UNORM:
+        case PF_RG8:
+        case PF_BYTE_LA:
             return "rg8";
-        case PFG_RG16_UNORM:
+        case PF_SHORT_GR:
             return "rg16";
-        case PFG_RGBA8_UNORM:
-        case PFG_RGBA8_UNORM_SRGB:
-        case PFG_BGRA8_UNORM:
-        case PFG_BGRA8_UNORM_SRGB:
-        case PFG_BGRX8_UNORM:
-        case PFG_BGRX8_UNORM_SRGB:
+        case PF_R8G8B8:
+        case PF_B8G8R8:
+        case PF_A8R8G8B8:
+        case PF_A8B8G8R8:
+        case PF_B8G8R8A8:
+        case PF_R8G8B8A8:
+        case PF_X8R8G8B8:
+        case PF_X8B8G8R8:
             return "rgba8";
-        case PFG_R10G10B10A2_UNORM:
+        case PF_A2R10G10B10:
+        case PF_A2B10G10R10:
             return "rgb10_a2";
-        case PFG_RGBA16_UNORM:
+        case PF_SHORT_RGB:
+        case PF_SHORT_RGBA:
             return "rgba16";
 
         //SNORM formats
-        case PFG_R8_SNORM:
+        case PF_R8_SNORM:
             return "r8_snorm";
-        case PFG_R16_SNORM:
+        case PF_R16_SNORM:
             return "r16_snorm";
-        case PFG_RG8_SNORM:
+        case PF_R8G8_SNORM:
             return "rg8_snorm";
-        case PFG_RG16_SNORM:
+        case PF_R16G16_SNORM:
             return "rg16_snorm";
-        case PFG_RGBA8_SNORM:
+        case PF_R8G8B8_SNORM:
+        case PF_R8G8B8A8_SNORM:
             return "rgba8_snorm";
-        case PFG_RGBA16_SNORM:
+        case PF_R16G16B16_SNORM:
+        case PF_R16G16B16A16_SNORM:
             return "rgba16_snorm";
 
         //SINT formats
-        case PFG_R8_SINT:
+        case PF_R8_SINT:
             return "r8i";
-        case PFG_R16_SINT:
+        case PF_R16_SINT:
             return "r16i";
-        case PFG_R32_SINT:
+        case PF_R32_SINT:
             return "r32i";
-        case PFG_RG8_SINT:
+        case PF_R8G8_SINT:
             return "rg8i";
-        case PFG_RG16_SINT:
+        case PF_R16G16_SINT:
             return "rg16i";
-        case PFG_RG32_SINT:
+        case PF_R32G32_SINT:
             return "rg32i";
-        case PFG_RGBA8_SINT:
+        case PF_R8G8B8_SINT:
+        case PF_R8G8B8A8_SINT:
             return "rgba8i";
-        case PFG_RGBA16_SINT:
+        case PF_R16G16B16_SINT:
+        case PF_R16G16B16A16_SINT:
             return "rgba16i";
-        case PFG_RGB32_SINT:
-        case PFG_RGBA32_SINT:
+        case PF_R32G32B32_SINT:
+        case PF_R32G32B32A32_SINT:
             return "rgba32i";
 
         //UINT formats
-        case PFG_R8_UINT:
+        case PF_R8_UINT:
             return "r8ui";
-        case PFG_R16_UINT:
+        case PF_R16_UINT:
             return "r16ui";
-        case PFG_R32_UINT:
+        case PF_R32_UINT:
             return "r32ui";
-        case PFG_RG8_UINT:
+        case PF_R8G8_UINT:
             return "rg8ui";
-        case PFG_RG16_UINT:
+        case PF_R16G16_UINT:
             return "rg16ui";
-        case PFG_RG32_UINT:
+        case PF_R32G32_UINT:
             return "rg32ui";
-        case PFG_RGBA8_UINT:
+        case PF_R8G8B8_UINT:
+        case PF_R8G8B8A8_UINT:
             return "rgba8ui";
-        case PFG_R10G10B10A2_UINT:
-            return "rgb10_a2ui";
-        case PFG_RGBA16_UINT:
+//        case PF_R10G10B10A2_UINT:
+//            return "rgb10_a2ui";
+        case PF_R16G16B16_UINT:
+        case PF_R16G16B16A16_UINT:
             return "rgba16ui";
-        case PFG_RGB32_UINT:
-        case PFG_RGBA32_UINT:
+        case PF_R32G32B32_UINT:
+        case PF_R32G32B32A32_UINT:
             return "rgba32ui";
 
-        //FLOAT formats
-        case PFG_R16_FLOAT:
+        //Pure floating point
+        case PF_FLOAT16_R:
             return "r16f";
-        case PFG_R32_FLOAT:
+        case PF_FLOAT32_R:
             return "r32f";
-        case PFG_RG16_FLOAT:
+        case PF_FLOAT16_GR:
             return "rg16f";
-        case PFG_RG32_FLOAT:
+        case PF_FLOAT32_GR:
             return "rg32f";
-        case PFG_R11G11B10_FLOAT:
+        case PF_R11G11B10_FLOAT:
             return "r11f_g11f_b10f";
-        case PFG_RGBA16_FLOAT:
+        case PF_FLOAT16_RGB:
+        case PF_FLOAT16_RGBA:
             return "rgba16f";
-        case PFG_RGB32_FLOAT:
-        case PFG_RGBA32_FLOAT:
+        case PF_FLOAT32_RGB:
+        case PF_FLOAT32_RGBA:
             return "rgba32f";
         default:
             return 0;
-        }
-
-        return 0;
-    }
-    //-------------------------------------------------------------------------
-    const char* GL3PlusPixelFormatToShaderType::getDataType( PixelFormatGpu pixelFormat,
-                                                             uint32 _textureType, bool isMsaa,
-                                                             ResourceAccess::
-                                                             ResourceAccess access ) const
-    {
-        const bool bIsInteger = PixelFormatGpuUtils::isInteger( pixelFormat );
-        TextureTypes::TextureTypes textureType = static_cast<TextureTypes::TextureTypes>( _textureType );
-
-        if( !bIsInteger )
-        {
-            switch( textureType )
-            {
-            case TextureTypes::Type1D:
-                return "image1D";
-            case TextureTypes::Type1DArray:
-                return "image1DArray";
-            case TextureTypes::Type2D:
-            case TextureTypes::Unknown:
-                return isMsaa ? "image2DMS" : "image2D";
-            case TextureTypes::Type2DArray:
-                return isMsaa ? "image2DMSArray" : "image2DArray";
-            case TextureTypes::TypeCube:
-                return "imageCube";
-            case TextureTypes::TypeCubeArray:
-                return "imageCubeArray";
-            case TextureTypes::Type3D:
-                return "image3D";
-            }
-        }
-        else
-        {
-            const bool bIsSigned = PixelFormatGpuUtils::isSigned( pixelFormat );
-            if( !bIsSigned )
-            {
-                switch( textureType )
-                {
-                case TextureTypes::Type1D:
-                    return "uimage1D";
-                case TextureTypes::Type1DArray:
-                    return "uimage1DArray";
-                case TextureTypes::Type2D:
-                case TextureTypes::Unknown:
-                    return isMsaa ? "uimage2DMS" : "uimage2D";
-                case TextureTypes::Type2DArray:
-                    return isMsaa ? "uimage2DMSArray" : "uimage2DArray";
-                case TextureTypes::TypeCube:
-                    return "uimageCube";
-                case TextureTypes::TypeCubeArray:
-                    return "uimageCubeArray";
-                case TextureTypes::Type3D:
-                    return "uimage3D";
-                }
-            }
-            else
-            {
-                switch( textureType )
-                {
-                case TextureTypes::Type1D:
-                    return "iimage1D";
-                case TextureTypes::Type1DArray:
-                    return "iimage1DArray";
-                case TextureTypes::Type2D:
-                case TextureTypes::Unknown:
-                    return isMsaa ? "iimage2DMS" : "iimage2D";
-                case TextureTypes::Type2DArray:
-                    return isMsaa ? "iimage2DMSArray" : "iimage2DArray";
-                case TextureTypes::TypeCube:
-                    return "iimageCube";
-                case TextureTypes::TypeCubeArray:
-                    return "iimageCubeArray";
-                case TextureTypes::Type3D:
-                    return "iimage3D";
-                }
-            }
         }
 
         return 0;

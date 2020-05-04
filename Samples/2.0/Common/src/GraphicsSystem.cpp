@@ -10,6 +10,7 @@
 #include "OgreException.h"
 #include "OgreConfigFile.h"
 
+#include "OgreRenderWindow.h"
 #include "OgreCamera.h"
 #include "OgreItem.h"
 
@@ -23,10 +24,7 @@
 #include "OgreOverlaySystem.h"
 #include "OgreOverlayManager.h"
 
-#include "OgreTextureGpuManager.h"
-
 #include "OgreWindowEventUtilities.h"
-#include "OgreWindow.h"
 
 #include "OgreFileSystemLayer.h"
 
@@ -51,7 +49,6 @@
 namespace Demo
 {
     GraphicsSystem::GraphicsSystem( GameState *gameState,
-                                    Ogre::String resourcePath ,
                                     Ogre::ColourValue backgroundColour ) :
         BaseSystem( gameState ),
         mLogicSystem( 0 ),
@@ -65,7 +62,6 @@ namespace Demo
         mCamera( 0 ),
         mWorkspace( 0 ),
         mPluginsFolder( "./" ),
-        mResourcePath( resourcePath ),
         mOverlaySystem( 0 ),
         mAccumTimeSinceLastLogicFrame( 0 ),
         mCurrentTransformIdx( 0 ),
@@ -146,18 +142,6 @@ namespace Demo
 
         mStaticPluginLoader.install( mRoot );
 
-        // enable sRGB Gamma Conversion mode by default for all renderers,
-        // but still allow to override it via config dialog
-        Ogre::RenderSystemList::const_iterator itor = mRoot->getAvailableRenderers().begin();
-        Ogre::RenderSystemList::const_iterator endt = mRoot->getAvailableRenderers().end();
-
-        while( itor != endt )
-        {
-            Ogre::RenderSystem *rs = *itor;
-            rs->setConfigOption( "sRGB Gamma Conversion", "Yes" );
-            ++itor;
-        }
-
         if( mAlwaysAskForConfig || !mRoot->restoreConfig() )
         {
             if( !mRoot->showConfigDialog() )
@@ -176,7 +160,8 @@ namespace Demo
         }
     #endif
 
-        mRoot->initialise( false, windowTitle );
+        mRoot->getRenderSystem()->setConfigOption( "sRGB Gamma Conversion", "Yes" );
+        mRoot->initialise(false);
 
         Ogre::ConfigOptionMap& cfgOpts = mRoot->getRenderSystem()->getConfigOptions();
 
@@ -242,24 +227,19 @@ namespace Demo
         Ogre::String winHandle;
         switch( wmInfo.subsystem )
         {
-        #if defined(SDL_VIDEO_DRIVER_WINDOWS)
+        #ifdef WIN32
         case SDL_SYSWM_WINDOWS:
             // Windows code
             winHandle = Ogre::StringConverter::toString( (uintptr_t)wmInfo.info.win.window );
             break;
-        #endif
-        #if defined(SDL_VIDEO_DRIVER_WINRT)
-        case SDL_SYSWM_WINRT:
-            // Windows code
-            winHandle = Ogre::StringConverter::toString( (uintptr_t)wmInfo.info.winrt.window );
-            break;
-        #endif
-        #if defined(SDL_VIDEO_DRIVER_COCOA)
+        #elif __MACOSX__
         case SDL_SYSWM_COCOA:
+            //required to make OGRE play nice with our window
+            params.insert( std::make_pair("macAPICocoaUseNSView", "true") );
+
             winHandle  = Ogre::StringConverter::toString(WindowContentViewHandle(wmInfo));
             break;
-        #endif
-        #if defined(SDL_VIDEO_DRIVER_X11)
+        #else
         case SDL_SYSWM_X11:
             winHandle = Ogre::StringConverter::toString( (uintptr_t)wmInfo.info.x11.window );
             break;
@@ -271,7 +251,7 @@ namespace Demo
             break;
         }
 
-        #if OGRE_PLATFORM == OGRE_PLATFORM_WIN32 || OGRE_PLATFORM == OGRE_PLATFORM_WINRT
+        #if OGRE_PLATFORM == OGRE_PLATFORM_WIN32
             params.insert( std::make_pair("externalWindowHandle",  winHandle) );
         #else
             params.insert( std::make_pair("parentWindowHandle",  winHandle) );
@@ -279,12 +259,9 @@ namespace Demo
     #endif
 
         params.insert( std::make_pair("title", windowTitle) );
-        params.insert( std::make_pair("gamma", cfgOpts["sRGB Gamma Conversion"].currentValue) );
+        params.insert( std::make_pair("gamma", "true") );
         params.insert( std::make_pair("FSAA", cfgOpts["FSAA"].currentValue) );
         params.insert( std::make_pair("vsync", cfgOpts["VSync"].currentValue) );
-        params.insert( std::make_pair("reverse_depth", "Yes" ) );
-
-        initMiscParamsListener( params );
 
         mRenderWindow = Ogre::Root::getSingleton().createRenderWindow( windowTitle, width, height,
                                                                        fullscreen, &params );
@@ -321,7 +298,6 @@ namespace Demo
     {
         BaseSystem::deinitialize();
 
-        saveTextureCache();
         saveHlmsDiskCache();
 
         if( mSceneManager )
@@ -404,30 +380,26 @@ namespace Demo
                 int w,h;
                 SDL_GetWindowSize( mSdlWindow, &w, &h );
 #if OGRE_PLATFORM == OGRE_PLATFORM_LINUX
-                mRenderWindow->requestResolution( w, h );
-#endif
+                mRenderWindow->resize( w, h );
+#else
                 mRenderWindow->windowMovedOrResized();
+#endif
                 break;
             case SDL_WINDOWEVENT_RESIZED:
 #if OGRE_PLATFORM == OGRE_PLATFORM_LINUX
-                mRenderWindow->requestResolution( evt.window.data1, evt.window.data2 );
-#endif
+                mRenderWindow->resize( evt.window.data1, evt.window.data2 );
+#else
                 mRenderWindow->windowMovedOrResized();
+#endif
                 break;
             case SDL_WINDOWEVENT_CLOSE:
                 break;
-        case SDL_WINDOWEVENT_SHOWN:
-            mRenderWindow->_setVisible( true );
-            break;
-        case SDL_WINDOWEVENT_HIDDEN:
-            mRenderWindow->_setVisible( false );
-            break;
-        case SDL_WINDOWEVENT_FOCUS_GAINED:
-            mRenderWindow->setFocused( true );
-            break;
-        case SDL_WINDOWEVENT_FOCUS_LOST:
-            mRenderWindow->setFocused( false );
-            break;
+            case SDL_WINDOWEVENT_SHOWN:
+                mRenderWindow->setVisible(true);
+                break;
+            case SDL_WINDOWEVENT_HIDDEN:
+                mRenderWindow->setVisible(false);
+                break;
         }
     }
     #endif
@@ -485,64 +457,6 @@ namespace Demo
         Ogre::ResourceGroupManager::getSingleton().addResourceLocation(
                     archName, typeName, secName);
 #endif
-    }
-    //-----------------------------------------------------------------------------------
-    void GraphicsSystem::loadTextureCache(void)
-    {
-#if !OGRE_NO_JSON
-        Ogre::ArchiveManager &archiveManager = Ogre::ArchiveManager::getSingleton();
-        Ogre::Archive *rwAccessFolderArchive = archiveManager.load( mWriteAccessFolder,
-                                                                    "FileSystem", true );
-        try
-        {
-            const Ogre::String filename = "textureMetadataCache.json";
-            if( rwAccessFolderArchive->exists( filename ) )
-            {
-                Ogre::DataStreamPtr stream = rwAccessFolderArchive->open( filename );
-                std::vector<char> fileData;
-                fileData.resize( stream->size() + 1 );
-                if( !fileData.empty() )
-                {
-                    stream->read( &fileData[0], stream->size() );
-                    //Add null terminator just in case (to prevent bad input)
-                    fileData.back() = '\0';
-                    Ogre::TextureGpuManager *textureManager =
-                            mRoot->getRenderSystem()->getTextureGpuManager();
-                    textureManager->importTextureMetadataCache( stream->getName(), &fileData[0], false );
-                }
-            }
-            else
-            {
-                Ogre::LogManager::getSingleton().logMessage(
-                            "[INFO] Texture cache not found at " + mWriteAccessFolder +
-                            "/textureMetadataCache.json" );
-            }
-        }
-        catch( Ogre::Exception &e )
-        {
-            Ogre::LogManager::getSingleton().logMessage( e.getFullDescription() );
-        }
-
-        archiveManager.unload( rwAccessFolderArchive );
-#endif
-    }
-    //-----------------------------------------------------------------------------------
-    void GraphicsSystem::saveTextureCache(void)
-    {
-        if( mRoot->getRenderSystem() )
-        {
-            Ogre::TextureGpuManager *textureManager = mRoot->getRenderSystem()->getTextureGpuManager();
-            if( textureManager )
-            {
-                Ogre::String jsonString;
-                textureManager->exportTextureMetadataCache( jsonString );
-                const Ogre::String path = mWriteAccessFolder + "/textureMetadataCache.json";
-                std::ofstream file( path.c_str(), std::ios::binary | std::ios::out );
-                if( file.is_open() )
-                    file.write( jsonString.c_str(), static_cast<std::streamsize>( jsonString.size() ) );
-                file.close();
-            }
-        }
     }
     //-----------------------------------------------------------------------------------
     void GraphicsSystem::loadHlmsDiskCache(void)
@@ -772,31 +686,31 @@ namespace Demo
     {
         registerHlms();
 
-        loadTextureCache();
         loadHlmsDiskCache();
 
         // Initialise, parse scripts etc
         Ogre::ResourceGroupManager::getSingleton().initialiseAllResourceGroups( true );
-
-        // Initialize resources for LTC area lights and accurate specular reflections (IBL)
-        Ogre::Hlms *hlms = mRoot->getHlmsManager()->getHlms( Ogre::HLMS_PBS );
-        OGRE_ASSERT_HIGH( dynamic_cast<Ogre::HlmsPbs*>( hlms ) );
-        Ogre::HlmsPbs *hlmsPbs = static_cast<Ogre::HlmsPbs*>( hlms );
-        hlmsPbs->loadLtcMatrix();
     }
     //-----------------------------------------------------------------------------------
     void GraphicsSystem::chooseSceneManager(void)
     {
+        Ogre::InstancingThreadedCullingMethod threadedCullingMethod =
+                Ogre::INSTANCING_CULLING_SINGLETHREAD;
 #if OGRE_DEBUG_MODE
         //Debugging multithreaded code is a PITA, disable it.
         const size_t numThreads = 1;
 #else
         //getNumLogicalCores() may return 0 if couldn't detect
         const size_t numThreads = std::max<size_t>( 1, Ogre::PlatformInformation::getNumLogicalCores() );
+        //See doxygen documentation regarding culling methods.
+        //In some cases you may still want to use single thread.
+        //if( numThreads > 1 )
+        //	threadedCullingMethod = Ogre::INSTANCING_CULLING_THREADED;
 #endif
         // Create the SceneManager, in this case a generic one
         mSceneManager = mRoot->createSceneManager( Ogre::ST_GENERIC,
                                                    numThreads,
+                                                   threadedCullingMethod,
                                                    "ExampleSMInstance" );
 
         mSceneManager->addRenderQueueListener( mOverlaySystem );
@@ -833,12 +747,8 @@ namespace Demo
                                                         Ogre::IdString() );
         }
 
-        return compositorManager->addWorkspace( mSceneManager, mRenderWindow->getTexture(), mCamera,
+        return compositorManager->addWorkspace( mSceneManager, mRenderWindow, mCamera,
                                                 workspaceName, true );
-    }
-    //-----------------------------------------------------------------------------------
-    void GraphicsSystem::initMiscParamsListener( Ogre::NameValuePairList &params )
-    {
     }
     //-----------------------------------------------------------------------------------
     void GraphicsSystem::stopCompositor(void)

@@ -67,7 +67,7 @@ namespace Ogre
             static void destroySampleAndChildren( ProfileSample *sample );
 
             void dumpSample( ProfileSample *sample, LwString &tmpStr,
-                             String &outCsvString, StdMap<IdString, ProfileSample> &accumStats,
+                             String &outCsvString, map<IdString, ProfileSample>::type &accumStats,
                              uint32 stackDepth );
 
             void reset(void);

@@ -35,7 +35,6 @@ THE SOFTWARE.
 #include "OgreRawPtr.h"
 #include "OgreVector2.h"
 #include "Math/Array/OgreArrayRay.h"
-#include "OgreTextureBox.h"
 #include "OgreHeaderPrefix.h"
 
 namespace Ogre
@@ -74,8 +73,7 @@ namespace Ogre
             Vector3     diffuse;
             bool        needsUv;
             //TODO: missing translate & scale
-            Image2 const*image[5]; //1 for diffuse, 4 for the detail maps.
-            TextureBox  box[5];
+            Image const *image[5]; //1 for diffuse, 4 for the detail maps.
             uint8       uvSet[5];
         };
 
@@ -233,7 +231,7 @@ namespace Ogre
         MeshDataMapV2   mMeshDataMapV2;
         MeshDataMapV1   mMeshDataMapV1;
 
-        typedef map<TextureGpu*, Image2>::type ImageMap;
+        typedef map<Texture*, Image>::type ImageMap;
         ImageMap        mImageMap;
 
         vector<Item*>::type mDebugMarkers;
@@ -271,7 +269,7 @@ namespace Ogre
 
         const MeshData* downloadVao( VertexArrayObject *vao );
         const MeshData* downloadRenderOp( const v1::RenderOperation &renderOp );
-        const Image2& downloadTexture( TextureGpu *texture );
+        const Image& downloadTexture( const TexturePtr &texture );
 
         void testLightVsAllObjects( uint8 lightType, Real lightRange,
                                     ObjectData objData, size_t numNodes,

@@ -96,14 +96,8 @@ namespace Ogre
 
     class CubemapProbe;
     class HlmsPbs;
-    class IesLoader;
-    class IrradianceField;
     class IrradianceVolume;
-    class LightProfiles;
     class ParallaxCorrectedCubemap;
-    class ParallaxCorrectedCubemapAuto;
-    class ParallaxCorrectedCubemapBase;
-    class VctLighting;
 }
 
 #endif

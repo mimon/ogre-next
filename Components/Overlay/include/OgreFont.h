@@ -63,7 +63,7 @@ namespace Ogre
     both a resource in it's own right, but it also provides the manual load
     implementation for the Texture it creates.
     */
-    class _OgreOverlayExport Font : public Resource
+    class _OgreOverlayExport Font : public Resource, public ManualResourceLoader
     {
     protected:
         /// Command object for Font - see ParamCommand 
@@ -159,10 +159,11 @@ namespace Ogre
         CodePointMap mCodePointMap;
 
         /// The material which is generated for this font
+        MaterialPtr mMaterial;
         HlmsDatablock *mHlmsDatablock;
 
         /// Texture pointer
-        TextureGpu *mTexture;
+        TexturePtr mTexture;
 
         /// For TRUE_TYPE font only
         bool mAntialiasColour;
@@ -172,7 +173,6 @@ namespace Ogre
 
         /// Internal method for loading from ttf
         void createTextureFromFont(void);
-        void loadTextureFromFont( TextureGpuManager *textureManager );
 
         /// @copydoc Resource::loadImpl
         virtual void loadImpl();
@@ -371,6 +371,22 @@ namespace Ogre
         {
             return mCodePointRangeList;
         }
+        /** Gets the material generated for this font, as a weak reference. 
+        @remarks
+            This will only be valid after the Font has been loaded. 
+        */
+        inline const MaterialPtr& getMaterial() const
+        {
+            return mMaterial;
+        }
+        /** Gets the material generated for this font, as a weak reference. 
+        @remarks
+            This will only be valid after the Font has been loaded. 
+        */
+        inline const MaterialPtr& getMaterial()
+        {
+            return mMaterial;
+        }
 
         /** Gets the HLMS Datablock generated for this font
         @remarks
@@ -404,6 +420,11 @@ namespace Ogre
         {
             return mAntialiasColour;
         }
+
+        /** Implementation of ManualResourceLoader::loadResource, called
+            when the Texture that this font creates needs to (re)load.
+        */
+        void loadResource(Resource* resource);
     };
     /** @} */
     /** @} */

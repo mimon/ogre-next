@@ -41,7 +41,7 @@
 #   define GL_GLEXT_PROTOTYPES
 #   include "glprocs.h"
 #   include <GL/glu.h>
-#elif OGRE_PLATFORM == OGRE_PLATFORM_LINUX || OGRE_PLATFORM == OGRE_PLATFORM_FREEBSD
+#elif OGRE_PLATFORM == OGRE_PLATFORM_LINUX
 #   include <GL/gl.h>
 #   include <GL/glu.h>
 #elif OGRE_PLATFORM == OGRE_PLATFORM_APPLE

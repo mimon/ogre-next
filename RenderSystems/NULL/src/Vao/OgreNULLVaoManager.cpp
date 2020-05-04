@@ -46,8 +46,7 @@ THE SOFTWARE.
 namespace Ogre
 {
     NULLVaoManager::NULLVaoManager() :
-        mDrawId( 0 ),
-        VaoManager( 0 )
+        mDrawId( 0 )
     {
         mConstBufferAlignment   = 256;
         mTexBufferAlignment     = 256;
@@ -73,17 +72,6 @@ namespace Ogre
     {
         destroyAllVertexArrayObjects();
         deleteAllBuffers();
-    }
-    //-----------------------------------------------------------------------------------
-    void NULLVaoManager::getMemoryStats( MemoryStatsEntryVec &outStats, size_t &outCapacityBytes,
-                                         size_t &outFreeBytes, Log *log ) const
-    {
-        outCapacityBytes = 0;
-        outFreeBytes = 0;
-    }
-    //-----------------------------------------------------------------------------------
-    void NULLVaoManager::cleanupEmptyPools(void)
-    {
     }
     //-----------------------------------------------------------------------------------
     VertexBufferPacked* NULLVaoManager::createVertexBufferImpl( size_t numElements,
@@ -171,9 +159,9 @@ namespace Ogre
     {
     }
     //-----------------------------------------------------------------------------------
-    TexBufferPacked *NULLVaoManager::createTexBufferImpl( PixelFormatGpu pixelFormat, size_t sizeBytes,
-                                                          BufferType bufferType, void *initialData,
-                                                          bool keepAsShadow )
+    TexBufferPacked* NULLVaoManager::createTexBufferImpl( PixelFormat pixelFormat, size_t sizeBytes,
+                                                             BufferType bufferType,
+                                                             void *initialData, bool keepAsShadow )
     {
         uint32 alignment = mTexBufferAlignment;
 
@@ -402,11 +390,6 @@ namespace Ogre
     {
         return static_cast<VboFlag>( std::max( 0, (bufferType - BT_DYNAMIC_DEFAULT) +
                                                     CPU_ACCESSIBLE_DEFAULT ) );
-    }
-    //-----------------------------------------------------------------------------------
-    void NULLVaoManager::switchVboPoolIndexImpl( size_t oldPoolIdx, size_t newPoolIdx,
-                                                 BufferPacked *buffer )
-    {
     }
 }
 

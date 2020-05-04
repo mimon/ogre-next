@@ -4,7 +4,7 @@
 #include "GraphicsSystem.h"
 
 #include "OgreCamera.h"
-#include "OgreWindow.h"
+#include "OgreRenderWindow.h"
 
 using namespace Demo;
 
@@ -27,7 +27,7 @@ namespace Demo
     {
         Ogre::Camera *camera = mGraphicsSystem->getCamera();
 
-        if( mCameraYaw != 0.0f || mCameraPitch != 0.0f )
+        if( mCameraYaw || mCameraPitch )
         {
             if( mUseSceneNode )
             {

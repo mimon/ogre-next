@@ -155,7 +155,7 @@ namespace Ogre
                                                           void *initialData, bool keepAsShadow );
         virtual void destroyConstBufferImpl( ConstBufferPacked *constBuffer );
 
-        virtual TexBufferPacked* createTexBufferImpl( PixelFormatGpu pixelFormat, size_t sizeBytes,
+        virtual TexBufferPacked* createTexBufferImpl( PixelFormat pixelFormat, size_t sizeBytes,
                                                       BufferType bufferType,
                                                       void *initialData, bool keepAsShadow );
         virtual void destroyTexBufferImpl( TexBufferPacked *texBuffer );
@@ -178,17 +178,9 @@ namespace Ogre
 
         static VboFlag bufferTypeToVboFlag( BufferType bufferType );
 
-        virtual void switchVboPoolIndexImpl( size_t oldPoolIdx, size_t newPoolIdx,
-                                             BufferPacked *buffer );
-
     public:
         NULLVaoManager();
         virtual ~NULLVaoManager();
-
-        virtual void getMemoryStats( MemoryStatsEntryVec &outStats, size_t &outCapacityBytes,
-                                     size_t &outFreeBytes, Log *log ) const;
-
-        virtual void cleanupEmptyPools(void);
 
         bool supportsArbBufferStorage(void) const       { return false; }
 

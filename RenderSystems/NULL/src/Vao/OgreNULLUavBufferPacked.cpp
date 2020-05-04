@@ -45,7 +45,7 @@ namespace Ogre
     {
     }
     //-----------------------------------------------------------------------------------
-    TexBufferPacked* NULLUavBufferPacked::getAsTexBufferImpl( PixelFormatGpu pixelFormat )
+    TexBufferPacked* NULLUavBufferPacked::getAsTexBufferImpl( PixelFormat pixelFormat )
     {
         assert( dynamic_cast<NULLBufferInterface*>( mBufferInterface ) );
 
@@ -57,8 +57,6 @@ namespace Ogre
                                                         mNumElements, mBytesPerElement, 0,
                                                         mBufferType, (void*)0, false,
                                                         (VaoManager*)0, bufferInterface, pixelFormat );
-        //We were overriden by the BufferPacked we just created. Restore this back!
-        bufferInterface->_notifyBuffer( this );
 
         mTexBufferViews.push_back( retVal );
 

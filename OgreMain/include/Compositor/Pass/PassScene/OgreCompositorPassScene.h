@@ -40,7 +40,6 @@ namespace Ogre
     class Camera;
     class CompositorShadowNode;
     class CompositorWorkspace;
-    typedef vector<TextureGpu*>::type TextureGpuVec;
 
     /** \addtogroup Core
     *  @{
@@ -68,14 +67,9 @@ namespace Ogre
         Camera                  *mCullCamera;
         bool                    mUpdateShadowNode;
 
-        TextureGpuVec   mPrePassTextures;
-        TextureGpu      *mPrePassDepthTexture;
-        TextureGpu      *mSsrTexture;
-        TextureGpu      *mDepthTextureNoMsaa;
-        TextureGpu      *mRefractionsTexture;
-
-        void notifyPassSceneAfterShadowMapsListeners(void);
-        void notifyPassSceneAfterFrustumCullingListeners(void);
+        TextureVec const        *mPrePassTextures;
+        TextureVec const        *mPrePassDepthTexture;
+        TextureVec const        *mSsrTexture;
 
     public:
         /** Constructor
@@ -88,7 +82,7 @@ namespace Ogre
             The RenderTarget we're supposed to draw to. Can be RenderWindow, RenderTexture, MRT, etc
         */
         CompositorPassScene( const CompositorPassSceneDef *definition, Camera *defaultCamera,
-                             const RenderTargetViewDef *rtv, CompositorNode *parentNode );
+                                const CompositorChannel &target, CompositorNode *parentNode );
         ~CompositorPassScene();
 
         virtual void execute( const Camera *lodCamera );

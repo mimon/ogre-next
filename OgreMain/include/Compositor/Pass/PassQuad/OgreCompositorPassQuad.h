@@ -98,7 +98,7 @@ namespace Ogre
 
     public:
         CompositorPassQuad( const CompositorPassQuadDef *definition, Camera *defaultCamera,
-                            CompositorNode *parentNode, const RenderTargetViewDef *rtv,
+                            CompositorNode *parentNode, const CompositorChannel &target,
                             Real horizonalTexelOffset, Real verticalTexelOffset );
 
         virtual void execute( const Camera *lodCamera );
@@ -106,7 +106,6 @@ namespace Ogre
         /// Don't make this const (useful for compile-time multithreading errors)
         /// Pointer can be null if using HLMS
         Pass* getPass(void)                                     { return mPass; }
-        Camera* getCamera(void)                                 { return mCamera; }
     };
 
     /** @} */

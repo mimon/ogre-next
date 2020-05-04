@@ -12,5 +12,3 @@ painful and traumatic as possible.
 - @subpage hlms
 - @subpage azdo
 - @subpage commandbuffer
-- @subpage Ogre22Changes
-- @subpage BehavorStagingTextureD3D11

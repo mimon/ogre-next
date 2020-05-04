@@ -161,16 +161,6 @@ namespace Ogre
             }
         };
 
-        struct TextureRegs
-        {
-            uint32  strNameIdxStart;
-            int32   texUnit;
-            TextureRegs( uint32 _strNameIdxStart, int32 _texUnit ) :
-                strNameIdxStart( _strNameIdxStart ), texUnit( _texUnit ) {}
-        };
-        typedef vector<char>::type TextureNameStrings;
-        typedef vector<TextureRegs>::type TextureRegsVec;
-
         typedef vector<PassCache>::type PassCacheVec;
         typedef vector<RenderableCache>::type RenderableCacheVec;
         typedef vector<ShaderCodeCache>::type ShaderCodeCacheVec;
@@ -179,9 +169,6 @@ namespace Ogre
         RenderableCacheVec  mRenderableCache;
         ShaderCodeCacheVec  mShaderCodeCache;
         HlmsCacheVec        mShaderCache;
-
-        TextureNameStrings  mTextureNameStrings;
-        TextureRegsVec      mTextureRegs[NumShaderTypes];
 
         HlmsPropertyVec mSetProperties;
         PiecesMap       mPieces;
@@ -202,11 +189,9 @@ namespace Ogre
 
         LightGatheringMode  mLightGatheringMode;
         uint16              mNumLightsLimit;
-        uint16              mNumAreaApproxLightsLimit;
-        uint16              mNumAreaLtcLightsLimit;
+        uint16              mNumAreaLightsLimit;
+        uint8               mAreaLightsRoundMultiple;
         uint32              mAreaLightsGlobalLightListStart;
-        uint32              mRealNumDirectionalLights;
-        uint32              mRealNumAreaApproxLightsWithMask;
         uint32              mRealNumAreaApproxLights;
         uint32              mRealNumAreaLtcLights;
 
@@ -405,7 +390,7 @@ namespace Ogre
         virtual HlmsDatablock* createDatablockImpl( IdString datablockName,
                                                     const HlmsMacroblock *macroblock,
                                                     const HlmsBlendblock *blendblock,
-                                                    const HlmsParamVec &paramVec ) = 0;
+                                                    const HlmsParamVec &paramVec );
 
         virtual HlmsDatablock* createDefaultDatablock(void);
         void _destroyAllDatablocks(void);
@@ -423,23 +408,6 @@ namespace Ogre
                                        SceneManager *sceneManager );
 
         HlmsPassPso getPassPsoForScene( SceneManager *sceneManager );
-
-        /// OpenGL sets texture binding slots from C++
-        /// All other APIs set the slots from shader.
-        /// However managing the slots in the template can be troublesome. It's best
-        /// managed in C++
-        ///
-        /// This function will set a property with name 'texName' to the value 'texUnit'
-        /// so that the template can use it (e.g. D3D11, Metal).
-        ///
-        /// In OpenGL, applyTextureRegisters will later be called so the params are set
-        void setTextureReg( ShaderType shaderType, const char *texName, int32 texUnit );
-
-        /// See Hlms::setTextureReg
-        ///
-        /// This function does NOT call RenderSystem::bindGpuProgramParameters to
-        /// make the changes effective.
-        void applyTextureRegisters( const HlmsCache *psoEntry );
 
     public:
         /**
@@ -477,53 +445,42 @@ namespace Ogre
         void setHighQuality( bool highQuality );
         bool getHighQuality(void) const                     { return mHighQuality; }
 
-        /** Non-caster directional lights are hardcoded into shaders. This means that if you
-            have 6 directional lights and then you add a 7th one, a whole new set of shaders
-            will be created.
-
-            This setting allows you to tremendously reduce the amount of shader permutations
-            by forcing Ogre to switching to static branching with an upper limit to the max
-            number of non-shadow-casting directional lights.
-
-            There is no such switch for shadow-casting directional/point/spot lights because
-            of technical limitations at the GPU level (cannot index shadow map textures in DX11,
-            nor samplers in any known GPU).
-
-            @see    setAreaLightForwardSettings
-        @param maxLights
-            Maximum number of non-caster directional lights. 0 to allow unlimited number of lights,
-            at the cost of shader recompilations when directional lights are added or removed.
-
-            Default value is 0.
-
-            Note: There is little to no performance impact for setting this value higher than you need.
-            e.g. If you set maxLights = 4, but you only have 2 non-caster dir. lights on scene,
-            you'll pay the price of 2 lights (but the RAM price of 4).
-
-            Beware of setting this value too high (e.g. 65535) as the amount of memory space is limited
-            (we cannot exceed 64kb, including unrelated data to lighting, but required to the pass)
-         */
-        void setMaxNonCasterDirectionalLights( uint16 maxLights );
-        uint16 getMaxNonCasterDirectionalLights(void) const     { return mNumLightsLimit; }
-
         /** Area lights use regular Forward.
-        @param areaLightsApproxLimit
-            Maximum number of area approx lights that will be considered by the shader.
+        @param areaLightsLimit
+            Maximum number of area lights that will be considered by the shader.
             Default value is 1.
             Use 0 to disable area lights.
+        @param areaLightsRoundMultiple
+            To prevent frequent shader recompiles, you can round the number of area lights
+            to the next multiple.
 
-            Note: There is little to no performance impact for setting this value higher than you need.
-            e.g. If you set areaLightsApproxLimit = 4, but you only have 2 area lights on scene,
-            you'll pay the price of 2 area lights (but the RAM price of 4).
+            For example when areaLightsRoundMultiple = 1, if there are two area lights
+            in the frustum, shader 'A' will be used. If the camera moves and now only
+            one are light is in the frustum, shader 'B' will be used.
 
-            Beware of setting this value too high (e.g. 65535) as the amount of memory space is limited
-            (we cannot exceed 64kb, including unrelated data to lighting, but required to the pass)
-        @param areaLightsLtcLimit
-            Same as areaLightsApproxLimit, but for LTC lights
+            This maximizes GPU performance, but if the number of area lights is constantly
+            jumping, you may see a lot of recompiles until all variations are cached, which
+            can be very slow.
+
+            By setting for example, areaLightsRoundMultiple = 2, we will always generate
+            shader variations that use 2 area lights, even if there's only 1 area light in
+            the camera (if there's none, we use a different variation). The unused slot
+            will just output black.
+            If there's 3 area lights, the shader variation will be compiled to use 4.
+            This sacrifices some pixel shader GPU performance, but prevents permutation
+            explosion.
+
+            By setting areaLightsLimit = areaLightsRoundMultiple, you will minimize the number
+            of permutations and stabilize frame rates; but average framerate may be lower if
+            there are less area lights.
+
+            Default value is 1.
+            This value cannot be 0.
+            This value must be <= areaLightsLimit, unless areaLightsLimit is 0.
         */
-        void setAreaLightForwardSettings( uint16 areaLightsApproxLimit, uint16 areaLightsLtcLimit );
-        uint16 getAreaLightsApproxLimit(void) const				{ return mNumAreaApproxLightsLimit; }
-        uint16 getAreaLightsLtcLimit(void) const				{ return mNumAreaLtcLightsLimit; }
+        void setAreaLightForwardSettings( uint16 areaLightsLimit, uint8 areaLightsRoundMultiple );
+        uint16 getAreaLightsLimit(void) const               { return mNumAreaLightsLimit; }
+        uint8 getAreaLightsRoundMultiple(void) const        { return mAreaLightsRoundMultiple; }
 
 #if !OGRE_NO_JSON
         /** Loads datablock values from a JSON value. @see HlmsJson.
@@ -536,8 +493,7 @@ namespace Ogre
             Datablock to fill the values.
         */
         virtual void _loadJson( const rapidjson::Value &jsonValue, const HlmsJson::NamedBlocks &blocks,
-                                HlmsDatablock *datablock, const String &resourceGroup,
-                                HlmsJsonListener *listener,
+                                HlmsDatablock *datablock, HlmsJsonListener *listener,
                                 const String &additionalTextureExtension ) const {}
         virtual void _saveJson( const HlmsDatablock *datablock, String &outString,
                                 HlmsJsonListener *listener,
@@ -856,8 +812,6 @@ namespace Ogre
         static const IdString PsoClipDistances;
         static const IdString GlobalClipPlanes;
         static const IdString DualParaboloidMapping;
-        static const IdString InstancedStereo;
-        static const IdString StaticBranchLights;
         static const IdString NumShadowMapLights;
         static const IdString NumShadowMapTextures;
         static const IdString PssmSplits;
@@ -869,16 +823,10 @@ namespace Ogre
         static const IdString ShadowUsesDepthTexture;
         static const IdString RenderDepthOnly;
         static const IdString FineLightMask;
-        static const IdString UseUvBaking;
-        static const IdString UvBaking;
-        static const IdString BakeLightingOnly;
-        static const IdString GenNormalsGBuf;
         static const IdString PrePass;
         static const IdString UsePrePass;
         static const IdString UsePrePassMsaa;
         static const IdString UseSsr;
-        // Per pass. Related with ScreenSpaceRefractions
-        static const IdString SsRefractionsAvailable;
         static const IdString EnableVpls;
         static const IdString ForwardPlus;
         static const IdString ForwardPlusFlipY;
@@ -895,24 +843,15 @@ namespace Ogre
         static const IdString DecalsDiffuse;
         static const IdString DecalsNormals;
         static const IdString DecalsEmissive;
-        static const IdString FwdPlusCubemapSlotOffset;
 
         static const IdString Forward3D;
         static const IdString ForwardClustered;
         static const IdString VPos;
-        static const IdString ScreenPosInt;
-        static const IdString ScreenPosUv;
-        static const IdString VertexId;
 
         //Change per material (hash can be cached on the renderable)
         static const IdString AlphaTest;
         static const IdString AlphaTestShadowCasterOnly;
         static const IdString AlphaBlend;
-        // Per material. Related with SsRefractionsAvailable
-        static const IdString ScreenSpaceRefractions;
-
-        //Standard depth range is being used instead of reverse Z.
-        static const IdString NoReverseDepth;
 
         static const IdString Syntax;
         static const IdString Hlsl;

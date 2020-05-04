@@ -34,9 +34,6 @@ THE SOFTWARE.
 #include "OgreScriptLoader.h"
 #include "OgreSceneManager.h"
 #include "OgreResourceManager.h"
-#include "OgreString.h"
-
-#include <sstream>
 
 namespace Ogre {
 
@@ -198,7 +195,7 @@ namespace Ogre {
         // Can only bulk-load one group at a time (reasonable limitation I think)
         OGRE_LOCK_AUTO_MUTEX;
 
-        *LogManager::getSingleton().stream().raw()
+        LogManager::getSingleton().stream()
             << "Preparing resource group '" << name << "' - Resources: "
             << prepareMainResources << " World Geometry: " << prepareWorldGeom;
         // load all created resources
@@ -295,7 +292,7 @@ namespace Ogre {
         // Can only bulk-load one group at a time (reasonable limitation I think)
         OGRE_LOCK_AUTO_MUTEX;
 
-        *LogManager::getSingleton().stream().raw()
+        LogManager::getSingleton().stream()
             << "Loading resource group '" << name << "' - Resources: "
             << loadMainResources << " World Geometry: " << loadWorldGeom;
         // load all created resources
@@ -797,90 +794,6 @@ namespace Ogre {
             resourceName + " in resource group " + groupName + ".", 
             "ResourceGroupManager::openResource");
 
-    }
-    //-----------------------------------------------------------------------
-    Archive* ResourceGroupManager::_getArchiveToResource( const String& resourceName,
-                                                          const String& groupName,
-                                                          bool searchGroupsIfNotFound )
-    {
-        OgreAssert(!resourceName.empty(), "resourceName is empty string");
-        OGRE_LOCK_AUTO_MUTEX;
-
-        /*TODO
-        if(mLoadingListener)
-        {
-            DataStreamPtr stream = mLoadingListener->resourceLoading(resourceName, groupName, resourceBeingLoaded);
-            if(!stream.isNull())
-                return stream;
-        }*/
-
-        // Try to find in resource index first
-        ResourceGroup* grp = getResourceGroup(groupName);
-        if (!grp)
-        {
-            OGRE_EXCEPT( Exception::ERR_ITEM_NOT_FOUND,
-                         "Cannot locate a resource group called '" + groupName +
-                         "' for resource '" + resourceName + "'" ,
-                         "ResourceGroupManager::_getArchiveToResource" );
-        }
-
-        OGRE_LOCK_MUTEX(grp->OGRE_AUTO_MUTEX_NAME); // lock group mutex
-
-        Archive* pArch = 0;
-        ResourceLocationIndex::iterator rit = grp->resourceIndexCaseSensitive.find(resourceName);
-        if (rit != grp->resourceIndexCaseSensitive.end())
-        {
-            // Found in the index
-            pArch = rit->second;
-            return pArch;
-        }
-        else
-        {
-            // try case insensitive
-            String lcResourceName = resourceName;
-            StringUtil::toLowerCase(lcResourceName);
-            rit = grp->resourceIndexCaseInsensitive.find(lcResourceName);
-            if (rit != grp->resourceIndexCaseInsensitive.end())
-            {
-                // Found in the index
-                pArch = rit->second;
-                return pArch;
-            }
-            else
-            {
-                // Search the hard way
-                LocationList::iterator li, liend;
-                liend = grp->locationList.end();
-                for (li = grp->locationList.begin(); li != liend; ++li)
-                {
-                    Archive* arch = (*li)->archive;
-                    if (arch->exists(resourceName))
-                        return arch;
-                }
-            }
-        }
-
-
-        // Not found
-        if (searchGroupsIfNotFound)
-        {
-            ResourceGroup* foundGrp = findGroupContainingResourceImpl(resourceName);
-            if (foundGrp)
-            {
-                return _getArchiveToResource( resourceName, foundGrp->name, false );
-            }
-            else
-            {
-                OGRE_EXCEPT( Exception::ERR_FILE_NOT_FOUND,
-                             "Cannot locate resource " + resourceName +
-                             " in resource group " + groupName + " or any other group.",
-                             "ResourceGroupManager::_getArchiveToResource" );
-            }
-        }
-
-        OGRE_EXCEPT( Exception::ERR_FILE_NOT_FOUND, "Cannot locate resource " +
-                     resourceName + " in resource group " + groupName + ".",
-                     "ResourceGroupManager::_getArchiveToResource" );
     }
     //-----------------------------------------------------------------------
     DataStreamListPtr ResourceGroupManager::openResources(
@@ -2151,9 +2064,4 @@ namespace Ogre {
         }
 
     }
-    //---------------------------------------------------------------------
-    //---------------------------------------------------------------------
-    //---------------------------------------------------------------------
-    ResourceGroupListener::~ResourceGroupListener() {}
-    ResourceLoadingListener::~ResourceLoadingListener() {}
 }

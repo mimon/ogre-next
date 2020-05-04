@@ -35,12 +35,8 @@ namespace v1 {
     D3D11HardwareIndexBuffer::D3D11HardwareIndexBuffer(HardwareBufferManagerBase* mgr, HardwareIndexBuffer::IndexType idxType, 
         size_t numIndexes, HardwareBuffer::Usage usage, D3D11Device & device, 
         bool useSystemMemory, bool useShadowBuffer)
-        : HardwareIndexBuffer(mgr, idxType, numIndexes, usage, useSystemMemory, false /* see below */)
+        : HardwareIndexBuffer(mgr, idxType, numIndexes, usage, useSystemMemory, useShadowBuffer)
     {
-        // ensure DefaultHardwareIndexBuffer was not created
-        assert(!mShadowBuffer);
-        mUseShadowBuffer = useShadowBuffer;
-
         // everything is done via internal generalisation
         mBufferImpl = new D3D11HardwareBuffer(D3D11HardwareBuffer::INDEX_BUFFER, 
             mSizeInBytes, mUsage, device, useSystemMemory, useShadowBuffer, false);

@@ -11,6 +11,7 @@
 #include "OgreMesh2.h"
 
 #include "OgreCamera.h"
+#include "OgreRenderWindow.h"
 
 #include "OgreHlmsUnlitDatablock.h"
 #include "OgreHlmsSamplerblock.h"
@@ -42,8 +43,6 @@ namespace Demo
         "PCF 2x2",
         "PCF 3x3",
         "PCF 4x4",
-        "PCF 5x5",
-        "PCF 6x6",
         "ESM"
     };
 
@@ -214,9 +213,9 @@ namespace Demo
         Ogre::CompositorTargetDef *targetDef = nodeDef->getTargetPass( 0 );
         const Ogre::CompositorPassDefVec &passes = targetDef->getCompositorPasses();
 
-        assert( dynamic_cast<Ogre::CompositorPassSceneDef*>( passes[0] ) );
+        assert( dynamic_cast<Ogre::CompositorPassSceneDef*>( passes[1] ) );
         Ogre::CompositorPassSceneDef *passSceneDef =
-                static_cast<Ogre::CompositorPassSceneDef*>( passes[0] );
+                static_cast<Ogre::CompositorPassSceneDef*>( passes[1] );
 
         if( forEsm && passSceneDef->mShadowNode == "ShadowMapDebuggingShadowNode" )
         {
@@ -278,8 +277,9 @@ namespace Demo
             const Ogre::ShadowTextureDefinition *shadowTexDef =
                     shadowNodeDef->getShadowTextureDefinition( i );
 
-            Ogre::TextureGpu *tex = shadowNode->getDefinedTexture( shadowTexDef->getTextureNameStr() );
-            depthShadow->setTexture( 0, tex );
+            Ogre::TexturePtr tex = shadowNode->getDefinedTexture( shadowTexDef->getTextureNameStr(),
+                                                                  shadowTexDef->mrtIndex );
+            depthShadow->setTexture( 0, shadowTexDef->arrayIdx, tex, 0 );
 
             //If it's an UV atlas, then only display the relevant section.
             Ogre::Matrix4 uvOffsetScale;
@@ -376,15 +376,6 @@ namespace Demo
         assert( dynamic_cast<Ogre::HlmsPbs*>( hlms ) );
         Ogre::HlmsPbs *pbs = static_cast<Ogre::HlmsPbs*>( hlms );
 
-        Ogre::Root *root = mGraphicsSystem->getRoot();
-        Ogre::CompositorManager2 *compositorManager = root->getCompositorManager2();
-        const Ogre::CompositorShadowNodeDef *shadowNodeDef =
-            compositorManager->getShadowNodeDefinition( "ShadowMapDebuggingShadowNode" );
-
-        const Ogre::ShadowTextureDefinition *shadowTexDef =
-            shadowNodeDef->getShadowTextureDefinition( 0 );
-        ;
-
         TutorialGameState::generateDebugText( timeSinceLast, outText );
         outText += "\nPress F2 to toggle animation. ";
         outText += mAnimateObjects ? "[On]" : "[Off]";
@@ -393,17 +384,6 @@ namespace Demo
         outText += "\nPress F4 to show/hide spotlight maps. ";
         outText += mDebugOverlaySpotlights->getVisible() ? "[On]" : "[Off]";
         outText += "\nPress F5 to switch filter. [" + c_shadowMapFilters[pbs->getShadowFilter()] + "]";
-
-        if( pbs->getShadowFilter() != Ogre::HlmsPbs::ExponentialShadowMaps )
-        {
-            if( shadowTexDef->numStableSplits > 0u )
-            {
-                outText += "\nPress F6 for stable splits. [Stable splits: " +
-                           Ogre::StringConverter::toString( shadowTexDef->numStableSplits ) + "]";
-            }
-            else
-                outText += "\nPress F6 for stable splits. [Stable splits: None]";
-        }
     }
     //-----------------------------------------------------------------------------------
     void ShadowMapDebuggingGameState::keyReleased( const SDL_KeyboardEvent &arg )
@@ -461,27 +441,6 @@ namespace Demo
                 setupShadowNode( true );
             else
                 setupShadowNode( false );
-        }
-        else if( arg.keysym.sym == SDLK_F6 )
-        {
-            Ogre::Root *root = mGraphicsSystem->getRoot();
-            Ogre::CompositorManager2 *compositorManager = root->getCompositorManager2();
-            Ogre::CompositorShadowNodeDef *shadowNodeDef;
-
-            shadowNodeDef =
-                compositorManager->getShadowNodeDefinitionNonConst( "ShadowMapDebuggingShadowNode" );
-
-            for( size_t i = 0u; i < 3u; ++i )
-            {
-                Ogre::ShadowTextureDefinition *shadowTexDef =
-                    shadowNodeDef->getShadowTextureDefinitionNonConst( i );
-                shadowTexDef->numStableSplits = ( shadowTexDef->numStableSplits + 1u ) % 4u;
-            }
-
-            destroyShadowMapDebugOverlays();
-            mGraphicsSystem->stopCompositor();
-            mGraphicsSystem->restartCompositor();
-            createShadowMapDebugOverlays();
         }
         else
         {

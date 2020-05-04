@@ -32,9 +32,6 @@ THE SOFTWARE.
 #include "OgreAtomicScalar.h"
 #include "OgreStringInterface.h"
 #include "OgreHeaderPrefix.h"
-
-#include "ogrestd/set.h"
-
 #include "Threading/OgreThreadHeaders.h"
 
 namespace Ogre {
@@ -85,7 +82,7 @@ namespace Ogre {
         {
         public:
             Listener() {}
-            virtual ~Listener();
+            virtual ~Listener() {}
 
 
 
@@ -518,7 +515,7 @@ namespace Ogre {
     {
     public:
         ManualResourceLoader() {}
-        virtual ~ManualResourceLoader();
+        virtual ~ManualResourceLoader() {}
 
         /** Called when a resource wishes to load.  Note that this could get
          * called in a background thread even in just a semithreaded ogre

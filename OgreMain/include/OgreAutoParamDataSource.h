@@ -116,7 +116,7 @@ namespace Ogre {
         const Camera* mCurrentCamera;
         const LightList* mCurrentLightList;
         const Frustum* mCurrentTextureProjector[OGRE_MAX_SIMULTANEOUS_LIGHTS];
-        const RenderPassDescriptor* mCurrentRenderPassDesc;
+        const RenderTarget* mCurrentRenderTarget;
         const Viewport* mCurrentViewport;
         const SceneManager* mCurrentSceneManager;
         const Pass* mCurrentPass;
@@ -173,7 +173,6 @@ namespace Ogre {
          const Vector4& getCameraPositionObjectSpace(void) const;
          const Vector4& getLodCameraPosition(void) const;
          const Vector4& getLodCameraPositionObjectSpace(void) const;
-         const Vector2 getRSDepthRange(void) const;
          bool hasLightList() const { return mCurrentLightList != 0; }
          float getLightCount() const;
          float getLightCastsShadows(size_t index) const;
@@ -209,13 +208,10 @@ namespace Ogre {
          const vector<Real>::type& getPssmSplits( size_t shadowMapIdx ) const;
          const vector<Real>::type& getPssmBlends( size_t shadowMapIdx ) const;
          Real getPssmFade( size_t shadowMapIdx ) const;
-         const RenderPassDescriptor* getCurrentRenderPassDesc(void) const;
+         const RenderTarget* getCurrentRenderTarget(void) const;
          const Renderable* getCurrentRenderable(void) const;
          const Pass* getCurrentPass(void) const;
          const HlmsComputeJob* getCurrentJob(void) const;
-         Vector4 getUavSize(size_t index) const;
-         Vector4 getInverseUavSize(size_t index) const;
-         Vector4 getPackedUavSize(size_t index) const;
          Vector4 getTextureSize(size_t index) const;
          Vector4 getInverseTextureSize(size_t index) const;
          Vector4 getPackedTextureSize(size_t index) const;
@@ -267,10 +263,9 @@ namespace Ogre {
          int getPassNumber(void) const;
          void setPassNumber(const int passNumber);
          void incPassNumber(void);
-         void updateLightCustomGpuParameter( const GpuProgramParameters_AutoConstantEntry &constantEntry,
-                                             GpuProgramParameters *params ) const;
+         void updateLightCustomGpuParameter(const GpuProgramParameters::AutoConstantEntry& constantEntry, GpuProgramParameters *params) const;
 
-         const Light& _getBlankLight(void) const		{ return mBlankLight; }
+		 const Light& _getBlankLight(void) const		{ return mBlankLight; }
     };
     /** @} */
     /** @} */

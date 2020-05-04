@@ -71,9 +71,6 @@ namespace Ogre
         virtual void regressFrame(void);
 
         virtual void _notifyBuffer( BufferPacked *buffer );
-
-        virtual void copyTo( BufferInterface *dstBuffer, size_t dstOffsetBytes,
-                             size_t srcOffsetBytes, size_t sizeBytes );
     };
 }
 

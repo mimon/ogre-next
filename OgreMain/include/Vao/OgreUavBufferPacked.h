@@ -30,9 +30,7 @@ THE SOFTWARE.
 #define _Ogre_UavBufferPacked_H_
 
 #include "Vao/OgreBufferPacked.h"
-#include "OgrePixelFormatGpu.h"
-
-#include "ogrestd/vector.h"
+#include "OgrePixelFormat.h"
 
 namespace Ogre
 {
@@ -45,7 +43,7 @@ namespace Ogre
         uint32  mBindFlags; /// @see BufferBindFlags
         vector<TexBufferPacked*>::type  mTexBufferViews;
 
-        virtual TexBufferPacked* getAsTexBufferImpl( PixelFormatGpu pixelFormat ) = 0;
+        virtual TexBufferPacked* getAsTexBufferImpl( PixelFormat pixelFormat ) = 0;
 
     public:
         UavBufferPacked( size_t internalBufferStartBytes, size_t numElements, uint32 bytesPerElement,
@@ -69,11 +67,11 @@ namespace Ogre
             A TexBufferPacked to be used to bind to the different stages. Do not destroy
             this buffer via VaoManager::destroyTexBuffer. @see destroyTexBufferView
         */
-        TexBufferPacked* getAsTexBufferView( PixelFormatGpu pixelFormat );
+        TexBufferPacked* getAsTexBufferView( PixelFormat pixelFormat );
 
         /// Frees memory from a view created by getAsTexBufferView
         /// Does nothing if a view of the given pixel format did not exist.
-        void destroyTexBufferView( PixelFormatGpu pixelFormat );
+        void destroyTexBufferView( PixelFormat pixelFormat );
 
         /// @see destroyTexBufferView, this one does it on all the creates views.
         void destroyAllTexBufferViews(void);

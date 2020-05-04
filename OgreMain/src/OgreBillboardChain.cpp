@@ -41,7 +41,6 @@ THE SOFTWARE.
 #include "OgreViewport.h"
 #include "OgreHlmsManager.h"
 #include "OgreHlms.h"
-#include "OgreRenderOperation.h"
 
 #include <limits>
 
@@ -740,14 +739,11 @@ namespace v1 {
     {
         // Retrieve the current viewport from the scene manager.
         // The viewport is only valid during a viewport update.
-        const Camera *cameraInProgress = sm->getCamerasInProgress().renderingCamera;
+        Camera *cameraInProgress = sm->getCameraInProgress();
         if( !cameraInProgress )
             return false;
 
-        // Used const cast here as function takes non-const camera but probably should take a const version
-        // however this is a virtual function on legacy code, so changing the signature in a subtle way may
-        // cause a lot of grief for someone
-        updateVertexBuffer( const_cast<Camera*>(cameraInProgress) );
+        updateVertexBuffer( cameraInProgress );
         return true;
     }
     //-----------------------------------------------------------------------

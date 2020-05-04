@@ -19,4 +19,8 @@ ogre_add_executable(Sample_CustomRenderable WIN32 ${SOURCE_FILES} ${SAMPLE_COMMO
 
 target_link_libraries(Sample_CustomRenderable ${OGRE_LIBRARIES} ${OGRE_SAMPLES_LIBRARIES})
 ogre_config_sample_lib(Sample_CustomRenderable)
-ogre_config_sample_pkg(Sample_CustomRenderable)
+
+if( APPLE )
+	set_target_properties( Sample_CustomRenderable PROPERTIES RESOURCE "${SAMPLE_COMMON_RESOURCES}" )
+	set_target_properties( Sample_CustomRenderable PROPERTIES MACOSX_BUNDLE_INFO_PLIST ${SAMPLES_PLIST} )
+endif()

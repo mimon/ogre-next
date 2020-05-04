@@ -62,8 +62,6 @@ namespace Ogre
     const IdString ComputeProperty::NumThreadGroupsY    = IdString( "num_thread_groups_y" );
     const IdString ComputeProperty::NumThreadGroupsZ    = IdString( "num_thread_groups_z" );
 
-    const IdString ComputeProperty::TypedUavLoad        = IdString( "typed_uav_load" );
-
     const IdString ComputeProperty::NumTextureSlots     = IdString( "num_texture_slots" );
     const IdString ComputeProperty::MaxTextureSlot      = IdString( "max_texture_slot" );
     const char *ComputeProperty::Texture                = "texture";
@@ -133,7 +131,6 @@ namespace Ogre
             String::size_type pos = filename.find_last_of( '.' );
             if( pos == String::npos ||
                 (filename.compare( pos + 1, String::npos, mShaderFileExt ) != 0 &&
-                 filename.compare( pos + 1, String::npos, "any" ) != 0 &&
                  filename.compare( pos + 1, String::npos, "metal" ) != 0 &&
                  filename.compare( pos + 1, String::npos, "glsl" ) != 0 &&
                  filename.compare( pos + 1, String::npos, "glsles" ) != 0 &&
@@ -193,29 +190,11 @@ namespace Ogre
         DataStreamPtr inFile = resourceGroupMgr.openResource( sourceFilename );
 
         if( mShaderProfile == "glsl" ) //TODO: String comparision
-        {
-            setProperty( HlmsBaseProp::GL3Plus,
-                         mRenderSystem->getNativeShadingLanguageVersion() );
-        }
+            setProperty( HlmsBaseProp::GL3Plus, 330 );
         if( mShaderProfile == "glsles" ) //TODO: String comparision
             setProperty( HlmsBaseProp::GLES, 300 );
 
-        setProperty( HlmsBaseProp::Syntax,  mShaderSyntax.mHash );
-        setProperty( HlmsBaseProp::Hlsl,    HlmsBaseProp::Hlsl.mHash );
-        setProperty( HlmsBaseProp::Glsl,    HlmsBaseProp::Glsl.mHash );
-        setProperty( HlmsBaseProp::Glsles,  HlmsBaseProp::Glsles.mHash );
-        setProperty( HlmsBaseProp::Metal,   HlmsBaseProp::Metal.mHash );
-
-#if OGRE_PLATFORM == OGRE_PLATFORM_APPLE_IOS
-        setProperty( HlmsBaseProp::iOS, 1 );
-#endif
-#if OGRE_PLATFORM == OGRE_PLATFORM_APPLE
-        setProperty( HlmsBaseProp::macOS, 1 );
-#endif
         setProperty( HlmsBaseProp::HighQuality, mHighQuality );
-
-        if( mFastShaderBuildHack )
-            setProperty( HlmsBaseProp::FastShaderBuildHack, 1 );
 
         //Piece files
         processPieces( job->mIncludedPieceFiles );
@@ -262,8 +241,6 @@ namespace Ogre
                                     job->mSourceFilename + mShaderFileExt;
             std::ofstream outFile( debugFilenameOutput.c_str(),
                                    std::ios::out | std::ios::binary );
-            if( mDebugOutputProperties )
-                dumpProperties( outFile );
             outFile.write( &outString[0], outString.size() );
         }
 
@@ -329,8 +306,7 @@ namespace Ogre
             pso.mNumThreadGroups[0] * pso.mNumThreadGroups[1] * pso.mNumThreadGroups[2] == 0u )
         {
             OGRE_EXCEPT( Exception::ERR_INVALIDPARAMS,
-                         job->getNameStr() +
-                         ": Shader or C++ must set threads_per_group_x, threads_per_group_y & "
+                         "Shader or C++ must set threads_per_group_x, threads_per_group_y & "
                          "threads_per_group_z and num_thread_groups_x through num_thread_groups_z."
                          " Otherwise we can't run on Metal. Use @pset( threads_per_group_x, 512 );"
                          " or read the value using @value( threads_per_group_x ) if you've already"
@@ -465,8 +441,10 @@ namespace Ogre
 
         mRenderSystem->_setComputePso( &psoCache.pso );
 
-        HlmsComputeJob::ConstBufferSlotVec::const_iterator itConst = job->mConstBuffers.begin();
-        HlmsComputeJob::ConstBufferSlotVec::const_iterator enConst = job->mConstBuffers.end();
+        HlmsComputeJob::ConstBufferSlotVec::const_iterator itConst =
+                job->mConstBuffers.begin();
+        HlmsComputeJob::ConstBufferSlotVec::const_iterator enConst =
+                job->mConstBuffers.end();
 
         while( itConst != enConst )
         {
@@ -474,12 +452,49 @@ namespace Ogre
             ++itConst;
         }
 
-        if( job->mTexturesDescSet )
-            mRenderSystem->_setTexturesCS( 0, job->mTexturesDescSet );
-        if( job->mSamplersDescSet )
-            mRenderSystem->_setSamplersCS( 0, job->mSamplersDescSet );
-        if( job->mUavsDescSet )
-            mRenderSystem->_setUavCS( 0u, job->mUavsDescSet );
+        uint32 slotIdx = 0u;
+        HlmsComputeJob::TextureSlotVec::const_iterator itTex = job->mTextureSlots.begin();
+        HlmsComputeJob::TextureSlotVec::const_iterator enTex = job->mTextureSlots.end();
+
+        while( itTex != enTex )
+        {
+            if( itTex->buffer )
+            {
+                static_cast<TexBufferPacked*>( itTex->buffer )->bindBufferCS(
+                            slotIdx, itTex->offset, itTex->sizeBytes );
+            }
+            else
+            {
+                mRenderSystem->_setTextureCS( slotIdx, !itTex->texture.isNull(), itTex->texture.get() );
+                if( itTex->samplerblock )
+                    mRenderSystem->_setHlmsSamplerblockCS( slotIdx, itTex->samplerblock );
+            }
+
+            ++slotIdx;
+            ++itTex;
+        }
+
+        slotIdx = 0u;
+        HlmsComputeJob::TextureSlotVec::const_iterator itUav = job->mUavSlots.begin();
+        HlmsComputeJob::TextureSlotVec::const_iterator enUav = job->mUavSlots.end();
+
+        while( itUav != enUav )
+        {
+            if( itUav->buffer )
+            {
+                static_cast<UavBufferPacked*>( itUav->buffer )->bindBufferCS(
+                            slotIdx, itUav->offset, itUav->sizeBytes );
+            }
+            else
+            {
+                mRenderSystem->_bindTextureUavCS( slotIdx, itUav->texture.get(),
+                                                  itUav->access, itUav->mipmapLevel,
+                                                  itUav->textureArrayIndex, itUav->pixelFormat );
+            }
+
+            ++slotIdx;
+            ++itUav;
+        }
 
         mAutoParamDataSource->setCurrentJob( job );
         mAutoParamDataSource->setCurrentCamera( camera );
@@ -539,8 +554,6 @@ namespace Ogre
                                                    const String &sourceFilename,
                                                    const StringVector &includedPieceFiles )
     {
-        OGRE_ASSERT_MEDIUM( mComputeJobs.find( datablockName ) == mComputeJobs.end() );
-
         HlmsComputeJob *retVal = OGRE_NEW HlmsComputeJob( datablockName, this,
                                                           sourceFilename, includedPieceFiles );
         mComputeJobs[datablockName] = ComputeJobEntry( retVal, refName );

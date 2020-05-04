@@ -30,7 +30,6 @@ THE SOFTWARE.
 #include "OgreStringConverter.h"
 #include "OgreParticle.h"
 
-#include <sstream>
 
 namespace Ogre {
     

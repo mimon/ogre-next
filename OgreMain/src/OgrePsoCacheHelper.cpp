@@ -31,7 +31,8 @@ THE SOFTWARE.
 #include "OgrePsoCacheHelper.h"
 
 #include "OgreRenderSystem.h"
-#include "OgreRenderPassDescriptor.h"
+#include "OgreRenderTarget.h"
+#include "OgreDepthBuffer.h"
 
 namespace Ogre
 {
@@ -110,32 +111,21 @@ namespace Ogre
         return itor->hashToMainCache;
     }
     //-----------------------------------------------------------------------------------
-    void PsoCacheHelper::setRenderTarget( const RenderPassDescriptor *renderPassDesc )
+    void PsoCacheHelper::setRenderTarget( RenderTarget *renderTarget )
     {
         mLastFinalHash = std::numeric_limits<uint32>::max();
         mLastPso = 0;
         mCurrentState.pass.stencilParams = mRenderSystem->getStencilBufferParams();
 
-        for( int i=0; i<OGRE_MAX_MULTIPLE_RENDER_TARGETS; ++i )
-        {
-            if( renderPassDesc->mColour[i].texture )
-            {
-                mCurrentState.pass.colourFormat[i] =
-                        renderPassDesc->mColour[i].texture->getPixelFormat();
-                mCurrentState.pass.sampleDescription =
-                        renderPassDesc->mColour[i].texture->getSampleDescription();
-            }
-            else
-                mCurrentState.pass.colourFormat[i] = PFG_NULL;
-        }
+        renderTarget->getFormatsForPso( mCurrentState.pass.colourFormat, mCurrentState.pass.hwGamma );
 
-        mCurrentState.pass.depthFormat = PFG_NULL;
-        if( renderPassDesc->mDepth.texture )
-        {
-            mCurrentState.pass.depthFormat          = renderPassDesc->mDepth.texture->getPixelFormat();
-            mCurrentState.pass.sampleDescription    = renderPassDesc->mDepth.texture->getSampleDescription();
-        }
+        mCurrentState.pass.depthFormat = PF_NULL;
+        const DepthBuffer *depthBuffer = renderTarget->getDepthBuffer();
+        if( depthBuffer )
+            mCurrentState.pass.depthFormat = depthBuffer->getFormat();
 
+        mCurrentState.pass.multisampleCount   = std::max( renderTarget->getFSAA(), 1u );
+        mCurrentState.pass.multisampleQuality = StringConverter::parseInt( renderTarget->getFSAAHint() );
         mCurrentState.pass.adapterId = 1; //TODO: Ask RenderSystem current adapter ID.
         mCurrentState.sampleMask = 0xffffffff; //TODO
 
