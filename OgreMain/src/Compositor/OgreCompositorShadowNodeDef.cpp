@@ -65,7 +65,7 @@ namespace Ogre
     }
     //-----------------------------------------------------------------------------------
     ShadowTextureDefinition* CompositorShadowNodeDef::addShadowTextureDefinition(
-            size_t lightIdx, size_t split, const String &name, uint8 mrtIndex,
+            size_t lightIdx, size_t split, const String &name,
             const Vector2 &uvOffset, const Vector2 &uvLength, uint8 arrayIdx )
     {
         if( name.empty() )
@@ -104,7 +104,7 @@ namespace Ogre
 
         mNumLights += newLight;
 
-        mShadowMapTexDefinitions.push_back( ShadowTextureDefinition( mDefaultTechnique, name, mrtIndex,
+        mShadowMapTexDefinitions.push_back( ShadowTextureDefinition( mDefaultTechnique, name,
                                                                      uvOffset, uvLength, arrayIdx,
                                                                      lightIdx, split ) );
 
@@ -154,15 +154,15 @@ namespace Ogre
                     {
                         //Only force the viewport settings to the passes
                         //that directly rendering into the atlas
-                        pass->mVpLeft   = static_cast<float>( texDef.uvOffset.x );
-                        pass->mVpTop    = static_cast<float>( texDef.uvOffset.y );
-                        pass->mVpWidth  = static_cast<float>( texDef.uvLength.x );
-                        pass->mVpHeight = static_cast<float>( texDef.uvLength.y );
+                        pass->mVpRect[0].mVpLeft   = static_cast<float>( texDef.uvOffset.x );
+                        pass->mVpRect[0].mVpTop    = static_cast<float>( texDef.uvOffset.y );
+                        pass->mVpRect[0].mVpWidth  = static_cast<float>( texDef.uvLength.x );
+                        pass->mVpRect[0].mVpHeight = static_cast<float>( texDef.uvLength.y );
 
-                        pass->mVpScissorLeft   = pass->mVpLeft;
-                        pass->mVpScissorTop    = pass->mVpTop;
-                        pass->mVpScissorWidth  = pass->mVpWidth;
-                        pass->mVpScissorHeight = pass->mVpHeight;
+                        pass->mVpRect[0].mVpScissorLeft   = pass->mVpRect[0].mVpLeft;
+                        pass->mVpRect[0].mVpScissorTop    = pass->mVpRect[0].mVpTop;
+                        pass->mVpRect[0].mVpScissorWidth  = pass->mVpRect[0].mVpWidth;
+                        pass->mVpRect[0].mVpScissorHeight = pass->mVpRect[0].mVpHeight;
                     }
 
                     if( texDef.shadowMapTechnique == SHADOWMAP_PSSM )

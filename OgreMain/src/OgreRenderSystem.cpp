@@ -37,31 +37,30 @@ THE SOFTWARE.
 #include "OgreRoot.h"
 #include "OgreViewport.h"
 #include "OgreException.h"
-#include "OgreRenderTarget.h"
-#include "OgreRenderWindow.h"
 #include "OgreDepthBuffer.h"
 #include "OgreIteratorWrappers.h"
 #include "OgreLogManager.h"
-#include "OgreTextureManager.h"
 #include "OgreMaterialManager.h"
 #include "OgreHardwareOcclusionQuery.h"
 #include "OgreHlmsPso.h"
+#include "OgreTextureGpuManager.h"
+#include "OgreWindow.h"
 #include "Compositor/OgreCompositorManager2.h"
 #include "Vao/OgreVaoManager.h"
 #include "Vao/OgreVertexArrayObject.h"
+#include "OgreProfiler.h"
+
+#include "OgreLwString.h"
 
 namespace Ogre {
 
     RenderSystem::Listener* RenderSystem::msSharedEventListener = 0;
-
-    static const TexturePtr sNullTexPtr;
-
     //-----------------------------------------------------------------------
     RenderSystem::RenderSystem()
-        : mActiveRenderTarget(0)
-        , mTextureManager(0)
+        : mCurrentRenderPassDescriptor(0)
+        , mMaxBoundViewports(16u)
         , mVaoManager(0)
-        , mActiveViewport(0)
+        , mTextureGpuManager(0)
 #if OGRE_DEBUG_MODE >= OGRE_DEBUG_HIGH
         , mDebugShaders(true)
 #else
@@ -79,7 +78,9 @@ namespace Ogre {
         , mDerivedDepthBiasBase(0.0f)
         , mDerivedDepthBiasMultiplier(0.0f)
         , mDerivedDepthBiasSlopeScale(0.0f)
+        , mUavRenderingDirty(false)
         , mUavStartingSlot( 1 )
+        , mUavRenderingDescSet( 0 )
         , mGlobalInstanceVertexBufferVertexDeclaration(NULL)
         , mGlobalNumberOfInstances(1)
         , mVertexProgramBound(false)
@@ -95,6 +96,7 @@ namespace Ogre {
         , mNativeShadingLanguageVersion(0)
         , mTexProjRelative(false)
         , mTexProjRelativeOrigin(Vector3::ZERO)
+        , mReverseDepth(true)
     {
         mEventNames.push_back("RenderSystemCapabilitiesCreated");
     }
@@ -108,21 +110,7 @@ namespace Ogre {
         mCurrentCapabilities = 0;
     }
     //-----------------------------------------------------------------------
-    void RenderSystem::_initRenderTargets(void)
-    {
-
-        // Init stats
-        for(
-            RenderTargetMap::iterator it = mRenderTargets.begin();
-            it != mRenderTargets.end();
-            ++it )
-        {
-            it->second->resetStatistics();
-        }
-
-    }
-    //-----------------------------------------------------------------------
-    RenderWindow* RenderSystem::_initialise(bool autoCreateWindow, const String& windowTitle)
+    Window *RenderSystem::_initialise( bool autoCreateWindow, const String& windowTitle )
     {
         // Have I been registered by call to Root::setRenderSystem?
         /** Don't do this anymore, just allow via Root
@@ -163,7 +151,7 @@ namespace Ogre {
 
     //---------------------------------------------------------------------------------------------
     bool RenderSystem::_createRenderWindows(const RenderWindowDescriptionList& renderWindowDescriptions, 
-        RenderWindowList& createdWindows)
+        WindowList &createdWindows)
     {
         unsigned int fullscreenWindowsCount = 0;
 
@@ -178,17 +166,13 @@ namespace Ogre {
 
             bool renderWindowFound = false;
 
-            if (mRenderTargets.find(curDesc->name) != mRenderTargets.end())
-                renderWindowFound = true;
-            else
+            for( unsigned int nSecWindow = nWindow + 1; nSecWindow < renderWindowDescriptions.size();
+                 ++nSecWindow )
             {
-                for (unsigned int nSecWindow = nWindow + 1 ; nSecWindow < renderWindowDescriptions.size(); ++nSecWindow)
+                if( curDesc->name == renderWindowDescriptions[nSecWindow].name )
                 {
-                    if (curDesc->name == renderWindowDescriptions[nSecWindow].name)
-                    {
-                        renderWindowFound = true;
-                        break;
-                    }                   
+                    renderWindowFound = true;
+                    break;
                 }
             }
 
@@ -220,64 +204,18 @@ namespace Ogre {
     }
 
     //---------------------------------------------------------------------------------------------
-    void RenderSystem::destroyRenderWindow(const String& name)
+    void RenderSystem::destroyRenderWindow( Window *window )
     {
-        destroyRenderTarget(name);
-    }
-    //---------------------------------------------------------------------------------------------
-    void RenderSystem::destroyRenderTexture(const String& name)
-    {
-        destroyRenderTarget(name);
-    }
-    //---------------------------------------------------------------------------------------------
-    void RenderSystem::destroyRenderTarget(const String& name)
-    {
-        RenderTarget* rt = detachRenderTarget(name);
-        OGRE_DELETE rt;
-    }
-    //---------------------------------------------------------------------------------------------
-    void RenderSystem::attachRenderTarget( RenderTarget &target )
-    {
-        assert( target.getPriority() < OGRE_NUM_RENDERTARGET_GROUPS );
+        WindowSet::iterator itor = mWindows.find( window );
 
-        mRenderTargets.insert( RenderTargetMap::value_type( target.getName(), &target ) );
-    }
-
-    //---------------------------------------------------------------------------------------------
-    RenderTarget * RenderSystem::getRenderTarget( const String &name )
-    {
-        RenderTargetMap::iterator it = mRenderTargets.find( name );
-        RenderTarget *ret = NULL;
-
-        if( it != mRenderTargets.end() )
+        if( itor == mWindows.end() )
         {
-            ret = it->second;
+            OGRE_EXCEPT( Exception::ERR_ITEM_NOT_FOUND,
+                         "Window does not belong to us or is already deleted!",
+                         "RenderSystem::destroyRenderWindow" );
         }
-
-        return ret;
-    }
-
-    //---------------------------------------------------------------------------------------------
-    RenderTarget * RenderSystem::detachRenderTarget( const String &name )
-    {
-        RenderTargetMap::iterator it = mRenderTargets.find( name );
-        RenderTarget *ret = NULL;
-
-        if( it != mRenderTargets.end() )
-        {
-            ret = it->second;
-            mRenderTargets.erase( it );
-        }
-        /// If detached render target is the active render target, reset active render target
-        if(ret == mActiveRenderTarget)
-            mActiveRenderTarget = 0;
-
-        return ret;
-    }
-    //-----------------------------------------------------------------------
-    Viewport* RenderSystem::_getViewport(void)
-    {
-        return mActiveViewport;
+        mWindows.erase( window );
+        OGRE_DELETE window;
     }
     //-----------------------------------------------------------------------
     void RenderSystem::_setPipelineStateObject( const HlmsPso *pso )
@@ -312,7 +250,7 @@ namespace Ogre {
         // This method is only ever called to set a texture unit to valid details
         // The method _disableTextureUnit is called to turn a unit off
 
-        const TexturePtr& tex = tl._getTexturePtr();
+        TextureGpu *tex = tl._getTexturePtr();
         bool isValidBinding = false;
         
         if (mCurrentCapabilities->hasCapability(RSC_COMPLETE_TEXTURE_BINDING))
@@ -329,13 +267,13 @@ namespace Ogre {
                 _setVertexTexture(texUnit, tex);
                 // bind nothing to fragment unit (hardware isn't shared but fragment
                 // unit can't be using the same index
-                _setTexture(texUnit, true, sNullTexPtr.get());
+                _setTexture( texUnit, 0 );
             }
             else
             {
                 // vice versa
-                _setVertexTexture(texUnit, sNullTexPtr);
-                _setTexture(texUnit, true, tex.get());
+                _setVertexTexture(texUnit, 0);
+                _setTexture( texUnit, tex );
             }
         }
 
@@ -348,13 +286,13 @@ namespace Ogre {
                 _setGeometryTexture(texUnit, tex);
                 // bind nothing to fragment unit (hardware isn't shared but fragment
                 // unit can't be using the same index
-                _setTexture(texUnit, true, sNullTexPtr.get());
+                _setTexture(texUnit, 0);
             }
             else
             {
                 // vice versa
-                _setGeometryTexture(texUnit, sNullTexPtr);
-                _setTexture(texUnit, true, tex.get());
+                _setGeometryTexture(texUnit, 0);
+                _setTexture(texUnit, tex);
             }
         }
 
@@ -367,13 +305,13 @@ namespace Ogre {
                 _setTessellationDomainTexture(texUnit, tex);
                 // bind nothing to fragment unit (hardware isn't shared but fragment
                 // unit can't be using the same index
-                _setTexture(texUnit, true, sNullTexPtr.get());
+                _setTexture(texUnit, 0);
             }
             else
             {
                 // vice versa
-                _setTessellationDomainTexture(texUnit, sNullTexPtr);
-                _setTexture(texUnit, true, tex.get());
+                _setTessellationDomainTexture(texUnit, 0);
+                _setTexture(texUnit, tex);
             }
         }
 
@@ -386,13 +324,13 @@ namespace Ogre {
                 _setTessellationHullTexture(texUnit, tex);
                 // bind nothing to fragment unit (hardware isn't shared but fragment
                 // unit can't be using the same index
-                _setTexture(texUnit, true, sNullTexPtr.get());
+                _setTexture(texUnit, 0);
             }
             else
             {
                 // vice versa
-                _setTessellationHullTexture(texUnit, sNullTexPtr);
-                _setTexture(texUnit, true, tex.get());
+                _setTessellationHullTexture(texUnit, 0);
+                _setTexture(texUnit, tex);
             }
         }
 
@@ -400,13 +338,10 @@ namespace Ogre {
         {
             // Shared vertex / fragment textures or no vertex texture support
             // Bind texture (may be blank)
-            _setTexture(texUnit, true, tex.get());
+            _setTexture(texUnit, tex);
         }
 
         _setHlmsSamplerblock( texUnit, tl.getSamplerblock() );
-
-        // Set texture coordinate set
-        _setTextureCoordSet(texUnit, tl.getTextureCoordSet());
 
         // Set blend modes
         // Note, colour before alpha is important
@@ -468,13 +403,6 @@ namespace Ogre {
 
     }
     //-----------------------------------------------------------------------
-    void RenderSystem::_setTexture(size_t unit, bool enabled, 
-        const String &texname)
-    {
-        TexturePtr t = TextureManager::getSingleton().getByName(texname);
-        _setTexture(unit, enabled, t.get());
-    }
-    //-----------------------------------------------------------------------
     void RenderSystem::_setBindingType(TextureUnitState::BindingType bindingType)
     {
         OGRE_EXCEPT(Exception::ERR_NOT_IMPLEMENTED, 
@@ -482,7 +410,7 @@ namespace Ogre {
             "RenderSystem::_setBindingType");
     }
     //-----------------------------------------------------------------------
-    void RenderSystem::_setVertexTexture(size_t unit, const TexturePtr& tex)
+    void RenderSystem::_setVertexTexture(size_t unit, TextureGpu *tex)
     {
         OGRE_EXCEPT(Exception::ERR_NOT_IMPLEMENTED, 
             "This rendersystem does not support separate vertex texture samplers, "
@@ -491,7 +419,7 @@ namespace Ogre {
             "RenderSystem::_setVertexTexture");
     }
     //-----------------------------------------------------------------------
-    void RenderSystem::_setGeometryTexture(size_t unit, const TexturePtr& tex)
+    void RenderSystem::_setGeometryTexture(size_t unit, TextureGpu *tex)
     {
         OGRE_EXCEPT(Exception::ERR_NOT_IMPLEMENTED, 
             "This rendersystem does not support separate geometry texture samplers, "
@@ -500,7 +428,7 @@ namespace Ogre {
             "RenderSystem::_setGeometryTexture");
     }
     //-----------------------------------------------------------------------
-    void RenderSystem::_setTessellationHullTexture(size_t unit, const TexturePtr& tex)
+    void RenderSystem::_setTessellationHullTexture(size_t unit, TextureGpu *tex)
     {
         OGRE_EXCEPT(Exception::ERR_NOT_IMPLEMENTED, 
             "This rendersystem does not support separate tessellation hull texture samplers, "
@@ -509,7 +437,7 @@ namespace Ogre {
             "RenderSystem::_setTessellationHullTexture");
     }
     //-----------------------------------------------------------------------
-    void RenderSystem::_setTessellationDomainTexture(size_t unit, const TexturePtr& tex)
+    void RenderSystem::_setTessellationDomainTexture(size_t unit, TextureGpu *tex)
     {
         OGRE_EXCEPT(Exception::ERR_NOT_IMPLEMENTED, 
             "This rendersystem does not support separate tessellation domain texture samplers, "
@@ -518,67 +446,163 @@ namespace Ogre {
             "RenderSystem::_setTessellationDomainTexture");
     }
     //-----------------------------------------------------------------------
-    void RenderSystem::_disableTextureUnit(size_t texUnit)
+    void RenderSystem::destroyRenderPassDescriptor( RenderPassDescriptor *renderPassDesc )
     {
-        _setTexture(texUnit, false, sNullTexPtr.get());
+        RenderPassDescriptorSet::iterator itor = mRenderPassDescs.find( renderPassDesc );
+        assert( itor != mRenderPassDescs.end() && "Already destroyed?" );
+        if( itor != mRenderPassDescs.end() )
+            mRenderPassDescs.erase( itor );
+        delete renderPassDesc;
     }
     //---------------------------------------------------------------------
-    void RenderSystem::_disableTextureUnitsFrom(size_t texUnit)
+    void RenderSystem::destroyAllRenderPassDescriptors(void)
     {
-        size_t disableTo = OGRE_MAX_TEXTURE_LAYERS;
-        if (disableTo > mDisabledTexUnitsFrom)
-            disableTo = mDisabledTexUnitsFrom;
-        mDisabledTexUnitsFrom = texUnit;
-        for (size_t i = texUnit; i < disableTo; ++i)
+        RenderPassDescriptorSet::const_iterator itor = mRenderPassDescs.begin();
+        RenderPassDescriptorSet::const_iterator end  = mRenderPassDescs.end();
+
+        while( itor != end )
+            delete *itor++;
+
+        mRenderPassDescs.clear();
+    }
+    //---------------------------------------------------------------------
+    void RenderSystem::beginRenderPassDescriptor( RenderPassDescriptor *desc,
+                                                  TextureGpu *anyTarget,
+                                                  uint8 mipLevel,
+                                                  const Vector4 *viewportSizes,
+                                                  const Vector4 *scissors,
+                                                  uint32 numViewports,
+                                                  bool overlaysEnabled,
+                                                  bool warnIfRtvWasFlushed )
+    {
+        assert( anyTarget );
+
+        mCurrentRenderPassDescriptor = desc;
+        for( size_t i=0; i<numViewports; ++i )
         {
-            _disableTextureUnit(i);
+            mCurrentRenderViewport[i].setDimensions( anyTarget, viewportSizes[i],
+                                                     scissors[i], mipLevel );
+            mCurrentRenderViewport[i].setOverlaysEnabled( overlaysEnabled );
         }
+
+        mMaxBoundViewports = numViewports;
+    }
+    //---------------------------------------------------------------------
+    void RenderSystem::executeRenderPassDescriptorDelayedActions(void)
+    {
+    }
+    //---------------------------------------------------------------------
+    void RenderSystem::endRenderPassDescriptor(void)
+    {
+        mCurrentRenderPassDescriptor = 0;
+        const size_t maxBoundViewports = mMaxBoundViewports;
+        for( size_t i=0; i<maxBoundViewports; ++i )
+            mCurrentRenderViewport[i].setDimensions( 0, Vector4::ZERO, Vector4::ZERO, 0u );
+        mMaxBoundViewports = 1u;
+
+        //Where graphics ends, compute may start, or a new frame.
+        //Very likely we'll have to flush the UAVs again, so assume we need.
+        mUavRenderingDirty = true;
+    }
+    //---------------------------------------------------------------------
+    TextureGpu* RenderSystem::createDepthBufferFor( TextureGpu *colourTexture, bool preferDepthTexture,
+                                                    PixelFormatGpu depthBufferFormat )
+    {
+        uint32 textureFlags = TextureFlags::RenderToTexture;
+
+        if( !preferDepthTexture )
+            textureFlags |= TextureFlags::NotTexture;
+
+        char tmpBuffer[64];
+        LwString depthBufferName( LwString::FromEmptyPointer( tmpBuffer, sizeof(tmpBuffer) ) );
+        depthBufferName.a( "DepthBuffer_", Id::generateNewId<TextureGpu>() );
+
+        TextureGpu *retVal = mTextureGpuManager->createTexture( depthBufferName.c_str(),
+                                                                GpuPageOutStrategy::Discard,
+                                                                textureFlags, TextureTypes::Type2D );
+
+        retVal->setResolution( colourTexture->getWidth(), colourTexture->getHeight() );
+        retVal->setPixelFormat( depthBufferFormat );
+        retVal->setSampleDescription( colourTexture->getRequestedSampleDescription() );
+
+        retVal->_transitionTo( GpuResidency::Resident, (uint8*)0 );
+
+        return retVal;
+    }
+    //---------------------------------------------------------------------
+    TextureGpu* RenderSystem::getDepthBufferFor( TextureGpu *colourTexture, uint16 poolId,
+                                                 bool preferDepthTexture,
+                                                 PixelFormatGpu depthBufferFormat )
+    {
+        if( poolId == DepthBuffer::POOL_NO_DEPTH || depthBufferFormat == PFG_NULL )
+            return 0; //RenderTarget explicitly requested no depth buffer
+
+        if( colourTexture->isRenderWindowSpecific() )
+        {
+            Window *window;
+            colourTexture->getCustomAttribute( "Window", &window );
+            return window->getDepthBuffer();
+        }
+
+        if( poolId == DepthBuffer::POOL_NON_SHAREABLE )
+        {
+            TextureGpu *retVal = createDepthBufferFor( colourTexture, preferDepthTexture,
+                                                       depthBufferFormat );
+            return retVal;
+        }
+
+        //Find a depth buffer in the pool
+        TextureGpuVec::const_iterator itor = mDepthBufferPool2[poolId].begin();
+        TextureGpuVec::const_iterator end  = mDepthBufferPool2[poolId].end();
+
+        TextureGpu *retVal = 0;
+
+        while( itor != end && !retVal )
+        {
+            if( preferDepthTexture == (*itor)->isTexture() &&
+                (depthBufferFormat == PFG_UNKNOWN ||
+                 depthBufferFormat == (*itor)->getPixelFormat()) &&
+                (*itor)->supportsAsDepthBufferFor( colourTexture ) )
+            {
+                retVal = *itor;
+            }
+            else
+            {
+                retVal = 0;
+            }
+            ++itor;
+        }
+
+        //Not found yet? Create a new one!
+        if( !retVal )
+        {
+            retVal = createDepthBufferFor( colourTexture, preferDepthTexture, depthBufferFormat );
+            mDepthBufferPool2[poolId].push_back( retVal );
+
+            if( !retVal )
+            {
+                LogManager::getSingleton().logMessage( "WARNING: Couldn't create a suited "
+                                                       "DepthBuffer for RTT: " +
+                                                       colourTexture->getNameStr(), LML_CRITICAL );
+            }
+        }
+
+        return retVal;
     }
     //---------------------------------------------------------------------
     void RenderSystem::setUavStartingSlot( uint32 startingSlot )
     {
         mUavStartingSlot = startingSlot;
+        mUavRenderingDirty = true;
     }
     //---------------------------------------------------------------------
-    void RenderSystem::_cleanupDepthBuffers( bool bCleanManualBuffers )
+    void RenderSystem::queueBindUAVs( const DescriptorSetUav *descSetUav )
     {
-        DepthBufferMap::iterator itMap = mDepthBufferPool.begin();
-        DepthBufferMap::iterator enMap = mDepthBufferPool.end();
-
-        while( itMap != enMap )
+        if( mUavRenderingDescSet != descSetUav )
         {
-            DepthBufferVec::const_iterator itor = itMap->second.begin();
-            DepthBufferVec::const_iterator end  = itMap->second.end();
-
-            while( itor != end )
-            {
-                if( bCleanManualBuffers || !(*itor)->isManual() )
-                    delete *itor;
-                ++itor;
-            }
-
-            itMap->second.clear();
-
-            ++itMap;
+            mUavRenderingDescSet = descSetUav;
+            mUavRenderingDirty = true;
         }
-
-        mDepthBufferPool.clear();
-
-        cleanReleasedDepthBuffers();
-    }
-    //-----------------------------------------------------------------------
-    void RenderSystem::cleanReleasedDepthBuffers(void)
-    {
-        DepthBufferVec::const_iterator itor = mReleasedDepthBuffers.begin();
-        DepthBufferVec::const_iterator end  = mReleasedDepthBuffers.end();
-
-        while( itor != end )
-        {
-            delete *itor;
-            ++itor;
-        }
-
-        mReleasedDepthBuffers.clear();
     }
     //-----------------------------------------------------------------------
     void RenderSystem::_beginFrameOnce(void)
@@ -586,107 +610,9 @@ namespace Ogre {
         mVaoManager->_beginFrame();
     }
     //-----------------------------------------------------------------------
-    void RenderSystem::setDepthBufferFor( RenderTarget *renderTarget, bool exactMatch )
+    void RenderSystem::_endFrameOnce(void)
     {
-        uint16 poolId = renderTarget->getDepthBufferPool();
-        if( poolId == DepthBuffer::POOL_NO_DEPTH )
-            return; //RenderTarget explicitly requested no depth buffer
-
-        if( poolId == DepthBuffer::POOL_NON_SHAREABLE )
-        {
-            createUniqueDepthBufferFor( renderTarget, exactMatch );
-            return;
-        }
-
-        //Find a depth buffer in the pool
-        DepthBufferVec::const_iterator itor = mDepthBufferPool[poolId].begin();
-        DepthBufferVec::const_iterator end  = mDepthBufferPool[poolId].end();
-
-        bool bAttached = false;
-        while( itor != end && !bAttached )
-            bAttached = renderTarget->attachDepthBuffer( *itor++, exactMatch );
-
-        //Not found yet? Create a new one!
-        if( !bAttached )
-        {
-            DepthBuffer *newDepthBuffer = _createDepthBufferFor( renderTarget, exactMatch );
-
-            if( newDepthBuffer )
-            {
-                newDepthBuffer->_setPoolId( poolId );
-                mDepthBufferPool[poolId].push_back( newDepthBuffer );
-
-                bAttached = renderTarget->attachDepthBuffer( newDepthBuffer, exactMatch );
-
-                assert( bAttached && "A new DepthBuffer for a RenderTarget was created, but after"
-                                     " creation it says it's incompatible with that RT" );
-            }
-            else
-            {
-                if( exactMatch )
-                {
-                    //The GPU doesn't support this depth buffer format. Try a fallback.
-                    setDepthBufferFor( renderTarget, false );
-                }
-                else
-                {
-                    LogManager::getSingleton().logMessage( "WARNING: Couldn't create a suited "
-                                                           "DepthBuffer for RT: " +
-                                                           renderTarget->getName(), LML_CRITICAL );
-                }
-            }
-        }
-    }
-    //-----------------------------------------------------------------------
-    void RenderSystem::createUniqueDepthBufferFor( RenderTarget *renderTarget, bool exactMatch )
-    {
-        assert( renderTarget->getForceDisableColourWrites() );
-        assert( renderTarget->getDepthBufferPool() == DepthBuffer::POOL_NON_SHAREABLE );
-        assert( !renderTarget->getDepthBuffer() );
-
-        const uint16 poolId = DepthBuffer::POOL_NON_SHAREABLE;
-
-        DepthBuffer *newDepthBuffer = _createDepthBufferFor( renderTarget, exactMatch );
-
-        if( newDepthBuffer )
-        {
-            newDepthBuffer->_setPoolId( poolId );
-            mDepthBufferPool[poolId].push_back( newDepthBuffer );
-
-            bool bAttached = renderTarget->attachDepthBuffer( newDepthBuffer, exactMatch );
-
-            assert( bAttached && "A new DepthBuffer for a RenderTarget was created, but after"
-                                 " creation it says it's incompatible with that RT" );
-        }
-        else
-        {
-            if( exactMatch )
-            {
-                //The GPU doesn't support this depth buffer format. Try a fallback.
-                createUniqueDepthBufferFor( renderTarget, false );
-            }
-            else
-            {
-                LogManager::getSingleton().logMessage( "WARNING: Couldn't create a suited "
-                                                       "unique DepthBuffer for RT: " +
-                                                       renderTarget->getName(), LML_CRITICAL );
-            }
-        }
-    }
-    //-----------------------------------------------------------------------
-    void RenderSystem::_destroyDepthBuffer( DepthBuffer *depthBuffer )
-    {
-        DepthBufferVec &depthBuffersInPool = mDepthBufferPool[depthBuffer->getPoolId()];
-        DepthBufferVec::iterator itor = depthBuffersInPool.begin();
-        DepthBufferVec::iterator end  = depthBuffersInPool.end();
-
-        while( itor != end && *itor != depthBuffer )
-            ++itor;
-
-        assert( itor != depthBuffersInPool.end() );
-
-        efficientVectorRemove( depthBuffersInPool, itor );
-        mReleasedDepthBuffers.push_back( depthBuffer );
+        queueBindUAVs( 0 );
     }
     //-----------------------------------------------------------------------
     bool RenderSystem::getWBufferEnabled(void) const
@@ -699,6 +625,13 @@ namespace Ogre {
         mWBuffer = enabled;
     }
     //-----------------------------------------------------------------------
+    SampleDescription RenderSystem::validateSampleDescription( const SampleDescription &sampleDesc,
+                                                               PixelFormatGpu format )
+    {
+        SampleDescription retVal( sampleDesc.getMaxSamples(), sampleDesc.getMsaaPattern() );
+        return retVal;
+    }
+    //-----------------------------------------------------------------------
     void RenderSystem::shutdown(void)
     {
         // Remove occlusion queries
@@ -709,23 +642,41 @@ namespace Ogre {
         }
         mHwOcclusionQueries.clear();
 
-        _cleanupDepthBuffers();
+        destroyAllRenderPassDescriptors();
 
+        OGRE_DELETE mTextureGpuManager;
+        mTextureGpuManager = 0;
         OGRE_DELETE mVaoManager;
         mVaoManager = 0;
 
-        // Remove all the render targets.
-        // (destroy primary target last since others may depend on it)
-        RenderTarget* primary = 0;
-        for (RenderTargetMap::iterator it = mRenderTargets.begin(); it != mRenderTargets.end(); ++it)
         {
-            if (!primary && it->second->isPrimary())
-                primary = it->second;
-            else
-                OGRE_DELETE it->second;
+            // Remove all windows.
+            // (destroy primary window last since others may depend on it)
+            Window *primary = 0;
+            WindowSet::const_iterator itor = mWindows.begin();
+            WindowSet::const_iterator end  = mWindows.end();
+
+            while( itor != end )
+            {
+                //Set mTextureManager to 0 as it is no longer valid on shutdown
+                if( (*itor)->getTexture() )
+                    (*itor)->getTexture()->_resetTextureManager();
+                if( (*itor)->getDepthBuffer() )
+                    (*itor)->getDepthBuffer()->_resetTextureManager();
+                if( (*itor)->getStencilBuffer() )
+                    (*itor)->getStencilBuffer()->_resetTextureManager();
+
+                if( !primary && (*itor)->isPrimary() )
+                    primary = *itor;
+                else
+                    OGRE_DELETE *itor;
+
+                ++itor;
+            }
+
+            OGRE_DELETE primary;
+            mWindows.clear();
         }
-        OGRE_DELETE primary;
-        mRenderTargets.clear();
     }
     //-----------------------------------------------------------------------
     void RenderSystem::_beginGeometryCount(void)
@@ -754,6 +705,169 @@ namespace Ogre {
         *pDest = v1::VertexElement::convertColourValue(colour, getColourVertexElementType());
     }
     //-----------------------------------------------------------------------
+    CompareFunction RenderSystem::reverseCompareFunction( CompareFunction depthFunc )
+    {
+        switch( depthFunc )
+        {
+        case CMPF_LESS:         return CMPF_GREATER;
+        case CMPF_LESS_EQUAL:   return CMPF_GREATER_EQUAL;
+        case CMPF_GREATER_EQUAL:return CMPF_LESS_EQUAL;
+        case CMPF_GREATER:      return CMPF_LESS;
+        default:                return depthFunc;
+        }
+
+        return depthFunc;
+    }
+    //-----------------------------------------------------------------------
+    void RenderSystem::_makeRsProjectionMatrix( const Matrix4& matrix,
+                                                Matrix4& dest, Real nearPlane,
+                                                Real farPlane, ProjectionType projectionType )
+    {
+        dest = matrix;
+
+        Real inv_d = 1 / (farPlane - nearPlane);
+        Real q, qn;
+
+        if( mReverseDepth )
+        {
+            if( projectionType == PT_PERSPECTIVE )
+            {
+                if( farPlane == 0 )
+                {
+                    // Infinite far plane
+                    //  q   = limit( near / (far - near), far, inf );
+                    //  qn  = limit( (far * near) / (far - near), far, inf );
+                    q   = 0;
+                    qn  = nearPlane;
+                }
+                else
+                {
+                    //Standard Z for range [-1; 1]
+                    //  q = - (far + near) / (far - near)
+                    //  qn = - 2 * (far * near) / (far - near)
+                    //
+                    //Standard Z for range [0; 1]
+                    //  q = - far / (far - near)
+                    //  qn = - (far * near) / (far - near)
+                    //
+                    //Reverse Z for range [1; 0]:
+                    // [ 1   0    0  0  ]   [ A   0   C   0  ]
+                    // [ 0   1    0  0  ] X [ 0   B   D   0  ]
+                    // [ 0   0   -1  1  ]   [ 0   0   q   qn ]
+                    // [ 0   0    0  1  ]   [ 0   0   -1  0  ]
+                    //
+                    // [ A   0   C      0  ]
+                    // [ 0   B   D      0  ]
+                    // [ 0   0   -q-1  -qn ]
+                    // [ 0   0   -1     0  ]
+                    //
+                    //  q' = -q - 1
+                    //     =  far / (far - near) - 1
+                    //     = ( far - (far - near) ) / (far - near)
+                    //  q' = near / (far - near)
+                    //  qn'= -qn
+                    q   = nearPlane * inv_d;
+                    qn  = (farPlane * nearPlane) * inv_d;
+                }
+            }
+            else
+            {
+                if( farPlane == 0 )
+                {
+                    // Can not do infinite far plane here, avoid divided zero only
+                    q = Frustum::INFINITE_FAR_PLANE_ADJUST / nearPlane;
+                    qn = Frustum::INFINITE_FAR_PLANE_ADJUST + 1;
+                }
+                else
+                {
+                    //Standard Z for range [-1; 1]
+                    //  q = - 2 / (far - near)
+                    //  qn = -(far + near) / (far - near)
+                    //
+                    //Standard Z for range [0; 1]
+                    //  q = - 1 / (far - near)
+                    //  qn = - near / (far - near)
+                    //
+                    //Reverse Z for range [1; 0]:
+                    //  q' = 1 / (far - near)
+                    //  qn'= far / (far - near)
+                    q   = inv_d;
+                    qn  = farPlane * inv_d;
+                }
+            }
+        }
+        else
+        {
+            if( projectionType == PT_PERSPECTIVE )
+            {
+                if( farPlane == 0 )
+                {
+                    // Infinite far plane
+                    q   = Frustum::INFINITE_FAR_PLANE_ADJUST - 1;
+                    qn  = nearPlane * (Frustum::INFINITE_FAR_PLANE_ADJUST - 1);
+                }
+                else
+                {
+                    q   = -farPlane * inv_d;
+                    qn  = -(farPlane * nearPlane) * inv_d;
+                }
+            }
+            else
+            {
+                if( farPlane == 0 )
+                {
+                    // Can not do infinite far plane here, avoid divided zero only
+                    q   = -Frustum::INFINITE_FAR_PLANE_ADJUST / nearPlane;
+                    qn  = -Frustum::INFINITE_FAR_PLANE_ADJUST;
+                }
+                else
+                {
+                    q   = -inv_d;
+                    qn  = -nearPlane * inv_d;
+                }
+            }
+        }
+
+        dest[2][2] = q;
+        dest[2][3] = qn;
+    }
+    //-----------------------------------------------------------------------
+    void RenderSystem::_convertProjectionMatrix( const Matrix4& matrix, Matrix4& dest )
+    {
+        dest = matrix;
+
+        if( !mReverseDepth )
+        {
+            // Convert depth range from [-1,+1] to [0,1]
+            dest[2][0] = (dest[2][0] + dest[3][0]) / 2;
+            dest[2][1] = (dest[2][1] + dest[3][1]) / 2;
+            dest[2][2] = (dest[2][2] + dest[3][2]) / 2;
+            dest[2][3] = (dest[2][3] + dest[3][3]) / 2;
+        }
+        else
+        {
+            // Convert depth range from [-1,+1] to [1,0]
+            dest[2][0] = (-dest[2][0] + dest[3][0]) / 2;
+            dest[2][1] = (-dest[2][1] + dest[3][1]) / 2;
+            dest[2][2] = (-dest[2][2] + dest[3][2]) / 2;
+            dest[2][3] = (-dest[2][3] + dest[3][3]) / 2;
+        }
+    }
+    //-----------------------------------------------------------------------
+    void RenderSystem::_convertOpenVrProjectionMatrix( const Matrix4& matrix, Matrix4& dest )
+    {
+        dest = matrix;
+
+        if( mReverseDepth )
+        {
+            // Convert depth range from [0,1] to [1,0]
+            dest[2][0] = (-dest[2][0] + dest[3][0]);
+            dest[2][1] = (-dest[2][1] + dest[3][1]);
+            dest[2][2] = (-dest[2][2] + dest[3][2]);
+            dest[2][3] = (-dest[2][3] + dest[3][3]);
+        }
+    }
+    //-----------------------------------------------------------------------
     void RenderSystem::_setWorldMatrices(const Matrix4* m, unsigned short count)
     {
         // Do nothing with these matrices here, it never used for now,
@@ -769,8 +883,9 @@ namespace Ogre {
 
         // NB: We should always treat CCW as front face for consistent with default
         // culling mode.
-        const bool mustFlip = ((mInvertVertexWinding && !mActiveRenderTarget->requiresTextureFlipping()) ||
-                               (!mInvertVertexWinding && mActiveRenderTarget->requiresTextureFlipping()));
+        const bool mustFlip =
+                ((mInvertVertexWinding && !mCurrentRenderPassDescriptor->requiresTextureFlipping()) ||
+                 (!mInvertVertexWinding && mCurrentRenderPassDescriptor->requiresTextureFlipping()));
 
         if( mustFlip )
         {
@@ -863,14 +978,6 @@ namespace Ogre {
         mVertexCount    += vao->mVertexBuffers[0]->getNumElements();
         ++mBatchCount;
     }*/
-    //-----------------------------------------------------------------------
-    void RenderSystem::_renderUsingReadBackAsTexture(unsigned int secondPass,Ogre::String variableName,unsigned int StartSlot)
-    {
-        OGRE_EXCEPT(Exception::ERR_NOT_IMPLEMENTED, 
-            "This rendersystem does not support reading back the inactive depth/stencil \
-            buffer as a texture. Only DirectX 11 Render System supports it.",
-            "RenderSystem::_renderUsingReadBackAsTexture"); 
-    }
     //-----------------------------------------------------------------------
     void RenderSystem::setInvertVertexWinding(bool invert)
     {
@@ -1038,15 +1145,14 @@ namespace Ogre {
     //---------------------------------------------------------------------
     void RenderSystem::_update(void)
     {
+        OgreProfile( "RenderSystem::_update" );
+        mTextureGpuManager->_update( false );
         mVaoManager->_update();
-        cleanReleasedDepthBuffers();
     }
     //---------------------------------------------------------------------
-    void RenderSystem::updateCompositorManager( CompositorManager2 *compositorManager,
-                                                SceneManagerEnumerator &sceneManagers,
-                                                HlmsManager *hlmsManager )
+    void RenderSystem::updateCompositorManager( CompositorManager2 *compositorManager )
     {
-        compositorManager->_updateImplementation( sceneManagers, hlmsManager );
+        compositorManager->_updateImplementation();
     }
     //---------------------------------------------------------------------
     const String& RenderSystem::_getDefaultViewportMaterialScheme( void ) const
@@ -1110,5 +1216,11 @@ namespace Ogre {
     {
         mDebugShaders = bDebugShaders;
     }
+    //---------------------------------------------------------------------
+    void RenderSystem::_clearStateAndFlushCommandBuffer(void)
+    {
+    }
+    //---------------------------------------------------------------------
+    RenderSystem::Listener::~Listener() {}
 }
 

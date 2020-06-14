@@ -31,6 +31,9 @@ THE SOFTWARE.
 #include "OgreHlmsCommon.h"
 #include "OgreHlmsDatablock.h"
 #include "OgreHlmsSamplerblock.h"
+#include "OgreDescriptorSetTexture.h"
+#include "OgreDescriptorSetSampler.h"
+#include "OgreDescriptorSetUav.h"
 #if !OGRE_NO_JSON
     #include "OgreScriptLoader.h"
 #endif
@@ -90,6 +93,15 @@ namespace Ogre
         BlockIdxVec         mFreeBlockIds[NUM_BASIC_BLOCKS];
         BasicBlock          *mBlocks[NUM_BASIC_BLOCKS][OGRE_HLMS_MAX_BASIC_BLOCKS];
 
+        typedef set<DescriptorSetTexture>::type     DescriptorSetTextureSet;
+        typedef set<DescriptorSetTexture2>::type    DescriptorSetTexture2Set;
+        typedef set<DescriptorSetSampler>::type     DescriptorSetSamplerSet;
+        typedef set<DescriptorSetUav>::type         DescriptorSetUavSet;
+        DescriptorSetTextureSet     mDescriptorSetTextures;
+        DescriptorSetTexture2Set    mDescriptorSetTextures2;
+        DescriptorSetSamplerSet     mDescriptorSetSamplers;
+        DescriptorSetUavSet         mDescriptorSetUavs;
+
         struct InputLayouts
         {
             //OperationType           opType;
@@ -102,8 +114,6 @@ namespace Ogre
 
         RenderSystem        *mRenderSystem;
         bool                mShadowMappingUseBackFaces;
-
-        HlmsTextureManager  *mTextureManager;
 
         public: typedef std::map<IdString, HlmsDatablock*> HlmsDatablockMap;
     protected:
@@ -127,6 +137,13 @@ namespace Ogre
 
         template <typename T, HlmsBasicBlock type, size_t maxLimit>
         T* getBasicBlock( typename vector<T>::type &container, const T &baseParams );
+
+        template <typename T>
+        const T* getDescriptorSet( typename set<T>::type &container, const T &baseParams,
+                                   void (*renderSysFunc)( RenderSystem*, T*) );
+        template <typename T>
+        void destroyDescriptorSet( typename set<T>::type &container, const T *descSet,
+                                   void (*renderSysFunc)( RenderSystem*, T*) );
 
     public:
         HlmsManager();
@@ -207,6 +224,17 @@ namespace Ogre
         /// @See destroyMacroblock
         void destroySamplerblock( const HlmsSamplerblock *Samplerblock );
 
+        const DescriptorSetTexture* getDescriptorSetTexture( const DescriptorSetTexture &baseParams );
+        void destroyDescriptorSetTexture( const DescriptorSetTexture *descSet );
+        const DescriptorSetTexture2* getDescriptorSetTexture2( const DescriptorSetTexture2 &baseParams );
+        void destroyDescriptorSetTexture2( const DescriptorSetTexture2 *descSet );
+
+        const DescriptorSetSampler* getDescriptorSetSampler( const DescriptorSetSampler &baseParams );
+        void destroyDescriptorSetSampler( const DescriptorSetSampler *descSet );
+
+        const DescriptorSetUav* getDescriptorSetUav( const DescriptorSetUav &baseParams );
+        void destroyDescriptorSetUav( const DescriptorSetUav *descSet );
+
         /** Always returns a unique ID for the given vertexElement / OperationType combination,
             necessary by Hlms to generate a unique PSO.
 
@@ -269,8 +297,6 @@ namespace Ogre
         /// (it's a block.. of data). Prefer calling getDatablock directly.
         HlmsDatablock* getMaterial( IdString name ) const   { return getDatablock( name ); }
 
-        HlmsTextureManager* getTextureManager(void) const   { return mTextureManager; }
-
         void useDefaultDatablockFrom( HlmsTypes type )      { mDefaultHlmsType = type; }
 
         /// Datablock to use when another datablock failed or none was specified.
@@ -310,6 +336,8 @@ namespace Ogre
         bool getShadowMappingUseBackFaces(void)             { return mShadowMappingUseBackFaces; }
 
         void _changeRenderSystem( RenderSystem *newRs );
+
+        RenderSystem* getRenderSystem(void) const           { return mRenderSystem; }
 
 #if !OGRE_NO_JSON
         /** Opens a file containing a JSON string to load all Hlms materials from.

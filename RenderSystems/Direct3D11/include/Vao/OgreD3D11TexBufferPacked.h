@@ -31,6 +31,7 @@ THE SOFTWARE.
 
 #include "OgreD3D11Prerequisites.h"
 #include "Vao/OgreTexBufferPacked.h"
+#include "OgreDescriptorSetTexture.h"
 
 namespace Ogre
 {
@@ -51,6 +52,8 @@ namespace Ogre
         CachedResourceView  mCachedResourceViews[16];
         uint8               mCurrentCacheCursor;
 
+        bool isD3D11Structured(void) const;
+
         ID3D11ShaderResourceView* createResourceView( int cacheIdx, uint32 offset, uint32 sizeBytes );
         ID3D11ShaderResourceView* bindBufferCommon( size_t offset, size_t sizeBytes );
 
@@ -59,8 +62,10 @@ namespace Ogre
                               uint32 numElementsPadding, BufferType bufferType,
                               void *initialData, bool keepAsShadow,
                               VaoManager *vaoManager, BufferInterface *bufferInterface,
-                              Ogre::PixelFormat pf, D3D11Device &device );
+                              PixelFormatGpu pf, bool bIsStructured, D3D11Device &device );
         virtual ~D3D11TexBufferPacked();
+
+        ID3D11ShaderResourceView* createSrv( const DescriptorSetTexture2::BufferSlot &bufferSlot ) const;
 
         virtual void bindBufferVS( uint16 slot, size_t offset=0, size_t sizeBytes=0 );
         virtual void bindBufferPS( uint16 slot, size_t offset=0, size_t sizeBytes=0 );

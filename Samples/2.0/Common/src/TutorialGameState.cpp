@@ -169,17 +169,13 @@ namespace Demo
         }
         else if( arg.keysym.scancode == SDL_SCANCODE_F3 && (arg.keysym.mod & (KMOD_LCTRL|KMOD_RCTRL)) )
         {
-            //Hot reload of Unlit shaders.
+            //Hot reload of Compute shaders.
             Ogre::Root *root = mGraphicsSystem->getRoot();
             Ogre::HlmsManager *hlmsManager = root->getHlmsManager();
 
             Ogre::Hlms *hlms = hlmsManager->getComputeHlms();
             Ogre::GpuProgramManager::getSingleton().clearMicrocodeCache();
             hlms->reloadFrom( hlms->getDataFolder() );
-        }
-        else if(arg.keysym.scancode == SDL_SCANCODE_ESCAPE)
-        {
-            mGraphicsSystem->setQuit();
         }
         else
         {

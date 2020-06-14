@@ -36,6 +36,7 @@ THE SOFTWARE.
 #include "Compositor/Pass/PassCompute/OgreCompositorPassComputeDef.h"
 #include "Compositor/Pass/PassDepthCopy/OgreCompositorPassDepthCopy.h"
 #include "Compositor/Pass/PassDepthCopy/OgreCompositorPassDepthCopyDef.h"
+#include "Compositor/Pass/PassIblSpecular/OgreCompositorPassIblSpecular.h"
 #include "Compositor/Pass/PassMipmap/OgreCompositorPassMipmap.h"
 #include "Compositor/Pass/PassQuad/OgreCompositorPassQuad.h"
 #include "Compositor/Pass/PassQuad/OgreCompositorPassQuadDef.h"
@@ -52,8 +53,8 @@ THE SOFTWARE.
 
 #include "OgreRenderSystem.h"
 #include "OgreSceneManager.h"
-#include "OgreHardwarePixelBuffer.h"
-#include "OgreRenderTexture.h"
+
+#include "OgreTextureGpu.h"
 
 #include "OgreLogManager.h"
 
@@ -61,7 +62,7 @@ namespace Ogre
 {
     CompositorNode::CompositorNode( IdType id, IdString name, const CompositorNodeDef *definition,
                                     CompositorWorkspace *workspace, RenderSystem *renderSys,
-                                    const RenderTarget *finalTarget ) :
+                                    TextureGpu *finalTarget ) :
             IdObject( id ),
             mName( name ),
             mEnabled( definition->mStartEnabled ),
@@ -92,22 +93,28 @@ namespace Ogre
     //-----------------------------------------------------------------------------------
     CompositorNode::~CompositorNode()
     {
+        //Passes need to be destroyed before destroying all nodes, since some
+        //passes may hold listener references to these TextureGpus
+        assert( mPasses.empty() && "CompositorNode::destroyAllPasses not called!" );
+
         //Don't leave dangling pointers
         disconnectOutput();
-
-        {
-            //Destroy all passes
-            CompositorPassVec::const_iterator itor = mPasses.begin();
-            CompositorPassVec::const_iterator end  = mPasses.end();
-            while( itor != end )
-                OGRE_DELETE *itor++;
-        }
 
         //Destroy our local buffers
         TextureDefinitionBase::destroyBuffers( mDefinition->mLocalBufferDefs, mBuffers, mRenderSystem );
 
         //Destroy our local textures
         TextureDefinitionBase::destroyTextures( mLocalTextures, mRenderSystem );
+    }
+    //-----------------------------------------------------------------------------------
+    void CompositorNode::destroyAllPasses(void)
+    {
+        //Destroy all passes
+        CompositorPassVec::const_iterator itor = mPasses.begin();
+        CompositorPassVec::const_iterator end  = mPasses.end();
+        while( itor != end )
+            OGRE_DELETE *itor++;
+        mPasses.clear();
     }
     //-----------------------------------------------------------------------------------
     void CompositorNode::routeOutputs()
@@ -193,34 +200,17 @@ namespace Ogre
         }
     }
     //-----------------------------------------------------------------------------------
-    void CompositorNode::notifyRecreated( const CompositorChannel &oldChannel,
-                                            const CompositorChannel &newChannel )
+    void CompositorNode::notifyRecreated( TextureGpu *channel )
     {
-        //Clear our inputs
-        CompositorChannelVec::iterator texIt = mInTextures.begin();
-        CompositorChannelVec::iterator texEn = mInTextures.end();
-
-        //We can't early out, it's possible to assign the same output to two different
-        //input channels (though it would work very unintuitively...)
-        while( texIt != texEn )
-        {
-            if( *texIt == oldChannel )
-                *texIt = newChannel;
-            ++texIt;
-        }
-
-        //Clear our outputs
+        //Check if we need to notify nodes we're connected to.
         bool bFoundOuts = false;
-        texIt = mOutTextures.begin();
-        texEn = mOutTextures.end();
+        CompositorChannelVec::const_iterator texIt = mOutTextures.begin();
+        CompositorChannelVec::const_iterator texEn = mOutTextures.end();
 
-        while( texIt != texEn )
+        while( texIt != texEn && !bFoundOuts )
         {
-            if( *texIt == oldChannel )
-            {
+            if( *texIt == channel )
                 bFoundOuts = true;
-                *texIt = newChannel;
-            }
             ++texIt;
         }
 
@@ -232,7 +222,7 @@ namespace Ogre
 
             while( itor != end )
             {
-                (*itor)->notifyRecreated( oldChannel, newChannel );
+                (*itor)->notifyRecreated( channel );
                 ++itor;
             }
         }
@@ -241,7 +231,7 @@ namespace Ogre
         CompositorPassVec::const_iterator passEn = mPasses.end();
         while( passIt != passEn )
         {
-            (*passIt)->notifyRecreated( oldChannel, newChannel );
+            (*passIt)->notifyRecreated( channel );
             ++passIt;
         }
     }
@@ -299,7 +289,7 @@ namespace Ogre
         }
     }
     //-----------------------------------------------------------------------------------
-    void CompositorNode::notifyDestroyed( const CompositorChannel &channel )
+    void CompositorNode::notifyDestroyed( TextureGpu *channel )
     {
         //Clear our inputs
         CompositorChannelVec::iterator texIt = mInTextures.begin();
@@ -547,10 +537,10 @@ namespace Ogre
 
         //Nodes must be connected in the right order (and after routeOutputs was called)
         //to avoid passing null pointers (which is probably not what we wanted)
-        assert( this->mOutTextures[outChannelA].isValid() &&
+        assert( this->mOutTextures[outChannelA] &&
                 "Compositor node got connected in the wrong order!" );
 
-        if( !nodeB->mInTextures[inChannelB].isValid() )
+        if( !nodeB->mInTextures[inChannelB] )
             ++nodeB->mNumConnectedInputs;
         nodeB->mInTextures[inChannelB] = this->mOutTextures[outChannelA];
 
@@ -560,7 +550,7 @@ namespace Ogre
         this->mConnectedNodes.push_back( nodeB );
     }
     //-----------------------------------------------------------------------------------
-    void CompositorNode::connectExternalRT( const CompositorChannel &externalTexture, size_t inChannelA )
+    void CompositorNode::connectExternalRT( TextureGpu *externalTexture, size_t inChannelA )
     {
         if( inChannelA >= mInTextures.size() )
         {
@@ -569,7 +559,7 @@ namespace Ogre
                          mDefinition->mNameStr, "CompositorNode::connectFinalRT" );
         }
 
-        if( !mInTextures[inChannelA].target )
+        if( !mInTextures[inChannelA] )
             ++mNumConnectedInputs;
         mInTextures[inChannelA] = externalTexture;
 
@@ -623,63 +613,26 @@ namespace Ogre
                mNumConnectedBufferInputs == mDefinition->mInputBuffers.size();
     }
     //-----------------------------------------------------------------------------------
-    TexturePtr CompositorNode::getDefinedTexture( IdString textureName, size_t mrtIndex ) const
+    TextureGpu* CompositorNode::getDefinedTexture( IdString textureName ) const
     {
-        CompositorChannel const * channel = 0;
+        TextureGpu *channel = 0;
         size_t index;
         TextureDefinitionBase::TextureSource textureSource;
         mDefinition->getTextureSource( textureName, index, textureSource );
         switch( textureSource )
         {
         case TextureDefinitionBase::TEXTURE_INPUT:
-            channel = &mInTextures[index];
+            channel = mInTextures[index];
             break;
         case TextureDefinitionBase::TEXTURE_LOCAL:
-            channel = &mLocalTextures[index];
+            channel = mLocalTextures[index];
             break;
         case TextureDefinitionBase::TEXTURE_GLOBAL:
-            channel = &mWorkspace->getGlobalTexture( textureName );
+            channel = mWorkspace->getGlobalTexture( textureName );
             break;
         default:
             break;
         }
-
-        assert( !channel->textures.empty() && "Are you trying to use the RenderWindow as a texture???" );
-
-        TexturePtr retVal;
-        if( channel )
-        {
-            if( mrtIndex < channel->textures.size() )
-                retVal = channel->textures[mrtIndex];
-            else
-                retVal = channel->textures.back();
-        }
-
-        return retVal;
-    }
-    //-----------------------------------------------------------------------------------
-    const CompositorChannel* CompositorNode::_getDefinedTexture( IdString textureName ) const
-    {
-        CompositorChannel const * channel = 0;
-        size_t index;
-        TextureDefinitionBase::TextureSource textureSource;
-        mDefinition->getTextureSource( textureName, index, textureSource );
-        switch( textureSource )
-        {
-        case TextureDefinitionBase::TEXTURE_INPUT:
-            channel = &mInTextures[index];
-            break;
-        case TextureDefinitionBase::TEXTURE_LOCAL:
-            channel = &mLocalTextures[index];
-            break;
-        case TextureDefinitionBase::TEXTURE_GLOBAL:
-            channel = &mWorkspace->getGlobalTexture( textureName );
-            break;
-        default:
-            break;
-        }
-
-        assert( !channel->textures.empty() && "Are you trying to use the RenderWindow as a texture???" );
 
         return channel;
     }
@@ -721,24 +674,10 @@ namespace Ogre
 
         while( itor != end )
         {
-            CompositorChannel const * channel = 0;
-            size_t index;
-            TextureDefinitionBase::TextureSource textureSource;
-            mDefinition->getTextureSource( itor->getRenderTargetName(), index, textureSource );
-            switch( textureSource )
-            {
-            case TextureDefinitionBase::TEXTURE_INPUT:
-                channel = &mInTextures[index];
-                break;
-            case TextureDefinitionBase::TEXTURE_LOCAL:
-                channel = &mLocalTextures[index];
-                break;
-            case TextureDefinitionBase::TEXTURE_GLOBAL:
-                channel = &mWorkspace->getGlobalTexture( itor->getRenderTargetName() );
-                break;
-            default:
-                continue;
-            }
+            RenderTargetViewDef const *rtvDef = 0;
+
+            if( itor->getRenderTargetName() != IdString() )
+                rtvDef = mDefinition->getRenderTargetViewDef( itor->getRenderTargetName() );
 
             const CompositorPassDefVec &passes = itor->getCompositorPasses();
             CompositorPassDefVec::const_iterator itPass = passes.begin();
@@ -752,51 +691,55 @@ namespace Ogre
                 case PASS_CLEAR:
                     newPass = OGRE_NEW CompositorPassClear(
                                             static_cast<CompositorPassClearDef*>(*itPass),
-                                            mWorkspace->getSceneManager(), *channel, this );
+                                            mWorkspace->getSceneManager(), rtvDef, this );
                     break;
                 case PASS_QUAD:
                     newPass = OGRE_NEW CompositorPassQuad(
                                             static_cast<CompositorPassQuadDef*>(*itPass),
-                                            mWorkspace->getDefaultCamera(), this, *channel,
+                                            mWorkspace->getDefaultCamera(), this, rtvDef,
                                             mRenderSystem->getHorizontalTexelOffset(),
                                             mRenderSystem->getVerticalTexelOffset() );
                     break;
                 case PASS_SCENE:
                     newPass = OGRE_NEW CompositorPassScene(
                                             static_cast<CompositorPassSceneDef*>(*itPass),
-                                            mWorkspace->getDefaultCamera(), *channel, this );
+                                            mWorkspace->getDefaultCamera(), rtvDef, this );
                     break;
                 case PASS_STENCIL:
                     newPass = OGRE_NEW CompositorPassStencil(
                                             static_cast<CompositorPassStencilDef*>(*itPass),
-                                            *channel, this, mRenderSystem );
+                                            rtvDef, this, mRenderSystem );
                     break;
                 case PASS_DEPTHCOPY:
                     newPass = OGRE_NEW CompositorPassDepthCopy(
                                             static_cast<CompositorPassDepthCopyDef*>(*itPass),
-                                            *channel, this );
+                                            rtvDef, this );
                     break;
                 case PASS_UAV:
                     newPass = OGRE_NEW CompositorPassUav(
                                             static_cast<CompositorPassUavDef*>(*itPass),
-                                            this, *channel );
+                                            this, rtvDef );
                     break;
                 case PASS_MIPMAP:
                     newPass = OGRE_NEW CompositorPassMipmap(
                                             static_cast<CompositorPassMipmapDef*>(*itPass),
-                                            *channel, this );
+                                            rtvDef, this );
+                    break;
+                case PASS_IBL_SPECULAR:
+                    newPass = OGRE_NEW CompositorPassIblSpecular(
+                        static_cast<CompositorPassIblSpecularDef *>( *itPass ), rtvDef, this );
                     break;
                 case PASS_COMPUTE:
                     newPass = OGRE_NEW CompositorPassCompute(
                                             static_cast<CompositorPassComputeDef*>(*itPass),
-                                            mWorkspace->getDefaultCamera(),  this, *channel );
+                                            mWorkspace->getDefaultCamera(),  this, rtvDef );
                     break;
                 case PASS_CUSTOM:
                     {
                         CompositorPassProvider *passProvider = mWorkspace->getCompositorManager()->
                                                                         getCompositorPassProvider();
                         newPass = passProvider->addPass( *itPass, mWorkspace->getDefaultCamera(), this,
-                                                         *channel, mWorkspace->getSceneManager() );
+                                                         rtvDef, mWorkspace->getSceneManager() );
                     }
                     break;
                 default:
@@ -825,33 +768,7 @@ namespace Ogre
 
         while( itor != end )
         {
-            outResourcesLayout[itor->target] = layout;
-
-            TextureVec::const_iterator itTex = itor->textures.begin();
-            TextureVec::const_iterator enTex = itor->textures.end();
-
-            while( itTex != enTex )
-            {
-                const Ogre::TexturePtr tex = *itTex;
-                const size_t numFaces = tex->getNumFaces();
-                const uint8 numMips = tex->getNumMipmaps() + 1;
-                const uint32 numSlices = tex->getTextureType() == TEX_TYPE_CUBE_MAP ? 1u :
-                                                                                      tex->getDepth();
-                for( size_t face=0; face<numFaces; ++face )
-                {
-                    for( uint8 mip=0; mip<numMips; ++mip )
-                    {
-                        for( uint32 slice=0; slice<numSlices; ++slice )
-                        {
-                            RenderTarget *rt = tex->getBuffer( face, mip )->getRenderTarget( slice );
-                            outResourcesLayout[rt] = layout;
-                        }
-                    }
-                }
-
-                ++itTex;
-            }
-
+            outResourcesLayout[*itor] = layout;
             ++itor;
         }
     }
@@ -865,35 +782,9 @@ namespace Ogre
 
         while( itor != end )
         {
-            if( outResourcesLayout.find( itor->target ) == outResourcesLayout.end() )
-                outResourcesLayout[itor->target] = layout;
-
-            TextureVec::const_iterator itTex = itor->textures.begin();
-            TextureVec::const_iterator enTex = itor->textures.end();
-
-            while( itTex != enTex )
-            {
-                const Ogre::TexturePtr tex = *itTex;
-                const size_t numFaces = tex->getNumFaces();
-                const uint8 numMips = tex->getNumMipmaps() + 1;
-                const uint32 numSlices = tex->getTextureType() == TEX_TYPE_CUBE_MAP ? 1u :
-                                                                                      tex->getDepth();
-                for( size_t face=0; face<numFaces; ++face )
-                {
-                    for( uint8 mip=0; mip<numMips; ++mip )
-                    {
-                        for( uint32 slice=0; slice<numSlices; ++slice )
-                        {
-                            RenderTarget *rt = tex->getBuffer( face, mip )->getRenderTarget( slice );
-                            if( outResourcesLayout.find( rt ) == outResourcesLayout.end() )
-                                outResourcesLayout[rt] = layout;
-                        }
-                    }
-                }
-
-                ++itTex;
-            }
-
+            TextureGpu *texture = *itor;
+            if( outResourcesLayout.find( texture ) == outResourcesLayout.end() )
+                outResourcesLayout[texture] = layout;
             ++itor;
         }
     }
@@ -971,11 +862,6 @@ namespace Ogre
             shadowNode = sceneManager->getCurrentShadowNode();
         uint8 executionMask = mWorkspace->getExecutionMask();
 
-        RenderTarget *lastTarget = 0;
-
-        if( !mPasses.empty() )
-            lastTarget = mPasses.front()->getRenderTarget();
-
         //Execute our passes
         CompositorPassVec::const_iterator itor = mPasses.begin();
         CompositorPassVec::const_iterator end  = mPasses.end();
@@ -984,12 +870,6 @@ namespace Ogre
         {
             CompositorPass *pass = *itor;
             const CompositorPassDef *passDef = pass->getDefinition();
-
-            if( lastTarget != pass->getRenderTarget() )
-            {
-                mRenderSystem->_notifyCompositorNodeSwitchedRenderTarget( lastTarget );
-                lastTarget = pass->getRenderTarget();
-            }
 
             const CompositorTargetDef *targetDef = passDef->getParentTargetDef();
 
@@ -1006,12 +886,10 @@ namespace Ogre
 
                 while( itExposed != enExposed )
                 {
-                    const CompositorChannel *exposedChannel = this->_getDefinedTexture( *itExposed );
-                    sceneManager->_addCompositorTexture( *itExposed, &exposedChannel->textures );
+                    TextureGpu *exposedChannel = this->getDefinedTexture( *itExposed );
+                    sceneManager->_addCompositorTexture( *itExposed, exposedChannel );
                     ++itExposed;
                 }
-
-                sceneManager->_setCompositorTarget( pass->getTargetTexture() );
 
                 //Execute pass
                 pass->execute( lodCamera );
@@ -1021,19 +899,29 @@ namespace Ogre
             }
             ++itor;
         }
-
-        if( !mPasses.empty() )
-            mRenderSystem->_notifyCompositorNodeSwitchedRenderTarget( lastTarget );
     }
     //-----------------------------------------------------------------------------------
-    void CompositorNode::finalTargetResized( const RenderTarget *finalTarget )
+    void CompositorNode::finalTargetResized01( const TextureGpu *finalTarget )
     {
-        TextureDefinitionBase::recreateResizableTextures( mDefinition->mLocalTextureDefs, mLocalTextures,
-                                                            finalTarget, mRenderSystem, mConnectedNodes,
-                                                            &mPasses );
+        TextureDefinitionBase::recreateResizableTextures01( mDefinition->mLocalTextureDefs,
+                                                            mLocalTextures, finalTarget );
+    }
+    //-----------------------------------------------------------------------------------
+    void CompositorNode::finalTargetResized02( const TextureGpu *finalTarget )
+    {
+        TextureDefinitionBase::recreateResizableTextures02( mDefinition->mLocalTextureDefs,
+                                                            mLocalTextures, mConnectedNodes, &mPasses );
         TextureDefinitionBase::recreateResizableBuffers( mDefinition->mLocalBufferDefs, mBuffers,
                                                          finalTarget, mRenderSystem, mConnectedNodes,
                                                          &mPasses );
+
+        CompositorPassVec::const_iterator passIt = mPasses.begin();
+        CompositorPassVec::const_iterator passEn = mPasses.end();
+        while( passIt != passEn )
+        {
+            (*passIt)->notifyRecreated( finalTarget );
+            ++passIt;
+        }
     }
     //-----------------------------------------------------------------------------------
     void CompositorNode::resetAllNumPassesLeft(void)

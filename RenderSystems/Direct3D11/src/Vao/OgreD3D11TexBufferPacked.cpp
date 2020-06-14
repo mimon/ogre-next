@@ -34,13 +34,15 @@ THE SOFTWARE.
 #include "OgreD3D11Mappings.h"
 #include "OgreD3D11RenderSystem.h"
 
+#include "OgrePixelFormatGpuUtils.h"
+
 namespace Ogre
 {
     D3D11TexBufferPacked::D3D11TexBufferPacked(
             size_t internalBufStartBytes, size_t numElements, uint32 bytesPerElement,
             uint32 numElementsPadding, BufferType bufferType, void *initialData, bool keepAsShadow,
-            VaoManager *vaoManager, BufferInterface *bufferInterface, PixelFormat pf,
-            D3D11Device &device ) :
+            VaoManager *vaoManager, BufferInterface *bufferInterface,
+            PixelFormatGpu pf, bool bIsStructured, D3D11Device &device ) :
         TexBufferPacked( internalBufStartBytes, numElements, bytesPerElement, numElementsPadding,
                          bufferType, initialData, keepAsShadow, vaoManager, bufferInterface, pf ),
         mInternalFormat( DXGI_FORMAT_UNKNOWN ),
@@ -49,7 +51,8 @@ namespace Ogre
     {
         memset( mCachedResourceViews, 0, sizeof( mCachedResourceViews ) );
 
-        mInternalFormat = D3D11Mappings::_getPF( pf );
+        if( !bIsStructured )
+            mInternalFormat = D3D11Mappings::get( pf );
     }
     //-----------------------------------------------------------------------------------
     D3D11TexBufferPacked::~D3D11TexBufferPacked()
@@ -64,27 +67,34 @@ namespace Ogre
         }
     }
     //-----------------------------------------------------------------------------------
+    bool D3D11TexBufferPacked::isD3D11Structured(void) const
+    {
+        return mInternalFormat == DXGI_FORMAT_UNKNOWN;
+    }
+    //-----------------------------------------------------------------------------------
     ID3D11ShaderResourceView* D3D11TexBufferPacked::createResourceView( int cacheIdx, uint32 offset,
                                                                         uint32 sizeBytes )
     {
         assert( cacheIdx < 16 );
 
-        const size_t formatSize = PixelUtil::getNumElemBytes( mPixelFormat );
+        const size_t formatSize = isD3D11Structured()
+                                      ? mBytesPerElement
+                                      : PixelFormatGpuUtils::getBytesPerPixel( mPixelFormat );
 
         if( mCachedResourceViews[cacheIdx].mResourceView )
             mCachedResourceViews[cacheIdx].mResourceView->Release();
 
-        mCachedResourceViews[cacheIdx].mOffset  = mFinalBufferStart + offset;
+        mCachedResourceViews[cacheIdx].mOffset  = static_cast<uint32>( mFinalBufferStart + offset );
         mCachedResourceViews[cacheIdx].mSize    = sizeBytes;
 
         D3D11_SHADER_RESOURCE_VIEW_DESC srDesc;
 
         srDesc.Format               = mInternalFormat;
         srDesc.ViewDimension        = D3D11_SRV_DIMENSION_BUFFER;
-        srDesc.Buffer.FirstElement  = (mFinalBufferStart + offset) / formatSize;
+        srDesc.Buffer.FirstElement  = static_cast<UINT>( (mFinalBufferStart + offset) / formatSize );
         srDesc.Buffer.NumElements   = sizeBytes / formatSize;
 
-        D3D11RenderSystem *rs = static_cast<D3D11VaoManager*>(mVaoManager)->getD3D11RenderSystem();
+        //D3D11RenderSystem *rs = static_cast<D3D11VaoManager*>(mVaoManager)->getD3D11RenderSystem();
         ID3D11Buffer *vboName = 0;
 
         D3D11BufferInterfaceBase *bufferInterface = static_cast<D3D11BufferInterfaceBase*>(
@@ -101,10 +111,11 @@ namespace Ogre
     //-----------------------------------------------------------------------------------
     ID3D11ShaderResourceView* D3D11TexBufferPacked::bindBufferCommon( size_t offset, size_t sizeBytes )
     {
-        assert( offset < (mNumElements - 1) );
-        assert( (offset + sizeBytes) <= mNumElements );
+        assert( offset <= getTotalSizeBytes() );
+        assert( sizeBytes <= getTotalSizeBytes() );
+        assert( (offset + sizeBytes) <= getTotalSizeBytes() );
 
-        sizeBytes = !sizeBytes ? (mNumElements - offset) : sizeBytes;
+        sizeBytes = !sizeBytes ? (mNumElements * mBytesPerElement - offset) : sizeBytes;
 
         ID3D11ShaderResourceView *resourceView = 0;
         for( int i=0; i<16; ++i )
@@ -131,6 +142,48 @@ namespace Ogre
         }
 
         return resourceView;
+    }
+    //-----------------------------------------------------------------------------------
+    ID3D11ShaderResourceView* D3D11TexBufferPacked::createSrv(
+            const DescriptorSetTexture2::BufferSlot &bufferSlot ) const
+    {
+        assert( bufferSlot.offset <= getTotalSizeBytes() );
+        assert( bufferSlot.sizeBytes <= getTotalSizeBytes() );
+        assert( (bufferSlot.offset + bufferSlot.sizeBytes) <= getTotalSizeBytes() );
+
+        const size_t formatSize = isD3D11Structured()
+                                      ? mBytesPerElement
+                                      : PixelFormatGpuUtils::getBytesPerPixel( mPixelFormat );
+
+        const size_t sizeBytes = !bufferSlot.sizeBytes ? (mNumElements * mBytesPerElement -
+                                                          bufferSlot.offset) : bufferSlot.sizeBytes;
+
+        D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc;
+        memset( &srvDesc, 0, sizeof( srvDesc ) );
+
+        srvDesc.Format               = mInternalFormat;
+        srvDesc.ViewDimension        = D3D11_SRV_DIMENSION_BUFFER;
+        srvDesc.Buffer.FirstElement  = static_cast<UINT>( (mFinalBufferStart + bufferSlot.offset) /
+                                                          formatSize );
+        srvDesc.Buffer.NumElements   = static_cast<UINT>( sizeBytes / formatSize );
+
+        D3D11BufferInterfaceBase *bufferInterface = static_cast<D3D11BufferInterfaceBase*>(
+                                                        mBufferInterface );
+        ID3D11Buffer *vboName = bufferInterface->getVboName();
+
+        ID3D11ShaderResourceView *retVal = 0;
+        HRESULT hr = mDevice->CreateShaderResourceView( vboName, &srvDesc, &retVal );
+
+        if( FAILED(hr) )
+        {
+            String errorDescription = mDevice.getErrorDescription(hr);
+            OGRE_EXCEPT_EX( Exception::ERR_RENDERINGAPI_ERROR, hr,
+                            "Failed to create SRV view on buffer."
+                            "\nError Description: " + errorDescription,
+                            "D3D11TexBufferPacked::createSrv" );
+        }
+
+        return retVal;
     }
     //-----------------------------------------------------------------------------------
     void D3D11TexBufferPacked::bindBufferVS( uint16 slot, size_t offset, size_t sizeBytes )

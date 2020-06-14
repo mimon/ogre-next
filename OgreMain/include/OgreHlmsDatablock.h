@@ -165,7 +165,11 @@ namespace Ogre
         uint8               mBlendChannelMask;
 
         /// This value calculated by HlmsManager::getBlendblock
-        bool                mIsTransparent;
+        /// mIsTransparent = 0  -> Not transparent
+        /// mIsTransparent |= 1 -> Automatically determined as transparent
+        /// mIsTransparent |= 2 -> Forced to be considered as transparent by RenderQueue for render order
+        /// mIsTransparent = 3  -> Forced & also automatically determined as transparent
+        uint8               mIsTransparent;
         /// Used to determine if separate alpha blending should be used for color and alpha channels
         bool                mSeparateBlend;
 
@@ -189,6 +193,18 @@ namespace Ogre
         /// Sets colour and alpha individually, turns mSeparateBlend on.
         void setBlendType( SceneBlendType colour, SceneBlendType alpha );
 
+        /** Sometimes you want to force the RenderQueue to render back to front even if
+            the object isn't alpha blended (e.g. you're rendering refractive materials)
+        @param bForceTransparent
+            True to always render back to front, like any transparent.
+            False for default behavior (opaque objects are rendered front to back, alpha
+            blended objects are rendered back to front)
+        */
+        void setForceTransparentRenderOrder( bool bForceTransparent );
+
+        bool isAutoTransparent( void ) const { return ( mIsTransparent & 0x01u ) != 0u; }
+        bool isForcedTransparent( void ) const { return ( mIsTransparent & 0x02u ) != 0u; }
+
         bool operator == ( const HlmsBlendblock &_r ) const
         {
             return !(*this != _r);
@@ -197,7 +213,7 @@ namespace Ogre
         bool operator != ( const HlmsBlendblock &_r ) const
         {
             //Don't include the ID in the comparision
-            //AND don't include mIsTransparent, which is filled
+            //AND don't include mIsTransparent's first bit, which is filled
             //automatically only for some managed objects.
             return  mAllowGlobalDefaults    != _r.mAllowGlobalDefaults ||
                     mSeparateBlend          != _r.mSeparateBlend ||
@@ -208,7 +224,8 @@ namespace Ogre
                     mBlendOperation         != _r.mBlendOperation ||
                     mBlendOperationAlpha    != _r.mBlendOperationAlpha ||
                     mAlphaToCoverageEnabled != _r.mAlphaToCoverageEnabled ||
-                    mBlendChannelMask       != _r.mBlendChannelMask;
+                    mBlendChannelMask       != _r.mBlendChannelMask ||
+                    (mIsTransparent & 0x02u) != (_r.mIsTransparent & 0x02u);
         }
     };
 
@@ -219,7 +236,7 @@ namespace Ogre
         virtual void savingChangeTextureNameOriginal( const String &aliasName,
                                                       String &inOutResourceName,
                                                       String &inOutFilename ) {}
-        virtual void savingChangeTextureNameOitd( const String &aliasName, String &inOutFilename ) {}
+        virtual void savingChangeTextureNameOitd( String &inOutFilename, TextureGpu *texture ) {}
     };
 
     /** An hlms datablock contains individual information about a specific material. It consists of:
@@ -264,8 +281,16 @@ namespace Ogre
             The operation itself isn't expensive, but the need to call this function indicates
             that another shader will be created (unless already cached too). If so, doing that
             will be slow.
+        @param onlyNullHashes
+            When true, we will only flush those that had null Hlms hash, which means
+            calculateHashFor was never called on this Datablock, or more likely calculateHashFor
+            delayed the calculation for later.
+
+            This can happen if an object was delayed for later due to the textures not being
+            ready, but when they are, turns out nothing needs to be changed, yet the hashes
+            are null and thus those renderables need to be flushed.
         */
-        void flushRenderables(void);
+        void flushRenderables( bool onlyNullHashes=false );
 
         void updateMacroblockHash( bool casterPass );
 
@@ -277,6 +302,10 @@ namespace Ogre
         HlmsMacroblock const *mMacroblock[2];
         HlmsBlendblock const *mBlendblock[2];
 
+    public:
+        /// When false, we won't try to have Textures become resident
+        bool    mAllowTextureResidencyChange;
+    protected:
         bool    mIgnoreFlushRenderables;
         uint8   mAlphaTestCmp;  /// @see CompareFunction
         bool    mAlphaTestShadowCasterOnly;
@@ -402,6 +431,26 @@ namespace Ogre
         const vector<Renderable*>::type& getLinkedRenderables(void) const { return mLinkedRenderables; }
 
         virtual bool hasCustomShadowMacroblock(void) const;
+
+        /// Returns the closest match for a diffuse colour,
+        /// if applicable by the actual implementation.
+        ///
+        /// Note that Unlit implementation returns 0 as diffuse, since it's considered
+        /// emissive instead due to being bright even in the absence lights.
+        virtual ColourValue getDiffuseColour(void) const;
+        /// Returns the closest match for a emissive colour,
+        /// if applicable by the actual implementation.
+        /// See HlmsDatablock::getDiffuseColour
+        virtual ColourValue getEmissiveColour(void) const;
+
+        /// Returns the closest match for a diffuse texture,
+        /// if applicable by the actual implementation.
+        /// See HlmsDatablock::getDiffuseColour
+        virtual TextureGpu* getDiffuseTexture(void) const;
+        /// Returns the closest match for a emissive texture,
+        /// if applicable by the actual implementation.
+        /// See HlmsDatablock::getDiffuseColour
+        virtual TextureGpu* getEmissiveTexture(void) const;
 
         /**
         @remarks

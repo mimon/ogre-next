@@ -42,6 +42,25 @@ namespace Ogre {
     class Matrix4;
     class Ray;
 
+    struct VrData
+    {
+        Matrix4 mHeadToEye[2];
+        Matrix4 mProjectionMatrix[2];
+        //Matrix4 mLeftToRight;
+        Vector3 mLeftToRight;
+
+        void set( const Matrix4 eyeToHead[2], const Matrix4 projectionMatrix[2] )
+        {
+            for( int i=0; i<2; ++i )
+            {
+                mHeadToEye[i] = eyeToHead[i];
+                mProjectionMatrix[i] = projectionMatrix[i];
+                mHeadToEye[i] = mHeadToEye[i].inverseAffine();
+            }
+            mLeftToRight = (mHeadToEye[0] * eyeToHead[1]).getTrans();
+        }
+    };
+
     /** \addtogroup Core
     *  @{
     */
@@ -88,7 +107,7 @@ namespace Ogre {
         {
         public:
             Listener() {}
-            virtual ~Listener() {}
+            virtual ~Listener();
 
             /// Called prior to the scene being rendered with this camera
             virtual void cameraPreRenderScene(Camera* cam)
@@ -132,6 +151,8 @@ namespace Ogre {
         /// Stored number of visible batches in the last render
         unsigned int mVisBatchesLastRender;
 
+        VrData *mVrData;
+
         /// Shared class-level name for Movable type
         static String msMovableType;
 
@@ -153,7 +174,7 @@ namespace Ogre {
         /// Is viewing window used.
         bool mWindowSet;
         /// Windowed viewport clip planes 
-        mutable vector<Plane>::type mWindowClipPlanes;
+        mutable PlaneList mWindowClipPlanes;
         /// Was viewing window changed.
         mutable bool mRecalcWindow;
         /// The last viewport to be added using this camera
@@ -356,10 +377,12 @@ namespace Ogre {
         @param lastRq
             Last RenderQueue ID to render (exclusive)
         */
-        void _cullScenePhase01(const Camera *lodCamera, Viewport *vp, uint8 firstRq, uint8 lastRq );
+        void _cullScenePhase01( Camera *renderCamera, const Camera *lodCamera,
+                                Viewport *vp, uint8 firstRq, uint8 lastRq,
+                                bool reuseCullData );
 
-        void _renderScenePhase02(const Camera *lodCamera, Viewport *vp, uint8 firstRq, uint8 lastRq,
-                                 bool includeOverlays);
+        void _renderScenePhase02( const Camera *lodCamera
+                                  , uint8 firstRq, uint8 lastRq, bool includeOverlays );
 
         /** Function for outputting to a stream.
         */
@@ -558,7 +581,7 @@ namespace Ogre {
         /// Returns if a viewport window is being used
         virtual bool isWindowSet(void) const { return mWindowSet; }
         /// Gets the window clip planes, only applicable if isWindowSet == true
-        const vector<Plane>::type& getWindowPlanes(void) const;
+        const PlaneList &getWindowPlanes( void ) const;
 
         /** Get the auto tracking target for this camera, if any. */
         SceneNode* getAutoTrackTarget(void) const { return mAutoTrackTarget; }
@@ -601,6 +624,22 @@ namespace Ogre {
         void setCullingFrustum(Frustum* frustum) { mCullFrustum = frustum; }
         /** Returns the custom culling frustum in use. */
         Frustum* getCullingFrustum(void) const { return mCullFrustum; }
+
+        /** Sets VR data for calculating left & right eyes
+            See OpenVR sample for more info
+        @param vrData
+            Pointer to valid VrData
+            This pointer must remain valid while the Camera is using it.
+            We won't free this pointer. It is the developer's responsability to free it
+            once no longer in use.
+            Multiple cameras can share the same VrData pointer.
+            The internal data hold by VrData can be changed withohut having to call setVrData again
+        */
+        void setVrData( VrData *vrData );
+        const VrData* getVrData(void) const     { return mVrData; }
+
+        Matrix4 getVrViewMatrix( size_t eyeIdx ) const;
+        Matrix4 getVrProjectionMatrix( size_t eyeIdx ) const;
 
         /** Forward projects frustum rays to find forward intersection with plane.
         @remarks

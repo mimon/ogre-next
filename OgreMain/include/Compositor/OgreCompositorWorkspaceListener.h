@@ -29,9 +29,10 @@ THE SOFTWARE.
 #ifndef _OgreCompositorWorkspaceListener_H_
 #define _OgreCompositorWorkspaceListener_H_
 
-#include "OgreHeaderPrefix.h"
 #include "Compositor/OgreCompositorCommon.h"
 #include "Compositor/Pass/OgreCompositorPassDef.h"
+
+#include "OgreHeaderPrefix.h"
 
 namespace Ogre
 {
@@ -50,6 +51,9 @@ namespace Ogre
             @CompositorWorkspace::_beginUpdate( forceBeginFrame=true )
         */
         virtual void workspacePreUpdate( CompositorWorkspace *workspace ) {}
+        /** Called after all nodes has been updated.
+        */
+        virtual void workspacePosUpdate( CompositorWorkspace *workspace ) {}
         /** Called early on in pass' execution. Happens before passPreExecute,
             before the pass has set anything.
             Warning: calling pass->execute can result in recursive calls.
@@ -64,6 +68,24 @@ namespace Ogre
             Warning: calling pass->execute can result in recursive calls.
         */
         virtual void passPosExecute( CompositorPass *pass ) {}
+
+        /** Called after a pass scene has rendered shadow casting (it gets called even if
+            there is no shadow node).
+
+            Gets called after passPreExecute and before passSceneAfterFrustumCulling
+
+            Warning: calling pass->execute can result in recursive calls.
+        */
+        virtual void passSceneAfterShadowMaps( CompositorPassScene *pass ) {}
+
+        /** Called after a pass scene has performed frustum caulling but has yet
+            to prepare and execute rendering commands.
+
+            Gets called after passSceneAfterFrustumCulling and before passPosExecute
+
+            Warning: calling pass->execute can result in recursive calls.
+        */
+        virtual void passSceneAfterFrustumCulling( CompositorPassScene *pass ) {}
 
         /** Called from CompositorManager2 (not CompositorWorkspace) when we're
             about to begin updating all the workspaces. You'll have to manage

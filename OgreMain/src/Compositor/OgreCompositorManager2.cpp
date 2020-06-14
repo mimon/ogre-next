@@ -42,8 +42,9 @@ THE SOFTWARE.
 #include "Math/Array/OgreObjectMemoryManager.h"
 
 #include "OgreRectangle2D.h"
-#include "OgreTextureManager.h"
-#include "OgreHardwarePixelBuffer.h"
+#include "OgreTextureGpuManager.h"
+#include "OgrePixelFormatGpuUtils.h"
+#include "OgreStagingTexture.h"
 #include "OgreRenderSystem.h"
 #include "OgreSceneManagerEnumerator.h"
 #include "OgreHlmsManager.h"
@@ -105,7 +106,7 @@ namespace Ogre
             {
                 {
                     CompositorPassClearDef *passClear = static_cast<CompositorPassClearDef*>( targetDef->addPass( PASS_CLEAR ) );
-                    passClear->mColourValue = ColourValue( 0.6f, 0.0f, 0.6f );
+                    passClear->setAllClearColours( ColourValue( 0.6f, 0.0f, 0.6f ) );
                 }
                 {
                     CompositorPassQuadDef *passQuad = static_cast<CompositorPassQuadDef*>( targetDef->addPass( PASS_QUAD ) );
@@ -185,8 +186,10 @@ namespace Ogre
     //-----------------------------------------------------------------------------------
     CompositorManager2::~CompositorManager2()
     {
-        for( TextureVec::iterator i = mNullTextureList.begin(); i != mNullTextureList.end(); ++i )
-            TextureManager::getSingleton().remove( (*i)->getHandle() );
+        TextureGpuManager *textureManager = mRenderSystem->getTextureGpuManager();
+        for( TextureGpuVec::iterator i = mNullTextureList.begin(); i != mNullTextureList.end(); ++i )
+            textureManager->destroyTexture( *i );
+        mNullTextureList.clear();
 
         removeAllWorkspaces();
 
@@ -460,7 +463,7 @@ namespace Ogre
     }
     //-----------------------------------------------------------------------------------
     CompositorWorkspace* CompositorManager2::addWorkspace( SceneManager *sceneManager,
-                                             RenderTarget *finalRenderTarget, Camera *defaultCam,
+                                             TextureGpu *finalRenderTarget, Camera *defaultCam,
                                              IdString definitionName, bool bEnabled, int position,
                                              const UavBufferPackedVec *uavBuffers,
                                              const ResourceLayoutMap* initialLayouts,
@@ -469,8 +472,7 @@ namespace Ogre
                                              uint8 vpModifierMask, uint8 executionMask )
     {
         CompositorChannelVec channels;
-        channels.push_back( CompositorChannel() );
-        channels.back().target = finalRenderTarget;
+        channels.push_back( finalRenderTarget );
         return addWorkspace( sceneManager, channels, defaultCam, definitionName, bEnabled, position,
                              uavBuffers, initialLayouts, initialUavAccess,
                              vpOffsetScale, vpModifierMask, executionMask );
@@ -548,12 +550,16 @@ namespace Ogre
             }
             else
             {
+                //Make sure a RenderPassDescriptor isn't bound and becomes dangling
+                mRenderSystem->endRenderPassDescriptor();
                 OGRE_DELETE it->workspace;
                 mQueuedWorkspaces.erase( it ); //Preserve the order of workspace execution
             }
         }
         else
         {
+            //Make sure a RenderPassDescriptor isn't bound and becomes dangling
+            mRenderSystem->endRenderPassDescriptor();
             OGRE_DELETE *itor;
             mWorkspaces.erase( itor ); //Preserve the order of workspace execution
         }
@@ -581,36 +587,41 @@ namespace Ogre
         deleteAllSecondClear( mNodeDefinitions );
     }
     //-----------------------------------------------------------------------------------
-    TexturePtr CompositorManager2::getNullShadowTexture( PixelFormat format )
+    TextureGpu* CompositorManager2::getNullShadowTexture( PixelFormatGpu format )
     {
-        for (TextureVec::iterator t = mNullTextureList.begin(); t != mNullTextureList.end(); ++t)
+        for( TextureGpuVec::iterator t = mNullTextureList.begin(); t != mNullTextureList.end(); ++t )
         {
-            const TexturePtr& tex = *t;
-
-            if (format == tex->getFormat())
+            TextureGpu *tex = *t;
+            if( format == tex->getPixelFormat() )
             {
                 // Ok, a match
                 return tex;
             }
         }
 
+        TextureGpuManager *textureManager = mRenderSystem->getTextureGpuManager();
+
         // not found, create a new one
         // A 1x1 texture of the correct format, not a render target
         static const String baseName = "Ogre/ShadowTextureNull";
         String targName = baseName + StringConverter::toString( mNullTextureList.size() );
-        TexturePtr shadowTex = TextureManager::getSingleton().createManual(
-            targName, ResourceGroupManager::INTERNAL_RESOURCE_GROUP_NAME, 
-            TEX_TYPE_2D, 1, 1, 0, format, TU_STATIC_WRITE_ONLY );
+        TextureGpu *shadowTex = textureManager->createTexture( targName, GpuPageOutStrategy::Discard,
+                                                               0, TextureTypes::Type2D );
+        shadowTex->setResolution( 1u, 1u, 1u );
+        shadowTex->setPixelFormat( format );
         mNullTextureList.push_back( shadowTex );
 
-        // lock & populate the texture based on format
-        shadowTex->getBuffer()->lock(v1::HardwareBuffer::HBL_DISCARD);
-        const PixelBox& box = shadowTex->getBuffer()->getCurrentLock();
+        StagingTexture *stagingTexture = textureManager->getStagingTexture( 1u, 1u, 1u, 1u,
+                                                                            shadowTex->getPixelFormat() );
+        stagingTexture->startMapRegion();
+        TextureBox texBox = stagingTexture->mapRegion( 1u, 1u, 1u, 1u, shadowTex->getPixelFormat() );
 
-        // set high-values across all bytes of the format 
-        PixelUtil::packColour( 1.0f, 1.0f, 1.0f, 1.0f, format, box.data );
+        PixelFormatGpuUtils::packColour( ColourValue::White, format, texBox.data );
 
-        shadowTex->getBuffer()->unlock();
+        stagingTexture->stopMapRegion();
+        stagingTexture->upload( texBox, shadowTex, 0, 0, 0, true );
+        textureManager->removeStagingTexture( stagingTexture );
+        stagingTexture = 0;
 
         return shadowTex;
     }
@@ -632,16 +643,16 @@ namespace Ogre
         mUnfinishedShadowNodes.clear();
     }
     //-----------------------------------------------------------------------------------
-    void CompositorManager2::_update( SceneManagerEnumerator &sceneManagers, HlmsManager *hlmsManager )
+    void CompositorManager2::_update( void )
     {
         //The Apple render systems need to run the update in a special way.
         //So we defer to the render system.
         //If the render system doesn't need to do anything special it
         //should just call compositorManager->_updateImplementation.
-        mRenderSystem->updateCompositorManager( this, sceneManagers, hlmsManager );
+        mRenderSystem->updateCompositorManager( this );
     }
     //-----------------------------------------------------------------------------------
-    void CompositorManager2::_updateImplementation( SceneManagerEnumerator &sceneManagers, HlmsManager *hlmsManager )
+    void CompositorManager2::_updateImplementation( void )
     {
         addQueuedWorkspaces();
 
@@ -724,23 +735,9 @@ namespace Ogre
             ++itor;
         }
 
-        SceneManagerEnumerator::SceneManagerIterator sceneManagerItor =
-                sceneManagers.getSceneManagerIterator();
-
-        while( sceneManagerItor.hasMoreElements() )
-        {
-            SceneManager *sceneManager = sceneManagerItor.getNext();
-            sceneManager->_frameEnded();
-        }
-
-        for( size_t i=0; i<HLMS_MAX; ++i )
-        {
-            Hlms *hlms = hlmsManager->getHlms( static_cast<HlmsTypes>( i ) );
-            if( hlms )
-                hlms->frameEnded();
-        }
-
         mRenderSystem->_update();
+
+        mRenderSystem->endRenderPassDescriptor();
 
         ++mFrameCount;
     }
@@ -750,7 +747,7 @@ namespace Ogre
         WorkspaceVec::const_iterator itor = mWorkspaces.begin();
         WorkspaceVec::const_iterator end  = mWorkspaces.end();
 
-        vector<RenderTarget*>::type swappedTargets;
+        vector<TextureGpu*>::type swappedTargets;
         swappedTargets.reserve( mWorkspaces.size() * 2u );
 
         while( itor != end )
@@ -778,17 +775,16 @@ namespace Ogre
         nodeDef->setNumTargetPass( 1 );
         {
             CompositorTargetDef *targetDef = nodeDef->addTargetPass( "WindowRT" );
-            targetDef->setNumPasses( 2 );
+            targetDef->setNumPasses( 1 );
             {
-                {
-                    CompositorPassClearDef *passClear = static_cast<CompositorPassClearDef*>
-                                                            ( targetDef->addPass( PASS_CLEAR ) );
-                    passClear->mColourValue = backgroundColour;
-                }
                 {
                     CompositorPassSceneDef *passScene = static_cast<CompositorPassSceneDef*>
                                                                 ( targetDef->addPass( PASS_SCENE ) );
                     passScene->mShadowNode = shadowNodeName;
+                    passScene->setAllClearColours( backgroundColour );
+                    passScene->setAllLoadActions( LoadAction::Clear );
+                    passScene->mStoreActionDepth    = StoreAction::DontCare;
+                    passScene->mStoreActionStencil  = StoreAction::DontCare;
                 }
             }
         }
@@ -821,5 +817,10 @@ namespace Ogre
         //Preserve order.
         if( itor != mListeners.end() )
             mListeners.erase( itor );
+    }
+    //-----------------------------------------------------------------------------------
+    RenderSystem* CompositorManager2::getRenderSystem(void) const
+    {
+        return mRenderSystem;
     }
 }

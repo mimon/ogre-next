@@ -48,11 +48,12 @@ namespace Ogre {
     //-----------------------------------------------------------------------
     //-----------------------------------------------------------------------
     const String NullEntity::msMovableType = "NullEntity";
-    const uint32 VisibilityFlags::LAYER_SHADOW_CASTER       = 1 << 31;
-    const uint32 VisibilityFlags::LAYER_VISIBILITY          = 1 << 30;
+    const uint32 VisibilityFlags::LAYER_SHADOW_CASTER       = 1u << 31u;
+    const uint32 VisibilityFlags::LAYER_VISIBILITY          = 1u << 30u;
     const uint32 VisibilityFlags::RESERVED_VISIBILITY_FLAGS = ~(LAYER_SHADOW_CASTER|LAYER_VISIBILITY);
     uint32 MovableObject::msDefaultQueryFlags = 0xFFFFFFFF;
     uint32 MovableObject::msDefaultVisibilityFlags = 0xFFFFFFFF & (~LAYER_VISIBILITY);
+    uint32 MovableObject::msDefaultLightMask = 0xFFFFFFFF;
     //-----------------------------------------------------------------------
     MovableObject::MovableObject( IdType id, ObjectMemoryManager *objectMemoryManager,
                                   SceneManager *manager, uint8 renderQueueId )
@@ -69,7 +70,7 @@ namespace Ogre {
         , mGlobalIndex( -1 )
         , mParentIndex( -1 )
     {
-        assert(renderQueueId >= 0 && renderQueueId <= 254);
+        assert( renderQueueId <= 254 );
 
         if (Root::getSingletonPtr())
             mMinPixelSize = Root::getSingleton().getDefaultMinPixelSize();
@@ -574,7 +575,7 @@ namespace Ogre {
         culledObjects.swap( outCulledObjects );
     }
     //-----------------------------------------------------------------------
-    void MovableObject::cullLights( const size_t numNodes, ObjectData objData,
+    void MovableObject::cullLights( const size_t numNodes, ObjectData objData, uint32 sceneLightMask,
                                     LightListInfo &outGlobalLightList, const FrustumVec &frustums,
                                     const FrustumVec &cubemapFrustums )
     {
@@ -629,6 +630,8 @@ namespace Ogre {
             ++aabbsIt;
             ++itor;
         }
+
+        ArrayInt lightMask = Mathlib::SetAll( sceneLightMask );
 
         //Implementation detail: Ogre 1.9 treated spotlights as a point (Sphere vs Plane collision test)
         //for simplicity (and presumably performance). We use aabbs for all lights in Ogre 2.0, which
@@ -712,8 +715,10 @@ namespace Ogre {
                                                 (objData.mLightMask) );
 
             //isVisible = isVisible() //Check if the light is disabled.
+            //isVisible = isVisible && (lightMask & visibilityFlags)
             ArrayMaskI isVisible = Mathlib::TestFlags4( *visibilityFlags,
                                                         Mathlib::SetAll( LAYER_VISIBILITY ) );
+            isVisible = Mathlib::TestFlags4( isVisible, Mathlib::And( *visibilityFlags, lightMask ) );
 
             mask = Mathlib::And( mask, isVisible );
 
@@ -891,5 +896,13 @@ namespace Ogre {
         MovableObject* m = createInstanceImpl( id, objectMemoryManager, manager, params );
         return m;
     }
+    //-----------------------------------------------------------------------
+    //-----------------------------------------------------------------------
+    //-----------------------------------------------------------------------
+    MovableObject::Listener::~Listener() {}
+    //-----------------------------------------------------------------------
+    //-----------------------------------------------------------------------
+    //-----------------------------------------------------------------------
+    NullEntity::~NullEntity() {}
 }
 

@@ -34,13 +34,14 @@ Copyright (c) 2000-2014 Torus Knot Software Ltd
 #include "OgreMaterialManager.h"
 #include "OgreRenderSystem.h"
 #include "OgreHlmsSamplerblock.h"
+#include "OgreDescriptorSetUav.h"
 #include "OgreGLSLShader.h"
 #include "OgreGL3PlusPixelFormatToShaderType.h"
+#include "OgreGL3PlusRenderPassDescriptor.h"
 
 namespace Ogre {
     class GL3PlusContext;
     class GL3PlusSupport;
-    class GL3PlusRTTManager;
     class GLSLShaderManager;
     class GLSLShaderFactory;
 
@@ -75,9 +76,6 @@ namespace Ogre {
             used to modify the texture unit filtering.
         */
         size_t mTextureMipmapCount;
-
-        /// What texture coord set each texture unit is using
-        size_t mTextureCoordIndex[OGRE_MAX_TEXTURE_LAYERS];
 
         /// Holds texture type settings for every stage
         GLenum mTextureTypes[OGRE_MAX_TEXTURE_LAYERS];
@@ -125,13 +123,6 @@ namespace Ogre {
         GLSLShaderFactory* mGLSLShaderFactory;
         v1::HardwareBufferManager* mHardwareBufferManager;
 
-        /** Manager object for creating render textures.
-            Direct render to texture via FBO is preferable
-            to pbuffers, which depend on the GL support used and are generally
-            unwieldy and slow. However, FBO support for stencil buffers is poor.
-        */
-        GL3PlusRTTManager *mRTTManager;
-
         /** These variables are used for caching RenderSystem state.
             They are cached because OpenGL state changes can be quite expensive,
             which is especially important on mobile or embedded systems.
@@ -165,42 +156,24 @@ namespace Ogre {
         /// @copydoc RenderSystem::getPixelFormatToShaderType
         virtual const PixelFormatToShaderType* getPixelFormatToShaderType(void) const;
 
+        virtual void _clearStateAndFlushCommandBuffer(void);
+
+        virtual void flushCommands(void);
+
         unsigned char *mSwIndirectBufferPtr;
+
+        uint8   mFirstUavBoundSlot;
+        uint8   mLastUavBoundPlusOne;
 
         uint8                   mClipDistances;
         GL3PlusHlmsPso const    *mPso;
         GLSLShader *mCurrentComputeShader;
 
-        struct Uav
-        {
-            bool        dirty;
-            TexturePtr  texture;
-            GLuint      textureName;
-            GLint       mipmap;
-            GLboolean   isArrayTexture;
-            GLint       arrayIndex;
-            GLenum      access;
-            GLenum      format;
-            UavBufferPacked *buffer;
-            GLintptr    offset;
-            GLsizeiptr  sizeBytes;
-
-            Uav() :
-                dirty( false ), textureName( 0 ), mipmap( 0 ),
-                isArrayTexture( GL_FALSE ), arrayIndex( 0 ),
-                access( GL_READ_ONLY ), format( GL_RGBA8 ), buffer( 0 ),
-                offset( 0 ), sizeBytes( 0 ) {}
-        };
-
         GLuint  mNullColourFramebuffer;
 
-        Uav     mUavs[64];
-        /// In range [0; 64]; note that a user may use
-        /// mUavs[0] & mUavs[2] leaving mUavs[1] empty.
-        /// and still mMaxUavIndexPlusOne = 3.
-        uint8   mMaxModifiedUavPlusOne;
-
         GL3PlusPixelFormatToShaderType mPixelFormatToShaderType;
+
+        GL3PlusFrameBufferDescMap mFrameBufferDescMap;
 
         GLint getTextureAddressingMode(TextureAddressingMode tam) const;
         static GLenum getBlendMode(SceneBlendFactor ogreBlend);
@@ -249,7 +222,7 @@ namespace Ogre {
         /** See
             RenderSystem
         */
-        RenderWindow* _initialise(bool autoCreateWindow, const String& windowTitle = "OGRE Render Window");
+        Window* _initialise( bool autoCreateWindow, const String& windowTitle = "OGRE Render Window" );
         /** See
             RenderSystem
         */
@@ -257,7 +230,7 @@ namespace Ogre {
         /** See
             RenderSystem
         */
-        void initialiseFromRenderSystemCapabilities(RenderSystemCapabilities* caps, RenderTarget* primary);
+        void initialiseFromRenderSystemCapabilities(RenderSystemCapabilities* caps, Window* primary);
         /** See
             RenderSystem
         */
@@ -268,27 +241,28 @@ namespace Ogre {
         void shutdown(void);
 
         /// @copydoc RenderSystem::_createRenderWindow
-        RenderWindow* _createRenderWindow(const String &name, unsigned int width, unsigned int height,
-                                          bool fullScreen, const NameValuePairList *miscParams = 0);
+        Window *_createRenderWindow( const String &name, uint32 width, uint32 height,
+                                     bool fullScreen, const NameValuePairList *miscParams = 0 );
 
         /// @copydoc RenderSystem::_createRenderWindows
-        bool _createRenderWindows(const RenderWindowDescriptionList& renderWindowDescriptions,
-                                  RenderWindowList& createdWindows);
+        bool _createRenderWindows( const RenderWindowDescriptionList &renderWindowDescriptions,
+                                   WindowList &createdWindows );
 
-        /// @copydoc RenderSystem::_createDepthBufferFor
-        DepthBuffer* _createDepthBufferFor( RenderTarget *renderTarget, bool exactMatchFormat );
+        virtual void _setCurrentDeviceFromTexture( TextureGpu *texture );
+        virtual GL3PlusFrameBufferDescMap& _getFrameBufferDescMap(void) { return mFrameBufferDescMap; }
+        virtual RenderPassDescriptor* createRenderPassDescriptor(void);
+        virtual void beginRenderPassDescriptor( RenderPassDescriptor *desc,
+                                                TextureGpu *anyTarget, uint8 mipLevel,
+                                                const Vector4 *viewportSizes,
+                                                const Vector4 *scissors,
+                                                uint32 numViewports,
+                                                bool overlaysEnabled,
+                                                bool warnIfRtvWasFlushed );
+        virtual void endRenderPassDescriptor(void);
 
-        /// Mimics D3D9RenderSystem::_getDepthStencilFormatFor, if no FBO RTT manager, outputs GL_NONE
-        void _getDepthStencilFormatFor( GLenum internalColourFormat, GLenum *depthFormat,
-                                        GLenum *stencilFormat );
+        TextureGpu* createDepthBufferFor( TextureGpu *colourTexture, bool preferDepthTexture,
+                                          PixelFormatGpu depthBufferFormat );
 
-        /// @copydoc RenderSystem::createMultiRenderTarget
-        virtual MultiRenderTarget * createMultiRenderTarget(const String & name);
-
-        /** See
-            RenderSystem
-        */
-        void destroyRenderWindow(RenderWindow* pWin);
         /** See
             RenderSystem
         */
@@ -340,27 +314,37 @@ namespace Ogre {
         /** See
          RenderSystem
          */
-        void _setVertexTexture(size_t unit, const TexturePtr &tex);
+        void _setVertexTexture(size_t unit, TextureGpu *tex);
         /** See
          RenderSystem
          */
-        void _setGeometryTexture(size_t unit, const TexturePtr &tex);
+        void _setGeometryTexture(size_t unit, TextureGpu *tex);
         /** See
          RenderSystem
          */
-        void _setTessellationHullTexture(size_t unit, const TexturePtr &tex);
+        void _setTessellationHullTexture(size_t unit, TextureGpu *tex);
         /** See
          RenderSystem
          */
-        void _setTessellationDomainTexture(size_t unit, const TexturePtr &tex);
+        void _setTessellationDomainTexture(size_t unit, TextureGpu *tex);
         /** See
             RenderSystem
         */
-        void _setTexture(size_t unit, bool enabled, Texture *tex);
-        /** See
-            RenderSystem
-        */
-        void _setTextureCoordSet(size_t stage, size_t index);
+        void _setTexture( size_t unit, TextureGpu *tex );
+        /// See RenderSystem
+        virtual void _setTextures( uint32 slotStart, const DescriptorSetTexture *set,
+                                   uint32 hazardousTexIdx );
+        virtual void _setTextures( uint32 slotStart, const DescriptorSetTexture2 *set );
+        virtual void _setSamplers( uint32 slotStart, const DescriptorSetSampler *set );
+        virtual void _setTexturesCS( uint32 slotStart, const DescriptorSetTexture *set );
+        virtual void _setTexturesCS( uint32 slotStart, const DescriptorSetTexture2 *set );
+        virtual void _setSamplersCS( uint32 slotStart, const DescriptorSetSampler *set );
+    protected:
+        virtual void setBufferUavCS( uint32 slot, const DescriptorSetUav::BufferSlot &bufferSlot );
+        virtual void setTextureUavCS( uint32 slot, const DescriptorSetUav::TextureSlot &texSlot,
+                                      GLuint srvView );
+    public:
+        virtual void _setUavCS( uint32 slotStart, const DescriptorSetUav *set );
         /** See
             RenderSystem
         */
@@ -375,31 +359,8 @@ namespace Ogre {
         */
         void _setTextureMatrix(size_t stage, const Matrix4& xform) { };   // Not supported
 
-        virtual void setUavStartingSlot( uint32 startingSlot );
-
-        virtual void queueBindUAV( uint32 slot, TexturePtr texture,
-                                   ResourceAccess::ResourceAccess access = ResourceAccess::ReadWrite,
-                                   int32 mipmapLevel = 0, int32 textureArrayIndex = 0,
-                                   PixelFormat pixelFormat = PF_UNKNOWN );
-        virtual void queueBindUAV( uint32 slot, UavBufferPacked *buffer,
-                                   ResourceAccess::ResourceAccess access = ResourceAccess::ReadWrite,
-                                   size_t offset = 0, size_t sizeBytes = 0 );
-
-        virtual void clearUAVs(void);
-
         virtual void flushUAVs(void);
 
-        virtual void _bindTextureUavCS( uint32 slot, Texture *texture,
-                                        ResourceAccess::ResourceAccess access,
-                                        int32 mipmapLevel, int32 textureArrayIndex,
-                                        PixelFormat pixelFormat );
-        virtual void _setTextureCS( uint32 slot, bool enabled, Texture *texPtr );
-        virtual void _setHlmsSamplerblockCS( uint8 texUnit, const HlmsSamplerblock *samplerblock );
-
-        /** See
-            RenderSystem
-        */
-        void _setViewport(Viewport *vp);
         virtual void _resourceTransitionCreated( ResourceTransition *resTransition );
         virtual void _resourceTransitionDestroyed( ResourceTransition *resTransition );
         virtual void _executeResourceTransition( ResourceTransition *resTransition );
@@ -412,6 +373,10 @@ namespace Ogre {
         virtual void _hlmsBlendblockDestroyed( HlmsBlendblock *block );
         virtual void _hlmsSamplerblockCreated( HlmsSamplerblock *newBlock );
         virtual void _hlmsSamplerblockDestroyed( HlmsSamplerblock *block );
+        virtual void _descriptorSetTexture2Created( DescriptorSetTexture2 *newSet );
+        virtual void _descriptorSetTexture2Destroyed( DescriptorSetTexture2 *set );
+        virtual void _descriptorSetUavCreated( DescriptorSetUav *newSet );
+        virtual void _descriptorSetUavDestroyed( DescriptorSetUav *set );
         void _setHlmsMacroblock( const HlmsMacroblock *macroblock, const GL3PlusHlmsPso *pso );
         void _setHlmsBlendblock( const HlmsBlendblock *blendblock, const GL3PlusHlmsPso *pso );
         virtual void _setHlmsSamplerblock( uint8 texUnit, const HlmsSamplerblock *samplerblock );
@@ -434,31 +399,15 @@ namespace Ogre {
             RenderSystem
         */
         void _setDepthBias(float constantBias, float slopeScaleBias);
+        virtual void _makeRsProjectionMatrix( const Matrix4& matrix,
+                                              Matrix4& dest, Real nearPlane,
+                                              Real farPlane, ProjectionType projectionType );
         /** See
             RenderSystem
         */
-        void _convertProjectionMatrix(const Matrix4& matrix,
-                                      Matrix4& dest, bool forGpuProgram = false);
-        /** See
-            RenderSystem
-        */
-        void _makeProjectionMatrix(const Radian& fovy, Real aspect, Real nearPlane, Real farPlane,
-                                   Matrix4& dest, bool forGpuProgram = false);
-        /** See
-            RenderSystem
-        */
-        void _makeProjectionMatrix(Real left, Real right, Real bottom, Real top,
-                                   Real nearPlane, Real farPlane, Matrix4& dest, bool forGpuProgram = false);
-        /** See
-            RenderSystem
-        */
-        void _makeOrthoMatrix(const Radian& fovy, Real aspect, Real nearPlane, Real farPlane,
-                              Matrix4& dest, bool forGpuProgram = false);
-        /** See
-            RenderSystem
-        */
-        void _applyObliqueDepthProjection(Matrix4& matrix, const Plane& plane,
-                                          bool forGpuProgram);
+        virtual void _convertProjectionMatrix(const Matrix4& matrix, Matrix4& dest);
+        virtual void _convertOpenVrProjectionMatrix(const Matrix4& matrix, Matrix4& dest);
+        virtual Real getRSDepthRange(void) const;
         /** See
             RenderSystem
         */
@@ -493,15 +442,13 @@ namespace Ogre {
         virtual void _renderNoBaseInstance( const v1::CbDrawCallIndexed *cmd );
         virtual void _renderNoBaseInstance( const v1::CbDrawCallStrip *cmd );
 
-        virtual void clearFrameBuffer( unsigned int buffers,
-                                       const ColourValue& colour = ColourValue::Black,
-                                       Real depth = 1.0f, unsigned short stencil = 0 );
-        virtual void discardFrameBuffer( unsigned int buffers );
+        virtual void clearFrameBuffer( RenderPassDescriptor *renderPassDesc,
+                                       TextureGpu *anyTarget, uint8 mipLevel );
         HardwareOcclusionQuery* createHardwareOcclusionQuery(void);
         Real getHorizontalTexelOffset(void) { return 0.0; }               // No offset in GL
         Real getVerticalTexelOffset(void) { return 0.0; }                 // No offset in GL
-        Real getMinimumDepthInputValue(void) { return -1.0f; }            // Range [-1.0f, 1.0f]
-        Real getMaximumDepthInputValue(void) { return 1.0f; }             // Range [-1.0f, 1.0f]
+        Real getMinimumDepthInputValue(void);
+        Real getMaximumDepthInputValue(void);
         OGRE_MUTEX(mThreadInitMutex);
         void registerThread();
         void unregisterThread();
@@ -529,11 +476,7 @@ namespace Ogre {
             only need to be set once, like the LightingModel can be defined here.
         */
         void _oneTimeContextInitialization();
-        void initialiseContext(RenderWindow* primary);
-        /**
-         * Set current render target to target, enabling its GL context if needed
-         */
-        void _setRenderTarget( RenderTarget *target, uint8 viewportRenderTargetFlags );
+        void initialiseContext( Window *primary );
 
         GLint convertCompareFunction(CompareFunction func) const;
         GLint convertStencilOp(StencilOperation op) const;

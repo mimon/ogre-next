@@ -35,6 +35,9 @@ THE SOFTWARE.
 #include "OgreGpuProgram.h"
 #include "OgreAny.h"
 #include "Threading/OgreThreadHeaders.h"
+
+#include "ogrestd/list.h"
+
 #include "OgreHeaderPrefix.h"
 
 namespace Ogre
@@ -701,6 +704,7 @@ namespace Ogre
             ID_EXP,
             ID_EXP2,
         ID_COLOUR_WRITE,
+        ID_CHANNEL_MASK,
         ID_MAX_LIGHTS,
         ID_START_LIGHT,
         ID_ITERATION,
@@ -800,6 +804,7 @@ namespace Ogre
             ID_NAMED,
             ID_SHADOW,
             ID_COMPOSITOR,
+        ID_AUTOMATIC_BATCHING,
         ID_TEXTURE_SOURCE,
         ID_SHARED_PARAMS,
         ID_SHARED_PARAM_NAMED,
@@ -822,6 +827,23 @@ namespace Ogre
             ID_IN_BUFFER,
             ID_OUT_BUFFER,
             ID_CUSTOM_ID,
+            ID_RTV,
+                //ID_COLOUR,
+                    ID_RESOLVE,
+                    ID_MIP,
+                    //ID_MIPMAP,
+                    ID_RESOLVE_MIP,
+                    ID_RESOLVE_MIPMAP,
+                    ID_SLICE,
+                    ID_RESOLVE_SLICE,
+                    ID_ALL_LAYERS,
+                //ID_DEPTH,
+                //ID_STENCIL,
+                ID_DEPTH_STENCIL,
+                //ID_DEPTH_TEXTURE,
+                //ID_DEPTH_FORMAT,
+                ID_DEPTH_READ_ONLY,
+                ID_STENCIL_READ_ONLY,
             ID_BUFFER,
         //  ID_TEXTURE,
                 ID_TARGET_WIDTH,
@@ -832,16 +854,20 @@ namespace Ogre
             //  ID_GAMMA,
                 ID_NO_GAMMA,
                 ID_NO_FSAA,
+                ID_MSAA,
+                ID_MSAA_AUTO,
                 ID_EXPLICIT_RESOLVE,
-                ID_RESOLVE,
+                ID_REINTERPRETABLE,
                 ID_DEPTH_POOL,
                 ID_DEPTH_TEXTURE,
                 ID_DEPTH_FORMAT,
                 ID_2D_ARRAY,
                 //ID_3D,
                 ID_CUBEMAP,
+                ID_CUBEMAP_ARRAY,
                 ID_MIPMAPS,
-                ID_AUTOMIPMAPS,
+
+                ID_NO_AUTOMIPMAPS,
             ID_TARGET,
         //  ID_PASS,
                 ID_CLEAR,
@@ -850,8 +876,20 @@ namespace Ogre
                 ID_RENDER_QUAD,
                 ID_DEPTH_COPY,
                 ID_BIND_UAV,
+                    ID_LOAD,
+                        ID_ALL,
+                        //ID_COLOUR,
+                        //ID_DEPTH,
+                        //ID_STENCIL,
+                        ID_CLEAR_COLOUR,
+                        ID_CLEAR_COLOUR_REVERSE_DEPTH_AWARE,
+                        ID_CLEAR_DEPTH,
+                        ID_CLEAR_STENCIL,
+                        ID_WARN_IF_RTV_WAS_FLUSHED,
+                    ID_STORE,
                     ID_VIEWPORT,
                     ID_NUM_INITIAL,
+                    ID_FLUSH_COMMAND_BUFFERS,
                     ID_IDENTIFIER,
                     ID_OVERLAYS,
                     ID_EXECUTION_MASK,
@@ -878,8 +916,15 @@ namespace Ogre
                     ID_LAST_RENDER_QUEUE,
                     ID_CAMERA_CUBEMAP_REORIENT,
                     ID_ENABLE_FORWARDPLUS,
+                    ID_FLUSH_COMMAND_BUFFERS_AFTER_SHADOW_NODE,
                     ID_IS_PREPASS,
                     ID_USE_PREPASS,
+                    ID_GEN_NORMALS_GBUFFER,
+                    ID_USE_REFRACTIONS,
+                    ID_UV_BAKING,
+                    ID_UV_BAKING_OFFSET,
+                    ID_BAKE_LIGHTING_ONLY,
+                    ID_INSTANCED_STEREO,
 
                     //Used by PASS_QUAD
                     ID_USE_QUAD,
@@ -892,10 +937,13 @@ namespace Ogre
                         ID_CAMERA_DIRECTION,
                     ID_INPUT,
 
-                    //Used by ID_DEPTH_COPY
-                    ID_ALIAS_ON_COPY_FAILURE,
+
+                    //Used by PASS_IBL_SPECULAR
+                    //ID_INPUT,
+                    ID_OUTPUT,
 
                     //Used by PASS_CLEAR
+                    ID_NON_TILERS_ONLY,
                     ID_BUFFERS,
                     ID_COLOUR,
                     ID_DEPTH,
@@ -945,10 +993,15 @@ namespace Ogre
                     ID_KERNEL_RADIUS,
                     ID_GAUSS_DEVIATION,
 
+                    //Used by IBL_SPECULAR
+                    ID_SAMPLES_PER_ITERATION,
+                    ID_FORCE_MIPMAP_FALLBACK,
+
             ID_READ_BACK_AS_TEXTURE,
 
         ID_SHADOW_NODE,
             ID_NUM_SPLITS,
+            ID_NUM_STABLE_SPLITS,
             ID_PSSM_SPLIT_PADDING,
             ID_PSSM_SPLIT_BLEND,
             ID_PSSM_SPLIT_FADE,

@@ -34,6 +34,7 @@ THE SOFTWARE.
 #include "OgreVector4.h"
 #include "OgreMovableObject.h"
 #include "OgrePlaneBoundedVolume.h"
+#include "OgreTextureGpuListener.h"
 #include "OgreHeaderPrefix.h"
 
 namespace Ogre {
@@ -67,7 +68,7 @@ namespace Ogre {
         extended for certain scene types so an alternative to the standard dynamic lighting may be used, such
             as dynamic lightmaps.
     */
-    class _OgreExport Light : public MovableObject
+    class _OgreExport Light : public MovableObject, public TextureGpuListener
     {
 		void resetAabb(void);
 		void updateLightBounds(void);
@@ -241,6 +242,9 @@ namespace Ogre {
         /** Returns the quadric factor in the attenuation formula.
         */
         Real getAttenuationQuadric(void) const                      { return mAttenuationQuad; }
+
+        void _setLightProfileIdx( uint16 profileIdx )               { mLightProfileIdx = profileIdx; }
+        uint16 getLightProfileIdx(void) const                       { return mLightProfileIdx; }
 
         /** Sets the direction in which a light points.
         @remarks
@@ -470,6 +474,38 @@ namespace Ogre {
         */
         Real _deriveShadowFarClipDistance(const Camera* maincam) const;
 
+#if OGRE_ENABLE_LIGHT_OBB_RESTRAINT
+        /** Sets an OBB (Oriented Bounding Box) to restraint where the light affects objects
+
+            The derived transform of the node is in world space and can be independent of the
+            light's transform or its scene node (but you can attach the OBB node to the light's
+            node to inherit its transform)
+
+            The scale of the node determines the half size of the OBB.
+
+            This is most useful for Area lights. Because they do not support shadows, area
+            lights can leak and light things very far away even if they are behind a wall.
+            OBB restraints allows you contain the lighting to a particular location, like a room.
+        @param node
+            A node containing position, rotation & scale. Scale is the half size of the OBB.
+            Null to disable.
+        */
+        void setObbRestraint( Node *node );
+        Node* getObbRestraint(void) const       { return mObbRestraint; }
+
+        /// Sets the distance in Ogre units (e.g. cm, meters, whatever your engine is using)
+        /// to the OBB bounds at which the smooth fade kicks in.
+        /// Set 0 for no smooth fading.
+        /// This value should be smaller than all 3 xyz components of mObbRestraint->getScale()
+        /// However values higher than that are allowed and may give interesting results.
+        ///
+        /// Valid Range: [0; min( obbRestraintScale.x, obbRestraintScale.y, obbRestraintScale.z ))
+        void setObbRestraintSmoothFadeDistance( float smoothFadeDistance );
+        float getObbRestraintSmoothFadeDistance(void) const	{ return mObbRestraintSmoothFadeDistance; }
+
+        Vector3 _getObbRestraintFadeFactor(void) const;
+#endif
+
         /** Sets a custom parameter for this Light, which may be used to 
             drive calculations for this specific Renderable, like GPU program parameters.
         @remarks
@@ -494,8 +530,9 @@ namespace Ogre {
         @see setCustomParameter for full details.
         */
         const Vector4& getCustomParameter(uint16 index) const;
+        const Vector4* getCustomParameterNoThrow( uint16 index ) const;
 
-        /** Update a custom GpuProgramParameters constant which is derived from 
+        /** Update a custom GpuProgramParameters constant which is derived from
             information only this Light knows.
         @remarks
             This method allows a Light to map in a custom GPU program parameter
@@ -521,7 +558,7 @@ namespace Ogre {
             set the updated parameters.
         */
         virtual void _updateCustomGpuParameter(uint16 paramIndex, 
-            const GpuProgramParameters::AutoConstantEntry& constantEntry, 
+            const GpuProgramParameters_AutoConstantEntry& constantEntry,
             GpuProgramParameters* params) const;
                 
         /** Check whether a sphere is included in the lighted area of the light 
@@ -546,11 +583,19 @@ namespace Ogre {
             and if that texture belongs to a different pool as the one you're
             inputting here, the wrong texture will be displayed!
         @param texture
-            Texture. Can be monochrome or coloured. Must be a 2D Array texture.
+            Texture. Can be monochrome or coloured.
+            For Raw version must be a 2D Array texture.
+            For non-Raw version, must be a 2D texture.
         @param sliceIdx
             Slice to the texture.
         */
-        void setTexture( const TexturePtr &texture, uint16 sliceIdx );
+        void setTexture( TextureGpu *texture );
+        void setTextureRaw( TextureGpu *texture, uint32 sliceIdx );
+
+        TextureGpu* getTexture(void) const          { return mTexture; }
+
+        virtual void notifyTextureChanged( TextureGpu *texture, TextureGpuListener::Reason reason,
+                                           void *extraData );
     
     protected:
 
@@ -574,6 +619,7 @@ namespace Ogre {
         bool mDoubleSided;
     protected:
         Vector2 mRectSize;
+        TextureGpu *mTexture;
     public:
         uint16 mTextureLightMaskIdx;
         /// Control the start of mip level for diffuse component for area lights
@@ -581,11 +627,18 @@ namespace Ogre {
         /// 1.0 means to use the highest mip level, and 0 the lowest mip.
         uint16 mTexLightMaskDiffuseMipStart;
     protected:
+        /// Used for IES photogametry
+        uint16 mLightProfileIdx;
         Real mShadowFarDist;
         Real mShadowFarDistSquared;
 
         Real mShadowNearClipDist;
         Real mShadowFarClipDist;
+
+#if OGRE_ENABLE_LIGHT_OBB_RESTRAINT
+        float mObbRestraintSmoothFadeDistance;
+        Node *mObbRestraint;
+#endif
 
         /// Shared class-level name for Movable type.
         static String msMovableType;

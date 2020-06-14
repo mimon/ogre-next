@@ -32,7 +32,7 @@ namespace Demo
     #endif
 
         Ogre::Root                  *mRoot;
-        Ogre::RenderWindow          *mRenderWindow;
+        Ogre::Window                *mRenderWindow;
         Ogre::SceneManager          *mSceneManager;
         Ogre::Camera                *mCamera;
         Ogre::CompositorWorkspace   *mWorkspace;
@@ -70,6 +70,8 @@ namespace Demo
 
         static void addResourceLocation( const Ogre::String &archName, const Ogre::String &typeName,
                                          const Ogre::String &secName );
+        void loadTextureCache(void);
+        void saveTextureCache(void);
         void loadHlmsDiskCache(void);
         void saveHlmsDiskCache(void);
         virtual void setupResources(void);
@@ -84,6 +86,9 @@ namespace Demo
         /// aware @mBackgroundColour will be ignored
         virtual Ogre::CompositorWorkspace* setupCompositor(void);
 
+        /// Called right before initializing Ogre's first window, so the params can be customized
+        virtual void initMiscParamsListener( Ogre::NameValuePairList &params );
+
         /// Optional override method where you can create resource listeners (e.g. for loading screens)
         virtual void createResourceListener(void) {}
 
@@ -91,6 +96,7 @@ namespace Demo
         void gameEntityRemoved( GameEntity *toRemove );
     public:
         GraphicsSystem( GameState *gameState,
+                        Ogre::String resourcePath = Ogre::String(""),
                         Ogre::ColourValue backgroundColour = Ogre::ColourValue( 0.2f, 0.4f, 0.6f ) );
         virtual ~GraphicsSystem();
 
@@ -129,7 +135,7 @@ namespace Demo
         float getAccumTimeSinceLastLogicFrame(void) const       { return mAccumTimeSinceLastLogicFrame; }
 
         Ogre::Root* getRoot(void) const                         { return mRoot; }
-        Ogre::RenderWindow* getRenderWindow(void) const         { return mRenderWindow; }
+        Ogre::Window* getRenderWindow(void) const               { return mRenderWindow; }
         Ogre::SceneManager* getSceneManager(void) const         { return mSceneManager; }
         Ogre::Camera* getCamera(void) const                     { return mCamera; }
         Ogre::CompositorWorkspace* getCompositorWorkspace(void) const { return mWorkspace; }

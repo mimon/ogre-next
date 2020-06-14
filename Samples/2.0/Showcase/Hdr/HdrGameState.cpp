@@ -11,14 +11,15 @@
 #include "OgreMesh2.h"
 
 #include "OgreCamera.h"
-#include "OgreRenderWindow.h"
+#include "OgreWindow.h"
 
 #include "OgreHlmsPbsDatablock.h"
 #include "OgreHlmsSamplerblock.h"
 
 #include "OgreRoot.h"
 #include "OgreHlmsManager.h"
-#include "OgreHlmsTextureManager.h"
+#include "OgreTextureGpuManager.h"
+#include "OgreTextureFilters.h"
 #include "OgreHlmsPbs.h"
 
 #include "Utils/HdrUtils.h"
@@ -43,7 +44,7 @@ namespace Demo
     //-----------------------------------------------------------------------------------
     void HdrGameState::createScene01(void)
     {
-        HdrUtils::init( (Ogre::uint8)mGraphicsSystem->getRenderWindow()->getFSAA() );
+        HdrUtils::init( mGraphicsSystem->getRenderWindow()->getSampleDescription().getColourSamples() );
 
         Ogre::SceneManager *sceneManager = mGraphicsSystem->getSceneManager();
 
@@ -125,7 +126,6 @@ namespace Demo
         {
             size_t numItems = 0;
             Ogre::HlmsManager *hlmsManager = mGraphicsSystem->getRoot()->getHlmsManager();
-            Ogre::HlmsTextureManager *hlmsTextureManager = hlmsManager->getTextureManager();
 
             assert( dynamic_cast<Ogre::HlmsPbs*>( hlmsManager->getHlms( Ogre::HLMS_PBS ) ) );
 
@@ -137,6 +137,9 @@ namespace Demo
             const float armsLength = 1.0f;
             const float startX = (numX-1) / 2.0f;
             const float startZ = (numZ-1) / 2.0f;
+
+            Ogre::Root *root = mGraphicsSystem->getRoot();
+            Ogre::TextureGpuManager *textureMgr = root->getRenderSystem()->getTextureGpuManager();
 
             for( int x=0; x<numX; ++x )
             {
@@ -150,11 +153,16 @@ namespace Demo
                                                           Ogre::HlmsBlendblock(),
                                                           Ogre::HlmsParamVec() ) );
 
-                    Ogre::HlmsTextureManager::TextureLocation texLocation = hlmsTextureManager->
-                            createOrRetrieveTexture( "SaintPetersBasilica.dds",
-                                                     Ogre::HlmsTextureManager::TEXTURE_TYPE_ENV_MAP );
+                    Ogre::TextureGpu *texture = textureMgr->createOrRetrieveTexture(
+                                                    "SaintPetersBasilica.dds",
+                                                    Ogre::GpuPageOutStrategy::Discard,
+                                                    Ogre::TextureFlags::PrefersLoadingFromFileAsSRGB,
+                                                    Ogre::TextureTypes::TypeCube,
+                                                    Ogre::ResourceGroupManager::
+                                                    AUTODETECT_RESOURCE_GROUP_NAME,
+                                                    Ogre::TextureFilter::TypeGenerateDefaultMipmaps );
 
-                    datablock->setTexture( Ogre::PBSM_REFLECTION, texLocation.xIdx, texLocation.texture );
+                    datablock->setTexture( Ogre::PBSM_REFLECTION, texture );
                     datablock->setDiffuse( Ogre::Vector3( 0.0f, 1.0f, 0.0f ) );
 
                     datablock->setRoughness( std::max( 0.02f, x / Ogre::max( 1, (float)(numX-1) ) ) );
@@ -380,7 +388,7 @@ namespace Demo
         mMaxAutoExposure    = preset.maxAutoExposure;
         mBloomFullThreshold = preset.bloomThreshold;
 
-        HdrUtils::setSkyColour( preset.skyColour, 1.0f );
+        HdrUtils::setSkyColour( preset.skyColour, 1.0f, mGraphicsSystem->getCompositorWorkspace() );
         HdrUtils::setExposure( mExposure, mMinAutoExposure, mMaxAutoExposure );
         HdrUtils::setBloomThreshold( Ogre::max( mBloomFullThreshold - 2.0f, 0.0f ),
                                      Ogre::max( mBloomFullThreshold, 0.01f ) );

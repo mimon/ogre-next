@@ -64,6 +64,8 @@ namespace Ogre
         /// Number of texture arrays actually baked.
         static const IdString NumArrayTextures;
         static const IdString NumTextures;
+        static const IdString NumSamplers;
+        static const IdString SamplerUnitSlotStart;
 
         /// Number of diffuse maps.
         static const IdString DiffuseMap;

@@ -69,10 +69,14 @@ namespace Ogre
 
         ConstBufferPool::BufferPool const *mLastBoundPool;
 
-        uint32 mLastTextureHash;
+        bool mHasSeparateSamplers;
+        DescriptorSetTexture const *mLastDescTexture;
+        DescriptorSetSampler const *mLastDescSampler;
 
         bool    mUsingExponentialShadowMaps;
         uint16  mEsmK; /// K parameter for ESM.
+        uint32  mTexUnitSlotStart;
+        uint32  mSamplerUnitSlotStart;
 
         virtual const HlmsCache* createShaderCacheEntry( uint32 renderableHash,
                                                          const HlmsCache &passCache,
@@ -84,9 +88,9 @@ namespace Ogre
                                                     const HlmsBlendblock *blendblock,
                                                     const HlmsParamVec &paramVec );
 
-        void setTextureProperty( IdString propertyName, HlmsUnlitDatablock *datablock,
-                                 uint8 texType );
+        void setTextureProperty( LwString &propertyName, HlmsUnlitDatablock *datablock, uint8 texType );
 
+        virtual void calculateHashFor( Renderable *renderable, uint32 &outHash, uint32 &outCasterHash );
         virtual void calculateHashForPreCreate( Renderable *renderable, PiecesMap *inOutPieces );
         virtual void calculateHashForPreCaster( Renderable *renderable, PiecesMap *inOutPieces );
 
@@ -139,11 +143,11 @@ namespace Ogre
         static void getDefaultPaths( String& outDataFolderPath, StringVector& outLibraryFoldersPaths );
 
 #if !OGRE_NO_JSON
-		/// @copydoc Hlms::_loadJson
+        /// @copydoc Hlms::_loadJson
         virtual void _loadJson( const rapidjson::Value &jsonValue, const HlmsJson::NamedBlocks &blocks,
-                                HlmsDatablock *datablock, HlmsJsonListener *listener,
-                                const String &additionalTextureExtension ) const;
-		/// @copydoc Hlms::_saveJson
+                                HlmsDatablock *datablock, const String &resourceGroup,
+                                HlmsJsonListener *listener, const String &additionalTextureExtension ) const;
+        /// @copydoc Hlms::_saveJson
         virtual void _saveJson( const HlmsDatablock *datablock, String &outString,
                                 HlmsJsonListener *listener,
                                 const String &additionalTextureExtension ) const;

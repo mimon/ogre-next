@@ -27,133 +27,233 @@ Copyright (c) 2000-2017 Torus Knot Software Ltd
 */
 
 #include "OgreMetalPixelFormatToShaderType.h"
+#include "OgreMetalPixelFormatToShaderType.inl"
+
+#include "OgrePixelFormatGpuUtils.h"
+#include "OgreTextureGpu.h"
 
 namespace Ogre
 {
-    const char* MetalPixelFormatToShaderType::getPixelFormatType( PixelFormat pixelFormat ) const
+    static const char c_pixelFormatTypes[PixelFormatDataTypes::NumPixelFormatDataTypes][8] =
+    {
+        { "float" },
+        { "half" },
+
+        { "int" },
+        { "unit" },
+
+        { "short" },
+        { "ushort" },
+
+        { "char" },
+        { "uchar" }
+    };
+
+    //-------------------------------------------------------------------------
+    PixelFormatDataTypes::PixelFormatDataTypes MetalPixelFormatToShaderType::getPixelFormatDataType(
+            PixelFormatGpu pixelFormat )
     {
         switch( pixelFormat )
         {
-        //UNORM formats
-        case PF_L8:
-        case PF_A8:
-        case PF_R8:
-        case PF_D16_UNORM:
-        case PF_D24_UNORM:
-        case PF_D24_UNORM_S8_UINT:
-        case PF_D24_UNORM_X8:
-            return "float";
-        case PF_L16:
-            return "float";
-        case PF_RG8:
-        case PF_BYTE_LA:
-            return "float";
-        case PF_SHORT_GR:
-            return "float";
-        case PF_R8G8B8:
-        case PF_B8G8R8:
-        case PF_A8R8G8B8:
-        case PF_A8B8G8R8:
-        case PF_B8G8R8A8:
-        case PF_R8G8B8A8:
-        case PF_X8R8G8B8:
-        case PF_X8B8G8R8:
-            return "float";
-        case PF_A2R10G10B10:
-        case PF_A2B10G10R10:
-            return "float";
-        case PF_SHORT_RGB:
-        case PF_SHORT_RGBA:
-            return "float";
+        case PFG_RGBA32_FLOAT:
+        case PFG_RGB32_FLOAT:
+        case PFG_RGBA16_UNORM:
+        case PFG_RG32_FLOAT:
+        case PFG_D32_FLOAT_S8X24_UINT:
+        case PFG_R10G10B10A2_UNORM:
+        case PFG_R11G11B10_FLOAT:
+        case PFG_RGBA8_UNORM:
+        case PFG_RGBA8_UNORM_SRGB:
+        case PFG_RG16_UNORM:
+        case PFG_D32_FLOAT:
+        case PFG_R32_FLOAT:
+        case PFG_D24_UNORM:
+        case PFG_D24_UNORM_S8_UINT:
+        case PFG_RG8_UNORM:
+        case PFG_D16_UNORM:
+        case PFG_R16_UNORM:
+        case PFG_R8_UNORM:
+        case PFG_A8_UNORM:
+        case PFG_R1_UNORM:
+        case PFG_R9G9B9E5_SHAREDEXP:
+        case PFG_R8G8_B8G8_UNORM:
+        case PFG_G8R8_G8B8_UNORM:
+        case PFG_BC1_UNORM:
+        case PFG_BC1_UNORM_SRGB:
+        case PFG_BC2_UNORM:
+        case PFG_BC2_UNORM_SRGB:
+        case PFG_BC3_UNORM:
+        case PFG_BC3_UNORM_SRGB:
+        case PFG_BC4_UNORM:
+        case PFG_BC4_SNORM:
+        case PFG_BC5_UNORM:
+        case PFG_BC5_SNORM:
+        case PFG_B5G6R5_UNORM:
+        case PFG_B5G5R5A1_UNORM:
+        case PFG_BGRA8_UNORM:
+        case PFG_BGRX8_UNORM:
+        case PFG_R10G10B10_XR_BIAS_A2_UNORM:
+        case PFG_BGRA8_UNORM_SRGB:
+        case PFG_BGRX8_UNORM_SRGB:
+        case PFG_BC6H_UF16:
+        case PFG_BC6H_SF16:
+        case PFG_BC7_UNORM:
+        case PFG_BC7_UNORM_SRGB:
+        case PFG_B4G4R4A4_UNORM:
+        case PFG_RGBA16_SNORM:
+        case PFG_RGBA8_SNORM:
+        case PFG_RG16_SNORM:
+        case PFG_RG8_SNORM:
+        case PFG_R16_SNORM:
+        case PFG_R8_SNORM:
+        case PFG_PVRTC_RGB2:
+        case PFG_PVRTC_RGB2_SRGB:
+        case PFG_PVRTC_RGBA2:
+        case PFG_PVRTC_RGBA2_SRGB:
+        case PFG_PVRTC_RGB4:
+        case PFG_PVRTC_RGB4_SRGB:
+        case PFG_PVRTC_RGBA4:
+        case PFG_PVRTC_RGBA4_SRGB:
+        case PFG_PVRTC2_2BPP:
+        case PFG_PVRTC2_2BPP_SRGB:
+        case PFG_PVRTC2_4BPP:
+        case PFG_PVRTC2_4BPP_SRGB:
+        case PFG_ETC1_RGB8_UNORM:
+        case PFG_ETC2_RGB8_UNORM:
+        case PFG_ETC2_RGB8_UNORM_SRGB:
+        case PFG_ETC2_RGBA8_UNORM:
+        case PFG_ETC2_RGBA8_UNORM_SRGB:
+        case PFG_ETC2_RGB8A1_UNORM:
+        case PFG_ETC2_RGB8A1_UNORM_SRGB:
+        case PFG_EAC_R11_UNORM:
+        case PFG_EAC_R11_SNORM:
+        case PFG_EAC_R11G11_UNORM:
+        case PFG_EAC_R11G11_SNORM:
+        case PFG_ATC_RGB:
+        case PFG_ATC_RGBA_EXPLICIT_ALPHA:
+        case PFG_ATC_RGBA_INTERPOLATED_ALPHA:
+        case PFG_ASTC_RGBA_UNORM_4X4_LDR:   case PFG_ASTC_RGBA_UNORM_4X4_sRGB:
+        case PFG_ASTC_RGBA_UNORM_5X4_LDR:   case PFG_ASTC_RGBA_UNORM_5X4_sRGB:
+        case PFG_ASTC_RGBA_UNORM_5X5_LDR:   case PFG_ASTC_RGBA_UNORM_5X5_sRGB:
+        case PFG_ASTC_RGBA_UNORM_6X5_LDR:   case PFG_ASTC_RGBA_UNORM_6X5_sRGB:
+        case PFG_ASTC_RGBA_UNORM_6X6_LDR:   case PFG_ASTC_RGBA_UNORM_6X6_sRGB:
+        case PFG_ASTC_RGBA_UNORM_8X5_LDR:   case PFG_ASTC_RGBA_UNORM_8X5_sRGB:
+        case PFG_ASTC_RGBA_UNORM_8X6_LDR:   case PFG_ASTC_RGBA_UNORM_8X6_sRGB:
+        case PFG_ASTC_RGBA_UNORM_8X8_LDR:   case PFG_ASTC_RGBA_UNORM_8X8_sRGB:
+        case PFG_ASTC_RGBA_UNORM_10X5_LDR:  case PFG_ASTC_RGBA_UNORM_10X5_sRGB:
+        case PFG_ASTC_RGBA_UNORM_10X6_LDR:  case PFG_ASTC_RGBA_UNORM_10X6_sRGB:
+        case PFG_ASTC_RGBA_UNORM_10X8_LDR:  case PFG_ASTC_RGBA_UNORM_10X8_sRGB:
+        case PFG_ASTC_RGBA_UNORM_10X10_LDR: case PFG_ASTC_RGBA_UNORM_10X10_sRGB:
+        case PFG_ASTC_RGBA_UNORM_12X10_LDR: case PFG_ASTC_RGBA_UNORM_12X10_sRGB:
+        case PFG_ASTC_RGBA_UNORM_12X12_LDR: case PFG_ASTC_RGBA_UNORM_12X12_sRGB:
+            return PixelFormatDataTypes::Float;
 
-        //SNORM formats
-        case PF_R8_SNORM:
-            return "float";
-        case PF_R16_SNORM:
-            return "float";
-        case PF_R8G8_SNORM:
-            return "float";
-        case PF_R16G16_SNORM:
-            return "float";
-        case PF_R8G8B8_SNORM:
-        case PF_R8G8B8A8_SNORM:
-            return "float";
-        case PF_R16G16B16_SNORM:
-        case PF_R16G16B16A16_SNORM:
-            return "float";
+        case PFG_RGBA16_FLOAT:
+        case PFG_RG16_FLOAT:
+        case PFG_R16_FLOAT:
+            return PixelFormatDataTypes::Half;
 
-        //SINT formats
-        case PF_R8_SINT:
-            return "int";
-        case PF_R16_SINT:
-            return "int";
-        case PF_R32_SINT:
-            return "int";
-        case PF_R8G8_SINT:
-            return "int";
-        case PF_R16G16_SINT:
-            return "int";
-        case PF_R32G32_SINT:
-            return "int";
-        case PF_R8G8B8_SINT:
-        case PF_R8G8B8A8_SINT:
-            return "int";
-        case PF_R16G16B16_SINT:
-        case PF_R16G16B16A16_SINT:
-            return "int";
-        case PF_R32G32B32_SINT:
-        case PF_R32G32B32A32_SINT:
-            return "int";
+        case PFG_RGBA32_UINT:
+        case PFG_RGB32_UINT:
+        case PFG_RG32_UINT:
+        case PFG_R32_UINT:
+            return PixelFormatDataTypes::Uint;
 
-        //UINT formats
-        case PF_R8_UINT:
-            return "uint";
-        case PF_R16_UINT:
-            return "uint";
-        case PF_R32_UINT:
-            return "uint";
-        case PF_R8G8_UINT:
-            return "uint";
-        case PF_R16G16_UINT:
-            return "uint";
-        case PF_R32G32_UINT:
-            return "uint";
-        case PF_R8G8B8_UINT:
-        case PF_R8G8B8A8_UINT:
-            return "uint";
-//        case PF_R10G10B10A2_UINT:
-//            return "uint";
-        case PF_R16G16B16_UINT:
-        case PF_R16G16B16A16_UINT:
-            return "uint";
-        case PF_R32G32B32_UINT:
-        case PF_R32G32B32A32_UINT:
-            return "uint";
+        case PFG_RGBA32_SINT:
+        case PFG_RGB32_SINT:
+        case PFG_RG32_SINT:
+        case PFG_R32_SINT:
+            return PixelFormatDataTypes::Int;
 
-        //Pure floating point
-        case PF_FLOAT16_R:
-            return "float";
-        case PF_FLOAT32_R:
-        case PF_D32_FLOAT:
-        case PF_D32_FLOAT_X24_S8_UINT:
-        case PF_D32_FLOAT_X24_X8:
-            return "float";
-        case PF_FLOAT16_GR:
-            return "float";
-        case PF_FLOAT32_GR:
-            return "float";
-        case PF_R11G11B10_FLOAT:
-            return "float";
-        case PF_FLOAT16_RGB:
-        case PF_FLOAT16_RGBA:
-            return "float";
-        case PF_FLOAT32_RGB:
-        case PF_FLOAT32_RGBA:
-            return "float";
+        case PFG_R10G10B10A2_UINT:
+        case PFG_RG16_UINT:
+        case PFG_R16_UINT:
+            return PixelFormatDataTypes::Ushort;
+
+        case PFG_RGBA16_SINT:
+        case PFG_RG16_SINT:
+        case PFG_R16_SINT:
+            return PixelFormatDataTypes::Short;
+
+        case PFG_RGBA8_UINT:
+        case PFG_RG8_UINT:
+        case PFG_R8_UINT:
+            return PixelFormatDataTypes::Uchar;
+
+        case PFG_RGBA8_SINT:
+        case PFG_RG8_SINT:
+        case PFG_R8_SINT:
+            return PixelFormatDataTypes::Char;
+
         default:
-            return 0;
+            return PixelFormatDataTypes::NumPixelFormatDataTypes;
         }
 
-        return 0;
+        return PixelFormatDataTypes::NumPixelFormatDataTypes;
+    }
+    //-------------------------------------------------------------------------
+    const char* MetalPixelFormatToShaderType::getPixelFormatType( PixelFormatGpu pixelFormat ) const
+    {
+        PixelFormatDataTypes::PixelFormatDataTypes pfDataType = getPixelFormatDataType( pixelFormat );
+
+        if( pfDataType == PixelFormatDataTypes::NumPixelFormatDataTypes )
+            return 0;
+
+        return c_pixelFormatTypes[pfDataType];
+    }
+    //-------------------------------------------------------------------------
+    const char* MetalPixelFormatToShaderType::getDataType( PixelFormatGpu pixelFormat,
+                                                           uint32 textureType,
+                                                           bool isMsaa,
+                                                           ResourceAccess::ResourceAccess access ) const
+    {
+        if( textureType == TextureTypes::Unknown )
+            textureType = TextureTypes::Type2D;
+
+        PixelFormatDataTypes::PixelFormatDataTypes pfDataType = getPixelFormatDataType( pixelFormat );
+        if( pfDataType == PixelFormatDataTypes::NumPixelFormatDataTypes )
+            return 0;
+
+        size_t accessIdx = static_cast<size_t>( access );
+
+        if( !PixelFormatGpuUtils::isDepth( pixelFormat ) )
+        {
+            if( isMsaa )
+            {
+                if( textureType == TextureTypes::Type2D )
+                    textureType = 7u;
+                else if( textureType == TextureTypes::Type2DArray )
+                    textureType = 8u;
+            }
+            else
+            {
+                --textureType;
+            }
+
+            size_t dataTypeIdx = textureType * PixelFormatDataTypes::NumPixelFormatDataTypes * 4u +
+                                 pfDataType * 4u + accessIdx;
+            return c_dataTypes[dataTypeIdx];
+        }
+        else
+        {
+            if( isMsaa )
+            {
+                if( textureType == TextureTypes::Type2D )
+                    textureType = 11u;
+                else if( textureType == TextureTypes::Type2DArray )
+                    textureType = 12u;
+            }
+            else
+            {
+                if( textureType == TextureTypes::Type2D )
+                    textureType = 9u;
+                else
+                    textureType = 10u;
+            }
+
+            size_t dataTypeIdx = 9u * PixelFormatDataTypes::NumPixelFormatDataTypes * 4u +
+                                 (textureType - 9u) * 4u + accessIdx;
+            return c_dataTypes[dataTypeIdx];
+        }
     }
 }

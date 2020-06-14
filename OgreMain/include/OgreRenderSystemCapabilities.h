@@ -32,6 +32,10 @@ THE SOFTWARE.
 #include "OgrePrerequisites.h"
 #include "OgreStringVector.h"
 #include "OgreStringConverter.h"
+#include "OgreLwString.h"
+
+#include "ogrestd/set.h"
+
 #include "OgreHeaderPrefix.h"
 
 // Because there are more than 32 possible Capabilities, more than 1 int is needed to store them all.
@@ -209,12 +213,35 @@ namespace Ogre
         /// Not set for D3D11, and GL. Doesn't mean ResourceTransition aren't
         /// required (i.e. GL needs them for UAVs and Compute Shaders)
         RSC_EXPLICIT_API = OGRE_CAPS_VALUE(CAPS_CATEGORY_COMMON_3, 5),
-        RSC_CONST_BUFFER_SLOTS_IN_SHADER     = OGRE_CAPS_VALUE(CAPS_CATEGORY_COMMON_3, 6),
-        RSC_TEXTURE_COMPRESSION_ASTC = OGRE_CAPS_VALUE(CAPS_CATEGORY_COMMON_3, 7),
+        /// Textures and samplers are separate in the shader. OpenGL can't do this.
+        RSC_SEPARATE_SAMPLERS_FROM_TEXTURES = OGRE_CAPS_VALUE(CAPS_CATEGORY_COMMON_3, 6),
+        /// Supports doing MSAA on TextureTypes::Type2DArray
+        RSC_MSAA_2D_ARRAY = OGRE_CAPS_VALUE(CAPS_CATEGORY_COMMON_3, 7),
+        /// GPU is a tiler, and thus benefits from tight LoadAction & SaveAction
+        /// semanticsthat avoid loading from & storing contents of what's been
+        /// drawn from the tiler's cache to RAM.
+        RSC_IS_TILER = OGRE_CAPS_VALUE(CAPS_CATEGORY_COMMON_3, 8),
+        /// When RSC_IS_TILER is set, this variable being set means the stencil can
+        /// also be cleared like colour and depth in a tiler-fashion. Otherwise,
+        /// stencil is cleared as if GPU were a non-tiler.
+        RSC_TILER_CAN_CLEAR_STENCIL_REGION = OGRE_CAPS_VALUE(CAPS_CATEGORY_COMMON_3, 9),
+        RSC_CONST_BUFFER_SLOTS_IN_SHADER = OGRE_CAPS_VALUE(CAPS_CATEGORY_COMMON_3, 10),
+        RSC_TEXTURE_COMPRESSION_ASTC = OGRE_CAPS_VALUE(CAPS_CATEGORY_COMMON_3, 11),
+        RSC_STORE_AND_MULTISAMPLE_RESOLVE = OGRE_CAPS_VALUE(CAPS_CATEGORY_COMMON_3, 12),
 
         // ***** DirectX specific caps *****
         /// Is DirectX feature "per stage constants" supported
         RSC_PERSTAGECONSTANT = OGRE_CAPS_VALUE(CAPS_CATEGORY_D3D9, 0),
+        /// DX11 has this annoying requirement that "typed UAV loads" are not allowed.
+        /// Meaning you can only read from UAVs if it's in format PGF_R32_UINT.
+        ///
+        /// You can workaround this issue by creating the UAV as TextureFlags::Reinterpretable
+        /// and performing bitpacking by hand in the shader.
+        ///
+        /// See
+        /// https://docs.microsoft.com/en-us/windows/desktop/direct3dhlsl/
+        /// dx-graphics-hlsl-unpacking-packing-dxgi-format
+        RSC_TYPED_UAV_LOADS = OGRE_CAPS_VALUE(CAPS_CATEGORY_D3D9, 1),
 
         // ***** GL Specific Caps *****
         /// Supports OpenGL version 1.5
@@ -257,25 +284,13 @@ namespace Ogre
 
         String toString() const 
         {
-            StringStream str;
-            str << major << "." << minor << "." << release << "." << build;
-            return str.str();
+            char tmpBuffer[64];
+            LwString str( LwString::FromEmptyPointer( tmpBuffer, sizeof( tmpBuffer ) ) );
+            str.a( major, ".", minor, ".", release, ".", build );
+            return str.c_str();
         }
 
-        void fromString(const String& versionString)
-        {
-            StringVector tokens = StringUtil::split(versionString, ".");
-            if(!tokens.empty())
-            {
-                major = StringConverter::parseInt(tokens[0]);
-                if (tokens.size() > 1)
-                    minor = StringConverter::parseInt(tokens[1]);
-                if (tokens.size() > 2)
-                    release = StringConverter::parseInt(tokens[2]);
-                if (tokens.size() > 3)
-                    build = StringConverter::parseInt(tokens[3]);
-            }
-        }
+        void fromString(const String& versionString);
 
         bool hasMinVersion( int minMajor, int minMinor ) const
         {
@@ -408,6 +423,17 @@ namespace Ogre
         ushort mComputeProgramConstantIntCount;           
         /// The number of boolean constants compute programs support
         ushort mComputeProgramConstantBoolCount;
+
+        /// Note that it's the maximum per axis, but GPUs may *not* necessarily
+        /// support issuing a threadgroup of
+        ///     mMaxThreadsPerThreadgroupAxis[0] * mMaxThreadsPerThreadgroupAxis[1] *
+        ///     mMaxThreadsPerThreadgroupAxis[2]
+        ///
+        /// The actual limit is mMaxThreadsPerThreadgroup
+        uint32 mMaxThreadsPerThreadgroupAxis[3];
+
+        /// Max threads per threadgroup
+        uint32 mMaxThreadsPerThreadgroup;
 
 
 
@@ -940,6 +966,27 @@ namespace Ogre
             return mComputeProgramConstantBoolCount;           
         }
 
+        void setMaxThreadsPerThreadgroupAxis( const uint32 value[3] )
+        {
+            mMaxThreadsPerThreadgroupAxis[0] = value[0];
+            mMaxThreadsPerThreadgroupAxis[1] = value[1];
+            mMaxThreadsPerThreadgroupAxis[2] = value[2];
+        }
+
+        void setMaxThreadsPerThreadgroup( uint32 value )
+        {
+            mMaxThreadsPerThreadgroup = value;
+        }
+
+        const uint32* getMaxThreadsPerThreadgroupAxis(void) const
+        {
+            return mMaxThreadsPerThreadgroupAxis;
+        }
+
+        uint32 getMaxThreadsPerThreadgroup(void) const
+        {
+            return mMaxThreadsPerThreadgroup;
+        }
     };
 
     /** @} */

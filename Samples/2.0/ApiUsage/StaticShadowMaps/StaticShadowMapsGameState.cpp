@@ -11,7 +11,6 @@
 #include "OgreMesh2.h"
 
 #include "OgreCamera.h"
-#include "OgreRenderWindow.h"
 
 #include "OgreHlmsUnlitDatablock.h"
 #include "OgreHlmsSamplerblock.h"
@@ -174,9 +173,8 @@ namespace Demo
             const Ogre::ShadowTextureDefinition *shadowTexDef =
                     shadowNodeDef->getShadowTextureDefinition( i );
 
-            Ogre::TexturePtr tex = shadowNode->getDefinedTexture( shadowTexDef->getTextureNameStr(),
-                                                                  shadowTexDef->mrtIndex );
-            depthShadow->setTexture( 0, shadowTexDef->arrayIdx, tex, 0 );
+            Ogre::TextureGpu *tex = shadowNode->getDefinedTexture( shadowTexDef->getTextureNameStr() );
+            depthShadow->setTexture( 0, tex );
 
             //If it's an UV atlas, then only display the relevant section.
             Ogre::Matrix4 uvOffsetScale;

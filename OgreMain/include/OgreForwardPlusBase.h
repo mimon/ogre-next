@@ -46,7 +46,7 @@ namespace Ogre
 
     static const size_t c_ForwardPlusNumFloat4PerLight = 6u;
     static const size_t c_ForwardPlusNumFloat4PerDecal = 4u;
-    static const size_t c_ForwardPlusNumFloat4PerCubemapProbe = 7u;
+    static const size_t c_ForwardPlusNumFloat4PerCubemapProbe = 8u;
 
     /** ForwardPlusBase */
     class _OgreExport ForwardPlusBase : public HlmsAlloc
@@ -71,9 +71,13 @@ namespace Ogre
         static const size_t MinDecalRq;     // Inclusive
         static const size_t MaxDecalRq;     // Inclusive
 
+        static const size_t MinCubemapProbeRq;  // Inclusive
+        static const size_t MaxCubemapProbeRq;  // Inclusive
+
     protected:
         static const size_t NumBytesPerLight;
         static const size_t NumBytesPerDecal;
+        static const size_t NumBytesPerCubemapProbe;
 
         struct CachedGrid
         {
@@ -97,6 +101,7 @@ namespace Ogre
         enum ObjTypes
         {
             ObjType_Decal = 0,
+            ObjType_CubemapProbe,
             NumObjTypes
         };
 
@@ -126,13 +131,15 @@ namespace Ogre
         /// VPLs = Virtual Point Lights. Used by InstantRadiosity.
         bool    mEnableVpls;
         bool    mDecalsEnabled;
+        bool    mCubemapProbesEnabled;
 #if !OGRE_NO_FINE_LIGHT_MASK_GRANULARITY
         bool    mFineLightMaskGranularity;
 #endif
-        //How many float4 to skip before Decals start in globalLightListBuffer
+        //How many float4 to skip before Decals / CubemapProbes start in globalLightListBuffer
         uint16 mDecalFloat4Offset;
+        uint16 mCubemapProbeFloat4Offset;
 
-        static size_t calculateBytesNeeded( size_t numLights, size_t numDecals );
+        static size_t calculateBytesNeeded( size_t numLights, size_t numDecals, size_t numCubemapProbes );
 
         void fillGlobalLightListBuffer( Camera *camera, TexBufferPacked *globalLightListBuffer );
 
@@ -156,7 +163,7 @@ namespace Ogre
         void deleteOldGridBuffers(void);
 
     public:
-        ForwardPlusBase( SceneManager *sceneManager, bool decalsEnabled );
+        ForwardPlusBase( SceneManager *sceneManager, bool decalsEnabled, bool cubemapProbesEnabled );
         virtual ~ForwardPlusBase();
 
         virtual ForwardPlusMethods getForwardPlusMethod(void) const = 0;
@@ -168,9 +175,9 @@ namespace Ogre
         bool isCacheDirty( const Camera *camera ) const;
 
         /// Cache the return value as internally we perform an O(N) search
-        TexBufferPacked* getGridBuffer( Camera *camera ) const;
+        TexBufferPacked* getGridBuffer( const Camera *camera ) const;
         /// Cache the return value as internally we perform an O(N) search
-        TexBufferPacked* getGlobalLightListBuffer( Camera *camera ) const;
+        TexBufferPacked* getGlobalLightListBuffer( const Camera *camera ) const;
 
         /// Returns the amount of bytes that fillConstBufferData is going to fill.
         virtual size_t getConstBufferSize(void) const = 0;
@@ -180,8 +187,8 @@ namespace Ogre
         @remarks
             Assumes 'passBufferPtr' is aligned to a vec4/float4 boundary.
         */
-        virtual void fillConstBufferData( Viewport *viewport, RenderTarget* renderTarget,
-                                          IdString shaderSyntax,
+        virtual void fillConstBufferData( Viewport *viewport, TextureGpu *renderTarget,
+                                          IdString shaderSyntax, bool instancedStereo,
                                           float * RESTRICT_ALIAS passBufferPtr ) const = 0;
 
         virtual void setHlmsPassProperties( Hlms *hlms );

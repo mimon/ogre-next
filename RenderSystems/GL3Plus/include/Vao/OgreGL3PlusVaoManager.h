@@ -31,6 +31,7 @@ THE SOFTWARE.
 
 #include "OgreGL3PlusPrerequisites.h"
 #include "Vao/OgreVaoManager.h"
+#include "OgrePixelFormatGpu.h"
 
 namespace Ogre
 {
@@ -219,7 +220,7 @@ namespace Ogre
                                                           void *initialData, bool keepAsShadow );
         virtual void destroyConstBufferImpl( ConstBufferPacked *constBuffer );
 
-        virtual TexBufferPacked* createTexBufferImpl( PixelFormat pixelFormat, size_t sizeBytes,
+        virtual TexBufferPacked* createTexBufferImpl( PixelFormatGpu pixelFormat, size_t sizeBytes,
                                                       BufferType bufferType,
                                                       void *initialData, bool keepAsShadow );
         virtual void destroyTexBufferImpl( TexBufferPacked *texBuffer );
@@ -244,11 +245,24 @@ namespace Ogre
 
         static VboFlag bufferTypeToVboFlag( BufferType bufferType );
 
+        inline void getMemoryStats( const Block &block,
+                                    size_t vboIdx, size_t poolCapacity, LwString &text,
+                                    MemoryStatsEntryVec &outStats, Log *log ) const;
+
+        virtual void switchVboPoolIndexImpl( size_t oldPoolIdx, size_t newPoolIdx,
+                                             BufferPacked *buffer );
+
     public:
         GL3PlusVaoManager( bool supportsArbBufferStorage, bool emulateTexBuffers,
                            bool supportsIndirectBuffers, bool _supportsBaseInstance,
-                           bool supportsSsbo );
+                           bool supportsSsbo,
+                           const NameValuePairList *params );
         virtual ~GL3PlusVaoManager();
+
+        virtual void getMemoryStats( MemoryStatsEntryVec &outStats, size_t &outCapacityBytes,
+                                     size_t &outFreeBytes, Log *log ) const;
+
+        virtual void cleanupEmptyPools(void);
 
         /// Binds the Draw ID to the currently bound vertex array object.
         void bindDrawId(void);
@@ -265,6 +279,17 @@ namespace Ogre
 
         virtual AsyncTicketPtr createAsyncTicket( BufferPacked *creator, StagingBuffer *stagingBuffer,
                                                   size_t elementStart, size_t elementCount );
+
+        /// See GL3PlusTextureGpuManager::createStagingTextureImpl. TextureManager delegates
+        /// to the VaoManager because behind the scenes, in GL StagingTextures are just a
+        /// buffer with CPU access. However we won't track them, so it's the TextureManager's
+        /// job to call destroyStagingTexture before the VaoManager gets deleted.
+        /// This case is more of an exception because of D3D11.
+        GL3PlusStagingTexture* createStagingTexture( PixelFormatGpu formatFamily, size_t sizeBytes );
+        /// Important: Does not delete the stagingTexture. The TextureManager should do that.
+        /// Caller is also responsible for ensuring it is safe to destroy stagingTexture
+        /// (i.e. no hazards).
+        void destroyStagingTexture( GL3PlusStagingTexture *stagingTexture );
 
         virtual void _update(void);
 

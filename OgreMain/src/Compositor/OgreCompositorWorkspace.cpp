@@ -35,12 +35,10 @@ THE SOFTWARE.
 
 #include "Compositor/Pass/PassScene/OgreCompositorPassScene.h"
 
-#include "OgreHardwarePixelBuffer.h"
-#include "OgreRenderTexture.h"
 #include "OgreViewport.h"
 
+#include "OgreCamera.h"
 #include "OgreSceneManager.h"
-#include "OgreRenderTarget.h"
 #include "OgreLogManager.h"
 
 #include "OgreProfiler.h"
@@ -61,7 +59,6 @@ namespace Ogre
             mValid( false ),
             mEnabled( bEnabled ),
             mAmalgamatedProfiling( false ),
-            mListener( 0 ),
             mDefaultCamera( defaultCam ),
             mSceneManager( sceneManager ),
             mRenderSys( renderSys ),
@@ -85,11 +82,11 @@ namespace Ogre
         if( initialUavAccess )
             mInitialUavsAccess = *initialUavAccess;
 
-        RenderTarget *finalTarget = getFinalTarget();
+        TextureGpu *finalTarget = getFinalTarget();
 
         //We need this so OpenGL can switch contexts (if needed) before creating the textures
         if( finalTarget )
-            mRenderSys->_setRenderTarget( finalTarget, VP_RTT_COLOUR_WRITE );
+            mRenderSys->_setCurrentDeviceFromTexture( finalTarget );
 
         //Create global textures
         TextureDefinitionBase::createTextures( definition->mLocalTextureDefs, mGlobalTextures,
@@ -107,7 +104,7 @@ namespace Ogre
 
         //Some RenderSystems assume we start the frame with empty pointer.
         if( finalTarget )
-            mRenderSys->_setRenderTarget( 0, VP_RTT_COLOUR_WRITE );
+            mRenderSys->_setCurrentDeviceFromTexture( finalTarget );
     }
     //-----------------------------------------------------------------------------------
     CompositorWorkspace::~CompositorWorkspace()
@@ -131,7 +128,7 @@ namespace Ogre
 
         const CompositorManager2 *compoManager = mDefinition->mCompositorManager;
 
-        RenderTarget *finalTarget = getFinalTarget();
+        TextureGpu *finalTarget = getFinalTarget();
 
         while( itor != end )
         {
@@ -152,6 +149,13 @@ namespace Ogre
             CompositorNodeVec::const_iterator end  = mNodeSequence.end();
 
             while( itor != end )
+            {
+                (*itor)->destroyAllPasses();
+                ++itor;
+            }
+
+            itor = mNodeSequence.begin();
+            while( itor != end )
                 OGRE_DELETE *itor++;
             mNodeSequence.clear();
         }
@@ -160,6 +164,13 @@ namespace Ogre
             CompositorShadowNodeVec::const_iterator itor = mShadowNodes.begin();
             CompositorShadowNodeVec::const_iterator end  = mShadowNodes.end();
 
+            while( itor != end )
+            {
+                (*itor)->destroyAllPasses();
+                ++itor;
+            }
+
+            itor = mShadowNodes.begin();
             while( itor != end )
                 OGRE_DELETE *itor++;
             mShadowNodes.clear();
@@ -306,7 +317,7 @@ namespace Ogre
                     CompositorChannelVec::const_iterator enChannels = inputChannels.end();
                     while( itChannels != enChannels )
                     {
-                        if( !itChannels->isValid() )
+                        if( !*itChannels )
                         {
                             const size_t channelIdx = itChannels - inputChannels.begin();
                             LogManager::getSingleton().logMessage( "\t\t\t Channel # " +
@@ -368,6 +379,13 @@ namespace Ogre
             CompositorShadowNodeVec::const_iterator itor = mShadowNodes.begin();
             CompositorShadowNodeVec::const_iterator end  = mShadowNodes.end();
 
+            while( itor != end )
+            {
+                (*itor)->destroyAllPasses();
+                ++itor;
+            }
+
+            itor = mShadowNodes.begin();
             while( itor != end )
                 OGRE_DELETE *itor++;
             mShadowNodes.clear();
@@ -512,8 +530,8 @@ namespace Ogre
                 CompositorChannelVec::const_iterator end  = mExternalRenderTargets.end();
                 while( itor != end )
                 {
-                    RenderTarget *renderTarget = itor->target;
-                    if( renderTarget->isRenderWindow() )
+                    TextureGpu *renderTarget = *itor;
+                    if( renderTarget->isRenderWindowSpecific() )
                     {
                         ResourceLayoutMap::iterator currentLayout =
                                 mResourcesLayout.find( renderTarget );
@@ -591,6 +609,43 @@ namespace Ogre
         return mGlobalTextures[index];
     }
     //-----------------------------------------------------------------------------------
+    void CompositorWorkspace::setListener( CompositorWorkspaceListener *listener )
+    {
+        OGRE_EXCEPT( Exception::ERR_NOT_IMPLEMENTED,
+                     "This method has been superseded by CompositorWorkspace::addListener "
+                     "and CompositorWorkspace::removeListener.",
+                     "CompositorWorkspace::setListener" );
+    }
+    //-----------------------------------------------------------------------------------
+    CompositorWorkspaceListener* CompositorWorkspace::getListener(void) const
+    {
+        OGRE_EXCEPT( Exception::ERR_NOT_IMPLEMENTED,
+                     "This method has been superseded by CompositorWorkspace::getListeners.",
+                     "CompositorWorkspace::getListener" );
+    }
+    //-----------------------------------------------------------------------------------
+    void CompositorWorkspace::addListener( CompositorWorkspaceListener *listener )
+    {
+        mListeners.push_back( listener );
+    }
+    //-----------------------------------------------------------------------------------
+    void CompositorWorkspace::removeListener( CompositorWorkspaceListener *listener )
+    {
+        CompositorWorkspaceListenerVec::iterator itor = std::find( mListeners.begin(),
+                                                                   mListeners.end(),
+                                                                   listener );
+
+        if( itor != mListeners.end() )
+            mListeners.erase( itor );
+    }
+    //-----------------------------------------------------------------------------------
+    void CompositorWorkspace::fillUavDependenciesForNextWorkspace(
+        ResourceLayoutMap &outInitialLayouts, ResourceAccessMap &outInitialUavAccess ) const
+    {
+        outInitialLayouts.insert( mResourcesLayout.begin(), mResourcesLayout.end() );
+        outInitialUavAccess.insert( mUavsAccess.begin(), mUavsAccess.end() );
+    }
+    //-----------------------------------------------------------------------------------
     void CompositorWorkspace::recreateAllNodes(void)
     {
         createAllNodes();
@@ -620,11 +675,11 @@ namespace Ogre
         return mSceneManager->findCamera( cameraName );
     }
     //-----------------------------------------------------------------------------------
-    RenderTarget* CompositorWorkspace::getFinalTarget(void) const
+    TextureGpu* CompositorWorkspace::getFinalTarget(void) const
     {
-        RenderTarget *finalTarget = 0;
+        TextureGpu *finalTarget = 0;
         if( !mExternalRenderTargets.empty() )
-            finalTarget = mExternalRenderTargets.front().target;
+            finalTarget = mExternalRenderTargets.front();
 
         return finalTarget;
     }
@@ -648,12 +703,15 @@ namespace Ogre
     {
         //We need to do this so that D3D9 (and D3D11?) knows which device
         //is active now, so that _beginFrame calls go to the right device.
-        RenderTarget *finalTarget = getFinalTarget();
-        mRenderSys->_setRenderTarget( finalTarget, VP_RTT_COLOUR_WRITE );
-        if( finalTarget->isRenderWindow() || forceBeginFrame )
+        TextureGpu *finalTarget = getFinalTarget();
+        if( finalTarget )
         {
-            // Begin the frame
-            mRenderSys->_beginFrame();
+            mRenderSys->_setCurrentDeviceFromTexture( finalTarget );
+            if( finalTarget->isRenderWindowSpecific() || forceBeginFrame )
+            {
+                // Begin the frame
+                mRenderSys->_beginFrame();
+            }
         }
     }
     //-----------------------------------------------------------------------------------
@@ -661,12 +719,15 @@ namespace Ogre
     {
         //We need to do this so that D3D9 (and D3D11?) knows which device
         //is active now, so that _endFrame calls go to the right device.
-        RenderTarget *finalTarget = getFinalTarget();
-        mRenderSys->_setRenderTarget( finalTarget, VP_RTT_COLOUR_WRITE );
-        if( finalTarget->isRenderWindow() || forceEndFrame )
+        TextureGpu *finalTarget = getFinalTarget();
+        if( finalTarget )
         {
-            // End the frame
-            mRenderSys->_endFrame();
+            mRenderSys->_setCurrentDeviceFromTexture( finalTarget );
+            if( finalTarget->isRenderWindowSpecific() || forceEndFrame )
+            {
+                // End the frame
+                mRenderSys->_endFrame();
+            }
         }
     }
     //-----------------------------------------------------------------------------------
@@ -686,13 +747,21 @@ namespace Ogre
             analyzeHazardsAndPlaceBarriers();
         }
 
-        if( mListener )
-            mListener->workspacePreUpdate( this );
+        {
+            CompositorWorkspaceListenerVec::const_iterator itor = mListeners.begin();
+            CompositorWorkspaceListenerVec::const_iterator end  = mListeners.end();
 
-        RenderTarget *finalTarget = getFinalTarget();
+            while( itor != end )
+            {
+                (*itor)->workspacePreUpdate( this );
+                ++itor;
+            }
+        }
+
+        TextureGpu *finalTarget = getFinalTarget();
         //We need to do this so that D3D9 (and D3D11?) knows which device
         //is active now, so that our calls go to the right device.
-        mRenderSys->_setRenderTarget( finalTarget, VP_RTT_COLOUR_WRITE );
+        mRenderSys->_setCurrentDeviceFromTexture( finalTarget );
 
         if( mCurrentWidth != finalTarget->getWidth() || mCurrentHeight != finalTarget->getHeight() )
         {
@@ -708,7 +777,15 @@ namespace Ogre
                 while( itor != end )
                 {
                     CompositorNode *node = *itor;
-                    node->finalTargetResized( finalTarget );
+                    node->finalTargetResized01( finalTarget );
+                    ++itor;
+                }
+
+                itor = mNodeSequence.begin();
+                while( itor != end )
+                {
+                    CompositorNode *node = *itor;
+                    node->finalTargetResized02( finalTarget );
                     ++itor;
                 }
             }
@@ -720,7 +797,15 @@ namespace Ogre
                 while( itor != end )
                 {
                     CompositorShadowNode *node = *itor;
-                    node->finalTargetResized( finalTarget );
+                    node->finalTargetResized01( finalTarget );
+                    ++itor;
+                }
+
+                itor = mShadowNodes.begin();
+                while( itor != end )
+                {
+                    CompositorShadowNode *node = *itor;
+                    node->finalTargetResized02( finalTarget );
                     ++itor;
                 }
             }
@@ -729,9 +814,10 @@ namespace Ogre
             allNodes.reserve( mNodeSequence.size() + mShadowNodes.size() );
             allNodes.insert( allNodes.end(), mNodeSequence.begin(), mNodeSequence.end() );
             allNodes.insert( allNodes.end(), mShadowNodes.begin(), mShadowNodes.end() );
-            TextureDefinitionBase::recreateResizableTextures( mDefinition->mLocalTextureDefs,
-                                                                mGlobalTextures, finalTarget,
-                                                                mRenderSys, allNodes, 0 );
+            TextureDefinitionBase::recreateResizableTextures01( mDefinition->mLocalTextureDefs,
+                                                                mGlobalTextures, finalTarget );
+            TextureDefinitionBase::recreateResizableTextures02( mDefinition->mLocalTextureDefs,
+                                                                mGlobalTextures, allNodes, 0 );
             TextureDefinitionBase::recreateResizableBuffers( mDefinition->mLocalBufferDefs,
                                                              mGlobalBuffers, finalTarget,
                                                              mRenderSys, allNodes, 0 );
@@ -761,16 +847,27 @@ namespace Ogre
             }
             ++itor;
         }
+
+        {
+            CompositorWorkspaceListenerVec::const_iterator itor = mListeners.begin();
+            CompositorWorkspaceListenerVec::const_iterator end  = mListeners.end();
+
+            while( itor != end )
+            {
+                (*itor)->workspacePosUpdate( this );
+                ++itor;
+            }
+        }
     }
     //-----------------------------------------------------------------------------------
-    void CompositorWorkspace::_swapFinalTarget( vector<RenderTarget*>::type &swappedTargets )
+    void CompositorWorkspace::_swapFinalTarget( vector<TextureGpu*>::type &swappedTargets )
     {
         CompositorChannelVec::const_iterator itor = mExternalRenderTargets.begin();
         CompositorChannelVec::const_iterator end  = mExternalRenderTargets.end();
 
         while( itor != end )
         {
-            RenderTarget *externalTarget = itor->target;
+            TextureGpu *externalTarget = *itor;
             const bool alreadySwapped = std::find( swappedTargets.begin(),
                                                    swappedTargets.end(),
                                                    externalTarget ) != swappedTargets.end();
@@ -787,7 +884,9 @@ namespace Ogre
     //-----------------------------------------------------------------------------------
     void CompositorWorkspace::_validateFinalTarget(void)
     {
-        mRenderSys->_setRenderTarget( getFinalTarget(), VP_RTT_COLOUR_WRITE );
+        TextureGpu *finalTarget = getFinalTarget();
+        if( finalTarget )
+            mRenderSys->_setCurrentDeviceFromTexture( finalTarget );
     }
     //-----------------------------------------------------------------------------------
     CompositorShadowNode* CompositorWorkspace::findShadowNode( IdString nodeDefName ) const
@@ -816,7 +915,7 @@ namespace Ogre
         {
             //Not found, create one.
             const CompositorManager2 *compoManager = mDefinition->mCompositorManager;
-            RenderTarget *finalTarget = getFinalTarget();
+            TextureGpu *finalTarget = getFinalTarget();
             const CompositorShadowNodeDef *def = compoManager->getShadowNodeDefinition( nodeDefName );
             retVal = OGRE_NEW CompositorShadowNode( Id::generateNewId<CompositorNode>(),
                                                     def, this, mRenderSys, finalTarget );
