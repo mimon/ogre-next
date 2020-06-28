@@ -98,7 +98,7 @@ $(document).ready(function(){initNavTree('compositor.html',''); initResizable();
 <li class="level2"><a href="#CompositorNodesTarget">Target</a></li>
 <li class="level2"><a href="#CompositorNodesPasses">Passes</a><ul><li class="level3"><a href="#CompositorNodesPassesClear">clear</a></li>
 <li class="level3"><a href="#CompositorNodesPassesGenerateMipmaps">generate_mipmaps</a></li>
-<li class="level3"><a href="#CompositorNodesPassesQuad">quad</a></li>
+<li class="level3"><a href="#CompositorNodesPassesQuad">render_quad</a></li>
 <li class="level3"><a href="#CompositorNodesPassesResolve">resolve</a></li>
 <li class="level3"><a href="#CompositorNodesPassesRenderScene">render_scene</a></li>
 <li class="level3"><a href="#CompositorNodesPassesStencil">stencil</a></li>
@@ -284,11 +284,12 @@ Target</h2>
 <p>Note: When the target is a 3D/Cubemap/array texture, if the slice goes out of bounds, an exception will be raised. If the target is a 2D or 1D texture, this value is silently ignored. Default: slice = 0</p>
 <h2><a class="anchor" id="CompositorNodesPasses"></a>
 Passes</h2>
-<p>Passes are the same as they were in <a class="el" href="namespace_ogre.html">Ogre</a> 1.x. At the time of writing there are 8 types of passes:</p>
+<p>A pass is a single rendering action to be performed in a target section.</p>
+<p>There are 8 types of passes:</p>
 <ul>
 <li>clear (PASS_CLEAR)</li>
 <li>generate_mipmaps (PASS_MIPMAP)</li>
-<li>quad (PASS_QUAD)</li>
+<li>render_quad (PASS_QUAD)</li>
 <li>resolve (PASS_RESOLVE)</li>
 <li>render_scene (PASS_SCENE)</li>
 <li>stencil (PASS_STENCIL)</li>
@@ -305,7 +306,7 @@ Passes</h2>
 <ul>
 <li>pass &lt;type&gt;; [customId]</li>
 </ul>
-<p>'<em>type</em>' must be one of the supported types: clear, quad, resolve, render_scene, stencil, custom.</p>
+<p>'<em>type</em>' must be one of the supported types: clear, render_quad, resolve, render_scene, stencil, custom.</p>
 <p>The <em>customId</em> parameter is optional and is used by custom passes to give the registered custom pass provider the means to identify multiple types, in case there are more than one type of custom passes.</p>
 <ul>
 <li>num_initial &lt;number&gt;;</li>
@@ -368,7 +369,7 @@ generate_mipmaps</h3>
 <p>In order for compute-based mipmap generation to work, <a class="el" href="namespace_ogre.html">Ogre</a> must be compiled with JSON support, and the user must include the resources included in <a class="el" href="namespace_ogre.html">Ogre</a>'s repository at Samples/Media/2.0/scripts/materials/Common </p>
 </blockquote>
 <h3><a class="anchor" id="CompositorNodesPassesQuad"></a>
-quad</h3>
+render_quad</h3>
 <p>Quad passes have the same syntax as 1.x; plus the following keywords have been added:</p>
 <ul>
 <li>use_quad [yes|no]</li>

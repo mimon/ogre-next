@@ -1,4 +1,4 @@
 var searchData=
 [
-  ['performance_20hints_33811',['Performance Hints',['../performance.html',1,'manual']]]
+  ['setting_20up_20ogre_33813',['Setting Up Ogre',['../_setting_up_ogre.html',1,'']]]
 ];

@@ -1,5 +1,6 @@
 var NAVTREEINDEX263 =
 {
+"struct_x_r_r_screen_size.html#adaacadb01cf3ef92d5ca532283a9e8d3":[8,0,37,0],
 "struct_x_set_window_attributes.html":[8,0,38],
 "struct_x_set_window_attributes.html#a06e52def85c87f67236ddc68618b5213":[8,0,38,5],
 "struct_x_set_window_attributes.html#a271193ecb505f8cdbde2c12589babc93":[8,0,38,3],
