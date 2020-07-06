@@ -47,7 +47,7 @@ var manual =
         [ "Passes", "compositor.html#CompositorNodesPasses", [
           [ "clear", "compositor.html#CompositorNodesPassesClear", null ],
           [ "generate_mipmaps", "compositor.html#CompositorNodesPassesGenerateMipmaps", null ],
-          [ "render_quad", "compositor.html#CompositorNodesPassesQuad", null ],
+          [ "quad", "compositor.html#CompositorNodesPassesQuad", null ],
           [ "resolve", "compositor.html#CompositorNodesPassesResolve", null ],
           [ "render_scene", "compositor.html#CompositorNodesPassesRenderScene", null ],
           [ "stencil", "compositor.html#CompositorNodesPassesStencil", null ],
@@ -125,16 +125,14 @@ var manual =
       [ "Thread safety of SceneNodes", "threading.html#ThreadSafetySceneNodes", null ]
     ] ],
     [ "Performance Hints", "performance.html", null ],
-    [ "Materials", "hlms.html", [
-      [ "Introduction", "hlms.html#Introduction", [
-        [ "Two different material systems", "hlms.html#autotoc_md9", null ],
-        [ "HLMS: High Level Material System", "hlms.html#autotoc_md10", null ],
-        [ "Low level materials", "hlms.html#autotoc_md11", null ]
+    [ "HLMS: High Level Material System", "hlms.html", [
+      [ "Fundamental changes", "hlms.html#HlmsChanges", [
+        [ "Viewports and Scissor tests", "hlms.html#HlmsChangesViewports", null ],
+        [ "A lot of data is stored in \"Blocks\"", "hlms.html#HlmsChangesBlocks", null ],
+        [ "Materials are still alive", "hlms.html#HlmsChangesMaterialsAlive", null ],
+        [ "Fixed Function has been removed", "hlms.html#HlmsChangesFFP", null ]
       ] ],
-      [ "Getting started with a material", "hlms.html#autotoc_md12", null ],
-      [ "The implementation of HLMS", "hlms.html#hlms", [
-        [ "The three components", "hlms.html#HlmsComponents", null ]
-      ] ],
+      [ "The three components", "hlms.html#HlmsComponents", null ],
       [ "Blocks", "hlms.html#HlmsBlocks", [
         [ "Datablocks", "hlms.html#HlmsBlocksDatablocks", null ],
         [ "Macroblocks", "hlms.html#HlmsBlocksMacroblocks", null ],
@@ -202,31 +200,31 @@ var manual =
       [ "Post-processing the command buffer", "commandbuffer.html#CommandBufferPostProcessing", null ]
     ] ],
     [ "What's new in Ogre 2.2", "_ogre22_changes.html", [
-      [ "Load Store semantics", "_ogre22_changes.html#autotoc_md13", [
-        [ "Now that we’ve explained how TBDRs work, we can explain load and store actions", "_ogre22_changes.html#autotoc_md14", null ]
+      [ "Load Store semantics", "_ogre22_changes.html#autotoc_md9", [
+        [ "Now that we’ve explained how TBDRs work, we can explain load and store actions", "_ogre22_changes.html#autotoc_md10", null ]
       ] ],
-      [ "More control over MSAA", "_ogre22_changes.html#autotoc_md15", null ],
-      [ "Porting to Ogre 2.2 from 2.1", "_ogre22_changes.html#autotoc_md16", [
-        [ "PixelFormats", "_ogre22_changes.html#autotoc_md17", [
-          [ "Common pixel format equivalencies", "_ogre22_changes.html#autotoc_md18", null ]
+      [ "More control over MSAA", "_ogre22_changes.html#autotoc_md11", null ],
+      [ "Porting to Ogre 2.2 from 2.1", "_ogre22_changes.html#autotoc_md12", [
+        [ "PixelFormats", "_ogre22_changes.html#autotoc_md13", [
+          [ "Common pixel format equivalencies", "_ogre22_changes.html#autotoc_md14", null ]
         ] ],
-        [ "Useful code snippets", "_ogre22_changes.html#autotoc_md19", [
-          [ "Create a TextureGpu based on a file", "_ogre22_changes.html#autotoc_md20", null ],
-          [ "Create a TextureGpu based that you manually fill", "_ogre22_changes.html#autotoc_md21", null ],
-          [ "Uploading data to a TextureGpu", "_ogre22_changes.html#autotoc_md22", null ],
-          [ "Upload streaming", "_ogre22_changes.html#autotoc_md23", null ],
-          [ "Downloading data from TextureGpu into CPU", "_ogre22_changes.html#autotoc_md24", null ],
-          [ "Downloading streaming", "_ogre22_changes.html#autotoc_md25", null ]
+        [ "Useful code snippets", "_ogre22_changes.html#autotoc_md15", [
+          [ "Create a TextureGpu based on a file", "_ogre22_changes.html#autotoc_md16", null ],
+          [ "Create a TextureGpu based that you manually fill", "_ogre22_changes.html#autotoc_md17", null ],
+          [ "Uploading data to a TextureGpu", "_ogre22_changes.html#autotoc_md18", null ],
+          [ "Upload streaming", "_ogre22_changes.html#autotoc_md19", null ],
+          [ "Downloading data from TextureGpu into CPU", "_ogre22_changes.html#autotoc_md20", null ],
+          [ "Downloading streaming", "_ogre22_changes.html#autotoc_md21", null ]
         ] ]
       ] ],
-      [ "Difference between depth, numSlices and depthOrSlices", "_ogre22_changes.html#autotoc_md26", null ],
-      [ "Memory layout of textures and images", "_ogre22_changes.html#autotoc_md27", null ],
-      [ "Troubleshooting errors", "_ogre22_changes.html#autotoc_md28", null ],
-      [ "RenderPassDescriptors", "_ogre22_changes.html#autotoc_md29", null ],
-      [ "DescriptorSetTexture & co.", "_ogre22_changes.html#autotoc_md30", null ],
-      [ "Does 2.2 interoperate well with the HLMS texture arrays?", "_ogre22_changes.html#autotoc_md31", null ],
-      [ "Hlms porting", "_ogre22_changes.html#autotoc_md32", null ],
-      [ "Things to watch out when porting", "_ogre22_changes.html#autotoc_md33", null ]
+      [ "Difference between depth, numSlices and depthOrSlices", "_ogre22_changes.html#autotoc_md22", null ],
+      [ "Memory layout of textures and images", "_ogre22_changes.html#autotoc_md23", null ],
+      [ "Troubleshooting errors", "_ogre22_changes.html#autotoc_md24", null ],
+      [ "RenderPassDescriptors", "_ogre22_changes.html#autotoc_md25", null ],
+      [ "DescriptorSetTexture & co.", "_ogre22_changes.html#autotoc_md26", null ],
+      [ "Does 2.2 interoperate well with the HLMS texture arrays?", "_ogre22_changes.html#autotoc_md27", null ],
+      [ "Hlms porting", "_ogre22_changes.html#autotoc_md28", null ],
+      [ "Things to watch out when porting", "_ogre22_changes.html#autotoc_md29", null ]
     ] ],
     [ "Behavor of StagingTexture in D3D11", "_behavor_staging_texture_d3_d11.html", [
       [ "Attempting to be contiguous", "_behavor_staging_texture_d3_d11.html#autotoc_md6", null ],

@@ -194,7 +194,7 @@ Static Public Attributes</h2></td></tr>
 </div><div class="memdoc">
 
 <p>This index is set to 0 by default. </p>
-<p>The <a class="el" href="class_ogre_1_1_render_queue.html" title="Enumeration of queue groups, by which the application may group queued renderables so that they are r...">RenderQueue</a> will sort by mesh using this index. Two different RenderOperations may have the same meshIndex, but if so, performance could be degraded (it would hinder auto instancing, forces rebinding of the vertex &amp; index buffer per <a class="el" href="class_ogre_1_1_renderable.html" title="Abstract class defining the interface all renderable objects must implement.">Renderable</a>, etc) It is the implementation's responsability to assign a (unique if possible) index. The static variable MeshIndexId is provided as an incrementing ID, but you're not forced to use it </p>
+<p>The <a class="el" href="class_ogre_1_1_render_queue.html" title="Class to manage the scene object rendering queue.">RenderQueue</a> will sort by mesh using this index. Two different RenderOperations may have the same meshIndex, but if so, performance could be degraded (it would hinder auto instancing, forces rebinding of the vertex &amp; index buffer per <a class="el" href="class_ogre_1_1_renderable.html" title="Abstract class defining the interface all renderable objects must implement.">Renderable</a>, etc) It is the implementation's responsability to assign a (unique if possible) index. The static variable MeshIndexId is provided as an incrementing ID, but you're not forced to use it </p>
 
 </div>
 </div>

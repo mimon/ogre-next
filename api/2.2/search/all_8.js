@@ -175,7 +175,7 @@ var searchData=
   ['highquality_6959',['HighQuality',['../struct_ogre_1_1_hlms_base_prop.html#a3d0512b5c1154c272045a681e9905f4e',1,'Ogre::HlmsBaseProp']]],
   ['history_6960',['history',['../class_ogre_1_1_profile_instance.html#a7ce49d9987c9ef2cc0975eae90bd9485',1,'Ogre::ProfileInstance']]],
   ['hit_6961',['hit',['../struct_ogre_1_1_terrain_group_1_1_ray_result.html#a951a4fd9e895ed4037426217e572f949',1,'Ogre::TerrainGroup::RayResult']]],
-  ['hlms_6962',['Hlms',['../class_ogre_1_1_hlms.html',1,'Ogre::Hlms'],['../class_ogre_1_1_hlms.html#a95b467bb6efd01598aa3116ebdd41381',1,'Ogre::Hlms::Hlms()']]],
+  ['hlms_6962',['Hlms',['../class_ogre_1_1_hlms.html',1,'Ogre::Hlms'],['../class_ogre_1_1_hlms.html#a95b467bb6efd01598aa3116ebdd41381',1,'Ogre::Hlms::Hlms()'],['../hlms.html',1,'manual']]],
   ['hlms_2emd_6963',['hlms.md',['../hlms_8md.html',1,'']]],
   ['hlms_5fcompute_6964',['HLMS_COMPUTE',['../group___resources.html#ggacbb211b021bd3350291861d7232dd02daa5f92a03fa65d90791a0c02f63f06b23',1,'Ogre']]],
   ['hlms_5flow_5flevel_6965',['HLMS_LOW_LEVEL',['../group___resources.html#ggacbb211b021bd3350291861d7232dd02dac29ce6995e66d47058d5d484684b3955',1,'Ogre']]],

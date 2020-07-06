@@ -520,7 +520,7 @@ Public Member Functions</h2></td></tr>
 <tr class="memdesc:a4d43f57e9abcc21d4bc50e6e6d1b5cc7"><td class="mdescLeft">&#160;</td><td class="mdescRight">Sets the minimum pixel size an object needs to be in both screen axes in order to be rendered.  <a href="class_ogre_1_1_movable_object.html#a4d43f57e9abcc21d4bc50e6e6d1b5cc7">More...</a><br /></td></tr>
 <tr class="separator:a4d43f57e9abcc21d4bc50e6e6d1b5cc7"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:adadf14592da40dfe79b40106317a2710"><td class="memItemLeft" align="right" valign="top">virtual void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_ogre_1_1_light.html#adadf14592da40dfe79b40106317a2710">setRenderQueueGroup</a> (<a class="el" href="namespace_ogre.html#a119732ea9d1e88bbddc47b4ac0fa21cb">uint8</a> queueID)</td></tr>
-<tr class="memdesc:adadf14592da40dfe79b40106317a2710"><td class="mdescLeft">&#160;</td><td class="mdescRight">Overload to avoid it. <a class="el" href="class_ogre_1_1_light.html#a6019f7fa89624e35316ba444e519d8f8" title="Sets the type of light - see LightTypes for more info.">Light::setType</a> uses the <a class="el" href="class_ogre_1_1_render_queue.html" title="Enumeration of queue groups, by which the application may group queued renderables so that they are r...">RenderQueue</a> ID to classify lights per type.  <a href="class_ogre_1_1_light.html#adadf14592da40dfe79b40106317a2710">More...</a><br /></td></tr>
+<tr class="memdesc:adadf14592da40dfe79b40106317a2710"><td class="mdescLeft">&#160;</td><td class="mdescRight">Overload to avoid it. <a class="el" href="class_ogre_1_1_light.html#a6019f7fa89624e35316ba444e519d8f8" title="Sets the type of light - see LightTypes for more info.">Light::setType</a> uses the <a class="el" href="class_ogre_1_1_render_queue.html" title="Class to manage the scene object rendering queue.">RenderQueue</a> ID to classify lights per type.  <a href="class_ogre_1_1_light.html#adadf14592da40dfe79b40106317a2710">More...</a><br /></td></tr>
 <tr class="separator:adadf14592da40dfe79b40106317a2710"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:aeb90ddb3515b7e3ac936367e40d49d20"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_ogre_1_1_light.html#aeb90ddb3515b7e3ac936367e40d49d20">setShadowFarClipDistance</a> (<a class="el" href="namespace_ogre.html#aa3a7b6dfb905e6572d62f0dfa3d4274d">Real</a> farClip)</td></tr>
 <tr class="memdesc:aeb90ddb3515b7e3ac936367e40d49d20"><td class="mdescLeft">&#160;</td><td class="mdescRight">Set the far clip plane distance to be used by the shadow camera, if this light casts texture shadows.  <a href="class_ogre_1_1_light.html#aeb90ddb3515b7e3ac936367e40d49d20">More...</a><br /></td></tr>
@@ -4567,7 +4567,7 @@ template&lt;class Alloc &gt; </div>
 <p>Sets the attenuation parameters (range, constant, linear &amp; quadratic,. </p>
 <dl class="section see"><dt>See also</dt><dd><a class="el" href="class_ogre_1_1_light.html#a2880f26669477a55cf01919f906bb65d" title="Sets the attenuation parameters of the light source i.e.">setAttenuation</a>) based on a given radius. </dd></dl>
 <dl class="section remark"><dt>Remarks</dt><dd>The actual attenuation formula is: </dd></dl>
-<h2><a class="anchor" id="autotoc_md39"></a>
+<h2><a class="anchor" id="autotoc_md35"></a>
 1</h2>
 <p>(distance / radius)² * 0.5 + 0.5</p>
 <p>The original formula never ends, that is the range is infinity. This function calculates a range based on "lumThreshold": When the luminosity past certain distance is below the established threshold, the light calculations are cut. </p><dl class="params"><dt>Parameters</dt><dd>
@@ -5189,7 +5189,7 @@ template&lt;class Alloc &gt; </div>
 </table>
 </div><div class="memdoc">
 
-<p>Overload to avoid it. <a class="el" href="class_ogre_1_1_light.html#a6019f7fa89624e35316ba444e519d8f8" title="Sets the type of light - see LightTypes for more info.">Light::setType</a> uses the <a class="el" href="class_ogre_1_1_render_queue.html" title="Enumeration of queue groups, by which the application may group queued renderables so that they are r...">RenderQueue</a> ID to classify lights per type. </p>
+<p>Overload to avoid it. <a class="el" href="class_ogre_1_1_light.html#a6019f7fa89624e35316ba444e519d8f8" title="Sets the type of light - see LightTypes for more info.">Light::setType</a> uses the <a class="el" href="class_ogre_1_1_render_queue.html" title="Class to manage the scene object rendering queue.">RenderQueue</a> ID to classify lights per type. </p>
 
 <p>Reimplemented from <a class="el" href="class_ogre_1_1_movable_object.html#ac5e898937867475e52d350d1f4d75e32">Ogre::MovableObject</a>.</p>
 

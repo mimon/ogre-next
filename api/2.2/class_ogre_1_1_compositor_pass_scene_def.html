@@ -1940,7 +1940,7 @@ template&lt;class Alloc &gt; </div>
 <p>When true, which Lod index is current will be updated. </p>
 <p>Reasons to set this to false:</p><ol type="1">
 <li>You don't use LOD (i.e. you're GPU bottleneck). Setting to false helps CPU.</li>
-<li>LODs have been calculated in a previous pass. This happens if previous pass(es) all used the same lod camera and all <a class="el" href="class_ogre_1_1_render_queue.html" title="Enumeration of queue groups, by which the application may group queued renderables so that they are r...">RenderQueue</a> IDs this pass will use have been rendered already and updated their lod lists. <dl class="section remark"><dt>Remarks</dt><dd>Automatically set to false for shadow nodes that leave mLodCameraName empty </dd></dl>
+<li>LODs have been calculated in a previous pass. This happens if previous pass(es) all used the same lod camera and all <a class="el" href="class_ogre_1_1_render_queue.html" title="Class to manage the scene object rendering queue.">RenderQueue</a> IDs this pass will use have been rendered already and updated their lod lists. <dl class="section remark"><dt>Remarks</dt><dd>Automatically set to false for shadow nodes that leave mLodCameraName empty </dd></dl>
 </li>
 </ol>
 

@@ -19,9 +19,9 @@ var _setting_up_ogre =
       [ "Building Ogre", "_setting_up_ogre_i_o_s.html#BuildingOgre_iOS", null ]
     ] ],
     [ "macOS", "_setting_up_ogre_mac_o_s.html", [
-      [ "Install cmake", "_setting_up_ogre_mac_o_s.html#autotoc_md34", null ],
-      [ "Install dependencies", "_setting_up_ogre_mac_o_s.html#autotoc_md35", null ],
-      [ "Build Ogre", "_setting_up_ogre_mac_o_s.html#autotoc_md36", null ],
-      [ "Build offline version of the docs", "_setting_up_ogre_mac_o_s.html#autotoc_md37", null ]
+      [ "Install cmake", "_setting_up_ogre_mac_o_s.html#autotoc_md30", null ],
+      [ "Install dependencies", "_setting_up_ogre_mac_o_s.html#autotoc_md31", null ],
+      [ "Build Ogre", "_setting_up_ogre_mac_o_s.html#autotoc_md32", null ],
+      [ "Build offline version of the docs", "_setting_up_ogre_mac_o_s.html#autotoc_md33", null ]
     ] ]
 ];

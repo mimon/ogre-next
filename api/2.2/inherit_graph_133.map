@@ -139,7 +139,7 @@
 <area shape="rect" id="node390" href="$class_ogre_1_1_quake3_shader_manager.html" title="Class for managing Quake3 custom shaders." alt="" coords="309,1507,501,1533"/>
 <area shape="rect" id="node391" href="$class_ogre_1_1_radial_density_mask.html" title=" " alt="" coords="322,12679,489,12705"/>
 <area shape="rect" id="node392" href="$class_ogre_1_1_render_pass_descriptor.html" title=" " alt="" coords="312,10043,499,10069"/>
-<area shape="rect" id="node396" href="$class_ogre_1_1_render_queue.html" title="Enumeration of queue groups, by which the application may group queued renderables so that they are r..." alt="" coords="338,12729,473,12756"/>
+<area shape="rect" id="node396" href="$class_ogre_1_1_render_queue.html" title="Class to manage the scene object rendering queue." alt="" coords="338,12729,473,12756"/>
 <area shape="rect" id="node397" href="$class_ogre_1_1_render_system.html" title="Defines the functionality of a 3D API." alt="" coords="335,14824,476,14851"/>
 <area shape="rect" id="node404" href="$class_ogre_1_1_render_system_capabilities.html" title="singleton class for storing the capabilities of the graphics card." alt="" coords="301,12780,509,12807"/>
 <area shape="rect" id="node405" href="$class_ogre_1_1_render_system_capabilities_manager.html" title="Class for managing RenderSystemCapabilities database for Ogre." alt="" coords="301,21037,509,21078"/>

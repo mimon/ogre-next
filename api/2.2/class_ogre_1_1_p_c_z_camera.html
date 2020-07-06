@@ -197,7 +197,7 @@ Public Member Functions</h2></td></tr>
 <tr class="memitem:a8e60f7bd90b71565f346eecec944c7d3"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_ogre_1_1_camera.html#a8e60f7bd90b71565f346eecec944c7d3">_renderScenePhase02</a> (const <a class="el" href="class_ogre_1_1_camera.html">Camera</a> *lodCamera, <a class="el" href="namespace_ogre.html#a119732ea9d1e88bbddc47b4ac0fa21cb">uint8</a> firstRq, <a class="el" href="namespace_ogre.html#a119732ea9d1e88bbddc47b4ac0fa21cb">uint8</a> lastRq, bool includeOverlays)</td></tr>
 <tr class="separator:a8e60f7bd90b71565f346eecec944c7d3"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:af6b67989c20596808f2078964d9e5ebb"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_ogre_1_1_camera.html#af6b67989c20596808f2078964d9e5ebb">_resetRenderedRqs</a> (size_t numRqs)</td></tr>
-<tr class="memdesc:af6b67989c20596808f2078964d9e5ebb"><td class="mdescLeft">&#160;</td><td class="mdescRight">Called at the beginning of each frame to know which <a class="el" href="class_ogre_1_1_render_queue.html" title="Enumeration of queue groups, by which the application may group queued renderables so that they are r...">RenderQueue</a> IDs have been rendered.  <a href="class_ogre_1_1_camera.html#af6b67989c20596808f2078964d9e5ebb">More...</a><br /></td></tr>
+<tr class="memdesc:af6b67989c20596808f2078964d9e5ebb"><td class="mdescLeft">&#160;</td><td class="mdescRight">Called at the beginning of each frame to know which <a class="el" href="class_ogre_1_1_render_queue.html" title="Class to manage the scene object rendering queue.">RenderQueue</a> IDs have been rendered.  <a href="class_ogre_1_1_camera.html#af6b67989c20596808f2078964d9e5ebb">More...</a><br /></td></tr>
 <tr class="separator:af6b67989c20596808f2078964d9e5ebb"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:abd5561a07f78291e327351fe83e64a9b"><td class="memItemLeft" align="right" valign="top">virtual void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_ogre_1_1_movable_object.html#abd5561a07f78291e327351fe83e64a9b">_restoreManualHardwareResources</a> ()</td></tr>
 <tr class="memdesc:abd5561a07f78291e327351fe83e64a9b"><td class="mdescLeft">&#160;</td><td class="mdescRight">Notifies the movable object that hardware resources should be restored.  <a href="class_ogre_1_1_movable_object.html#abd5561a07f78291e327351fe83e64a9b">More...</a><br /></td></tr>
@@ -1185,8 +1185,8 @@ Static Public Attributes</h2></td></tr>
   <table class="params">
     <tr><td class="paramname">vp</td><td>The viewport to render to </td></tr>
     <tr><td class="paramname">includeOverlays</td><td>Whether or not any overlay objects should be included </td></tr>
-    <tr><td class="paramname">firstRq</td><td>First <a class="el" href="class_ogre_1_1_render_queue.html" title="Enumeration of queue groups, by which the application may group queued renderables so that they are r...">RenderQueue</a> ID to render (inclusive) </td></tr>
-    <tr><td class="paramname">lastRq</td><td>Last <a class="el" href="class_ogre_1_1_render_queue.html" title="Enumeration of queue groups, by which the application may group queued renderables so that they are r...">RenderQueue</a> ID to render (exclusive) </td></tr>
+    <tr><td class="paramname">firstRq</td><td>First <a class="el" href="class_ogre_1_1_render_queue.html" title="Class to manage the scene object rendering queue.">RenderQueue</a> ID to render (inclusive) </td></tr>
+    <tr><td class="paramname">lastRq</td><td>Last <a class="el" href="class_ogre_1_1_render_queue.html" title="Class to manage the scene object rendering queue.">RenderQueue</a> ID to render (exclusive) </td></tr>
   </table>
   </dd>
 </dl>
@@ -1853,7 +1853,7 @@ Static Public Attributes</h2></td></tr>
 </table>
 </div><div class="memdoc">
 
-<p>Called at the beginning of each frame to know which <a class="el" href="class_ogre_1_1_render_queue.html" title="Enumeration of queue groups, by which the application may group queued renderables so that they are r...">RenderQueue</a> IDs have been rendered. </p>
+<p>Called at the beginning of each frame to know which <a class="el" href="class_ogre_1_1_render_queue.html" title="Class to manage the scene object rendering queue.">RenderQueue</a> IDs have been rendered. </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">numRqs</td><td>Max number of total possible render queues in this frame </td></tr>
@@ -9752,7 +9752,7 @@ template&lt;class Alloc &gt; </div>
 
 <p>Sets the render queue group this entity will be rendered through. </p>
 <dl class="section remark"><dt>Remarks</dt><dd>Render queues are grouped to allow you to more tightly control the ordering of rendered objects. If you do not call this method, all Entity objects default to the default queue (RenderQueue::getDefaultQueueGroup), which is fine for most objects. You may want to alter this if you want this entity to always appear in front of other objects, e.g. for a 3D menu system or such. </dd></dl>
-<dl class="section user"><dt></dt><dd>See <a class="el" href="class_ogre_1_1_render_queue.html" title="Enumeration of queue groups, by which the application may group queued renderables so that they are r...">RenderQueue</a> for more details. </dd></dl>
+<dl class="section user"><dt></dt><dd>See <a class="el" href="class_ogre_1_1_render_queue.html" title="Class to manage the scene object rendering queue.">RenderQueue</a> for more details. </dd></dl>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">queueID</td><td>Enumerated value of the queue group to use. See the enum RenderQueueGroupID for what kind of values can be used here. </td></tr>
@@ -9790,11 +9790,11 @@ template&lt;class Alloc &gt; </div>
 </div><div class="memdoc">
 
 <p>Sets the render queue sub group. </p>
-<dl class="section remark"><dt>Remarks</dt><dd>Within the same <a class="el" href="class_ogre_1_1_render_queue.html" title="Enumeration of queue groups, by which the application may group queued renderables so that they are r...">RenderQueue</a> ID, you may want to have the renderables to have a specific order (i.e. have a mesh, but the hair submesh with alpha blending needs to be rendered last). </dd></dl>
-<dl class="section user"><dt></dt><dd><a class="el" href="class_ogre_1_1_render_queue.html" title="Enumeration of queue groups, by which the application may group queued renderables so that they are r...">RenderQueue</a> Subgroups are useful for manually sorting objects, just like <a class="el" href="class_ogre_1_1_render_queue.html" title="Enumeration of queue groups, by which the application may group queued renderables so that they are r...">RenderQueue</a> IDs. However, <a class="el" href="class_ogre_1_1_render_queue.html" title="Enumeration of queue groups, by which the application may group queued renderables so that they are r...">RenderQueue</a> IDs can also be useful for skipping large number of objects through clever compositing and thus a performance optimization. Subgroups cannot be used for such optimizations. </dd></dl>
+<dl class="section remark"><dt>Remarks</dt><dd>Within the same <a class="el" href="class_ogre_1_1_render_queue.html" title="Class to manage the scene object rendering queue.">RenderQueue</a> ID, you may want to have the renderables to have a specific order (i.e. have a mesh, but the hair submesh with alpha blending needs to be rendered last). </dd></dl>
+<dl class="section user"><dt></dt><dd><a class="el" href="class_ogre_1_1_render_queue.html" title="Class to manage the scene object rendering queue.">RenderQueue</a> Subgroups are useful for manually sorting objects, just like <a class="el" href="class_ogre_1_1_render_queue.html" title="Class to manage the scene object rendering queue.">RenderQueue</a> IDs. However, <a class="el" href="class_ogre_1_1_render_queue.html" title="Class to manage the scene object rendering queue.">RenderQueue</a> IDs can also be useful for skipping large number of objects through clever compositing and thus a performance optimization. Subgroups cannot be used for such optimizations. </dd></dl>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">subGroup</td><td>The sub group. This value can't exceed OGRE_MAKE_MASK( SubRqIdBits ) @See <a class="el" href="class_ogre_1_1_render_queue.html" title="Enumeration of queue groups, by which the application may group queued renderables so that they are r...">RenderQueue</a> </td></tr>
+    <tr><td class="paramname">subGroup</td><td>The sub group. This value can't exceed OGRE_MAKE_MASK( SubRqIdBits ) @See <a class="el" href="class_ogre_1_1_render_queue.html" title="Class to manage the scene object rendering queue.">RenderQueue</a> </td></tr>
   </table>
   </dd>
 </dl>

@@ -2110,7 +2110,7 @@
 <!-- Node1551 -->
 <g id="node396" class="node">
 <title>Node1551</title>
-<g id="a_node396"><a xlink:href="class_ogre_1_1_render_queue.html" target="_top" xlink:title="Enumeration of queue groups, by which the application may group queued renderables so that they are r...">
+<g id="a_node396"><a xlink:href="class_ogre_1_1_render_queue.html" target="_top" xlink:title="Class to manage the scene object rendering queue.">
 <polygon fill="none" stroke="black" points="249.5,-6848 249.5,-6867 350.5,-6867 350.5,-6848 249.5,-6848"/>
 <text text-anchor="middle" x="300" y="-6855" font-family="Helvetica,sans-Serif" font-size="10.00">Ogre::RenderQueue</text>
 </a>

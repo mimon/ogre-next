@@ -5,7 +5,7 @@
 <meta http-equiv="X-UA-Compatible" content="IE=9"/>
 <meta name="generator" content="Doxygen 1.8.18"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>OGRE: Materials</title>
+<title>OGRE: HLMS: High Level Material System</title>
 <link href="tabs.css" rel="stylesheet" type="text/css"/>
 <script type="text/javascript" src="jquery.js"></script>
 <script type="text/javascript" src="dynsections.js"></script>
@@ -85,19 +85,17 @@ $(document).ready(function(){initNavTree('hlms.html',''); initResizable(); });
 
 <div class="PageDoc"><div class="header">
   <div class="headertitle">
-<div class="title">The implementation of HLMS </div>  </div>
+<div class="title">HLMS: High Level Material System </div>  </div>
 </div><!--header-->
 <div class="contents">
 <div class="toc"><h3>Table of Contents</h3>
-<ul><li class="level1"><a href="#Introduction">Introduction</a><ul><li class="level2"><a href="#autotoc_md9">Two different material systems</a></li>
-<li class="level2"><a href="#autotoc_md10">HLMS: High Level Material System</a></li>
-<li class="level2"><a href="#autotoc_md11">Low level materials</a></li>
+<ul><li class="level1"><a href="#HlmsChanges">Fundamental changes</a><ul><li class="level2"><a href="#HlmsChangesViewports">Viewports and Scissor tests</a></li>
+<li class="level2"><a href="#HlmsChangesBlocks">A lot of data is stored in &quot;Blocks&quot;</a></li>
+<li class="level2"><a href="#HlmsChangesMaterialsAlive">Materials are still alive</a></li>
+<li class="level2"><a href="#HlmsChangesFFP">Fixed Function has been removed</a></li>
 </ul>
 </li>
-<li class="level1"><a href="#autotoc_md12">Getting started with a material</a></li>
-<li class="level1"><a href="#hlms">The implementation of HLMS</a><ul><li class="level2"><a href="#HlmsComponents">The three components</a></li>
-</ul>
-</li>
+<li class="level1"><a href="#HlmsComponents">The three components</a></li>
 <li class="level1"><a href="#HlmsBlocks">Blocks</a><ul><li class="level2"><a href="#HlmsBlocksDatablocks">Datablocks</a></li>
 <li class="level2"><a href="#HlmsBlocksMacroblocks">Macroblocks</a></li>
 <li class="level2"><a href="#HlmsBlocksBlendblocks">Blendblocks</a></li>
@@ -150,36 +148,48 @@ $(document).ready(function(){initNavTree('hlms.html',''); initResizable(); });
 </li>
 </ul>
 </div>
-<div class="textblock"><p>This section gives an overview of <a class="el" href="namespace_ogre.html">Ogre</a>'s two material systems</p>
-<h1><a class="anchor" id="Introduction"></a>
-Introduction</h1>
-<h2><a class="anchor" id="autotoc_md9"></a>
-Two different material systems</h2>
-<p><a class="el" href="namespace_ogre.html">Ogre</a> 2.+ has two different material systems:</p><ul>
-<li>HLMS: The new shiny material system</li>
-<li>Low level materials: A legacy material system inherited from <a class="el" href="namespace_ogre.html">Ogre</a> 1.+</li>
+<div class="textblock"><p>The HLMS (often stylized Hlms) is the new material system used in <a class="el" href="namespace_ogre.html">Ogre</a> 2.0. It's more user friendly and performs faster.</p>
+<p>HLMS stands for "High Level Material System", because for the user, the HLMS means just define the material and start looking at it (no need for coding or shader knowledge!). But on retrospective, tweaking the shader code for an HLMS is much low level than the old Materials have ever been (and that makes them very powerful).</p>
+<h1><a class="anchor" id="HlmsChanges"></a>
+Fundamental changes</h1>
+<h2><a class="anchor" id="HlmsChangesViewports"></a>
+Viewports and Scissor tests</h2>
+<p>Viewports now contain information about the scissor rectangle. Back in <a class="el" href="namespace_ogre.html">Ogre</a> 1.x; Direct3D 9's support for scissor testing was optional, which caused lots of headaches. As a result, users could only use low-level function <code>RenderSystem::setScissorTest</code> for manually manipulating the scissor rect.</p>
+<p>In OpenGL, it was even messier because setting and enabling the scissor rect was needed to perform buffer clears on partial regions of the framebuffer; which could override user's manual input, potentially breaking applications that worked fine using Direct3D.</p>
+<p>Fortunately, all targetted APIs by <a class="el" href="namespace_ogre.html">Ogre</a> 2.0 support scissor tests, and thus it is now properly supported. As a result:</p>
+<ul>
+<li>Viewports hold the information about the scissor rectangle (see <code>Viewport::setScissors</code>)</li>
+<li>Enabling and disabling scissor testing is controlled via Macroblocks.</li>
+<li><code>RenderSystem::setScissorTest</code> was removed.</li>
+<li><code>RSC_SCISSOR_TEST</code> flag was removed.</li>
 </ul>
-<h2><a class="anchor" id="autotoc_md10"></a>
-HLMS: High Level Material System</h2>
-<p>The HLMS (often stylized Hlms) is the material system used in <a class="el" href="namespace_ogre.html">Ogre</a> 2.+. It's user friendly and is fast.</p>
-<p>HLMS stands for "High Level Material System", because for the user, the HLMS means just define the material and start looking at it (no need for coding or shader knowledge!). Additionally, the ability to tweak the shader code for an HLMS makes them very powerful.</p>
-<h2><a class="anchor" id="autotoc_md11"></a>
-Low level materials</h2>
-<p>First of all: You should be using the HLMS. Low level materials are slow. Very slow. They're inefficient and not suitable for rendering most of your models.</p>
-<p>However, low level materials are useful for:</p>
+<h2><a class="anchor" id="HlmsChangesBlocks"></a>
+A lot of data is stored in "Blocks"</h2>
+<p>Described in detail in the <a href="#9.3.Blocks|outline">Blocks section</a>, many parameters have been grouped into blocks. Changing depth checks means changing the whole Macroblock.</p>
+<p>You could be thinking the reason I came up with these two is to fit with D3D11′s grand scheme of things while being compatible with OpenGL. But that's a half truth and an awesome side effect. I've been developing the Hlms using OpenGL this whole time.</p>
+<p>An OpenGL fan will tell you that grouping these together in single call like D3D11 did barely reduces API overhead in practice (as long as you keep sorting by state), and they're right about that.</p>
+<p>However, there are big advantages for using blocks:</p>
+<ol type="1">
+<li>Many materials in practice share the same Macro- &amp; Blendblock parameters. In an age where we want many 3D primitives with the same shader but slightly different parameters like texture, colour, or roughness (which equals, a different material) having these settings repeated per material wastes a lot of memory space… and a lot of bandwidth (and wastes cache space). <a class="el" href="namespace_ogre.html">Ogre</a> 2.0 is bandwidth bound, so having all materials share the same pointer to the same Macroblock can potentially save a lot of bandwidth, and be friendlier to the cache at the same time.This stays true whether we use D3D11, D3D12, OpenGL, GL ES 2, or Mantle.</li>
+<li>Sorting by Macroblock is a lot easier (and faster) than sorting by its individual parameters: when preparing the hash used for sorting, it's much easier to just do (every frame, per object) <code>hash |= (macroblock-&gt;getId() &lt;&lt; bits) &amp; mask</code> than to do: <code>hash =| m-&gt;depth_check | m-&gt;depthWrite &lt;&lt; 1 | m-&gt;depthBias &lt;&lt; 2 | m-&gt;depth_slope_bias &lt;&lt; 3 | m-&gt;cullMode &lt;&lt; 18 | ... ;</code> We also need a lot more bits we can't afford. <a class="el" href="namespace_ogre.html">Ogre</a> 2.0 imposes a limit on the amount of live Macroblocks you can have at the same time; as we run out of hashing space (by the way, D3D11 has its own limit). It operates around the idea that most setting combinations won't be used in practice.</li>
+</ol>
+<p>Of course it's not perfect, it can't fit every use case. We inherit the same problems D3D11 has. If a particular rendering technique relies on regularly changing a property that lives in a Macroblock (i.e. like alternating depth comparison function between less &amp; greater with every draw call, or gradually incrementing the depth bias on each draw call); you'll end up redundantly changing a lot of other states (culling mode, polygon mode, depth check &amp; write flags, depth bias) alongside it. This is rare. We're aiming the general use case.</p>
+<p>These problems make me wonder if D3D11 made the right choice of using blocks from an API perspective, since I'm not used to driver development. However from an engine perspective, blocks make sense.</p>
+<h2><a class="anchor" id="HlmsChangesMaterialsAlive"></a>
+Materials are still alive</h2>
+<p>Let me get this straight: You should be using the HLMS. The usual "Materials" are slow. Very slow. They're inefficient and not suitable for rendering most of your models.</p>
+<p>However, materials are still useful for:</p>
 <ul>
 <li>Quick iteration. You need to write a shader, just define the material and start coding. Why would you deal with the template's syntax or a C++ module when you can just write a script and start coding? The HLMS though comes with a Command line tool to know how your template translates into a final shader (which is very handy for iteration, it's fast, and will check for syntax errors!), but it's most useful when you want to write your own C++ module or change the template, not when you want to just experiment. Besides, old timers are used to writing materials.</li>
 <li>Postprocessing effects. Materials are much better suited for this. Materials are data driven, easy to write. Postprocessing FXs don't need an awful lot of permutations (i.e. having to deal with shadow mapping, instancing, skeleton animation, facial animation). And they're at no performance disadvantage compared to HLMS: Each FX is a fullscreen pass that needs different shaders, different textures, its own uniforms. Basically, API overhead we can't optimize. But it doesn't matter much either, because it's not like there are 100 fullscreen passes. Usually there's less than 10.</li>
 </ul>
-<p>Under the hood there is an HLMS C++ implementation (<code>HLMS_LOW_LEVEL</code>) that acts just as a proxy to the material. The HLMS is an integral part of <a class="el" href="namespace_ogre.html">Ogre</a> 2.+, not just a fancy add-in.</p>
-<p>(Btw, Fixed Function Pipeline is not available in <a class="el" href="namespace_ogre.html">Ogre</a> 2.+)</p>
-<h1><a class="anchor" id="autotoc_md12"></a>
-Getting started with a material</h1>
-<p>HLMS materials are defined in JSON files which you need load into your application. Have a look at <a href="Docs/2.0/JSON/PbsAllSettings.json">PbsAllSettings.json</a> for the possible properties to tweak.</p>
-<h1><a class="anchor" id="hlms"></a>
-The implementation of HLMS</h1>
-<h2><a class="anchor" id="HlmsComponents"></a>
-The three components</h2>
+<p>Under the hood there is an HLMS C++ implementation (<code>HLMS_LOW_LEVEL</code>) that acts just as a proxy to the material. The HLMS is an integral part of <a class="el" href="namespace_ogre.html">Ogre</a> 2.0, not just a fancy add-in.</p>
+<p>Materials have been refactored, and thus your old code may need a few changes. Most notably Macroblocks &amp; Blendblocks have been added to Materials, thus functions like <code>Pass::setDepthCheck</code> &amp; Co have been replaced by a two calls: <code>Pass::setMacroblock</code> &amp; <code>Pass::setBlendblock</code>.</p>
+<h2><a class="anchor" id="HlmsChangesFFP"></a>
+Fixed Function has been removed</h2>
+<p>With FFP being removed, multitexturing and pass splitting functionality was cut as well. The HLMS default systems handle these.</p>
+<h1><a class="anchor" id="HlmsComponents"></a>
+The three components</h1>
 <ol type="1">
 <li><b>Scripts.</b> To set the material properties (i.e. type of Hlms to use: PBS, Toon shading, GUI; what textures, diffuse colour, roughness, etc). You can also do this from C++ obviously. Everybody will be using this part.</li>
 <li><b>Shader template.</b> The Hlms takes a couple hand-written glsl/hlsl files as template and then adapts it to fit the needs on the fly (i.e. if the mesh doesn't contain skeleton, the bit of code pertaining to skeletal animation is stripped from the vertex shader). The Hlms provides a simple preprocessor to deal with this entirely within from the template, but you're not forced to use it. Here's a simple example of the preprocessor. I won't be explaining the main keywords today. Advanced users will probably want to modify these files (or write some of their own) to fit their custom needs.</li>

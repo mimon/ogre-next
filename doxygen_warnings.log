@@ -22,7 +22,6 @@
 /github/workspace/OgreMain/include/OgreVertexShadowMapHelper.h:154: warning: unbalanced grouping commands
 /github/workspace/OgreMain/include/OgreVertexShadowMapHelper.h:155: warning: unbalanced grouping commands
 /github/workspace/Components/Paging/include/OgreGrid2DPageStrategy.h:49: warning: Member Grid2DMode found in multiple @addtogroup groups! The member will be put in group Paging, and not in group Optional
-hlms:-1: warning: multiple use of section label 'hlms', (first occurrence: /github/workspace/Docs/src/manual/hlms.md, line 60)
 /github/workspace/RenderSystems/GL3Plus/include/windowing/GLX/OgreGLXWindow.h:89: warning: @copybrief or @copydoc target 'see' not found
 /github/workspace/OgreMain/include/OgreHlmsCompute.h:154: warning: Found unknown command '@createComputeJob'
 /github/workspace/RenderSystems/GL3Plus/include/windowing/OSX/OgreOSXCocoaWindow.h:93: warning: @copybrief or @copydoc target 'see' not found
@@ -222,20 +221,20 @@ hlms:-1: warning: multiple use of section label 'hlms', (first occurrence: /gith
 /github/workspace/RenderSystems/Metal/include/OgreMetalHlmsPso.h:43: warning: Found unknown command '@See'
 /github/workspace/OgreMain/include/Threading/OgreThreads.h:63: warning: Found unknown command '@See'
 /github/workspace/OgreMain/include/Threading/OgreThreads.h:63: warning: Found unknown command '@See'
-/github/workspace/Docs/src/manual/compositor.md:1087: warning: Unsupported xml/html tag <factor> found
-/github/workspace/Docs/src/manual/compositor.md:1087: warning: Unsupported xml/html tag <factor> found
-/github/workspace/Docs/src/manual/hlms.md:277: warning: Found unknown command '@end'
-/github/workspace/Docs/src/manual/hlms.md:600: warning: Found unknown command '@counter'
-/github/workspace/Docs/src/manual/hlms.md:600: warning: Found unknown command '@value'
-/github/workspace/Docs/src/manual/hlms.md:689: warning: Found unknown command '@insertpiece'
-/github/workspace/Docs/src/manual/hlms.md:735: warning: Found unknown command '@set'
-/github/workspace/Docs/src/manual/compositor.md:1087: warning: Unsupported xml/html tag <factor> found
-/github/workspace/Docs/src/manual/compositor.md:1087: warning: Unsupported xml/html tag <factor> found
-/github/workspace/Docs/src/manual/hlms.md:277: warning: Found unknown command '@end'
-/github/workspace/Docs/src/manual/hlms.md:600: warning: Found unknown command '@counter'
-/github/workspace/Docs/src/manual/hlms.md:600: warning: Found unknown command '@value'
-/github/workspace/Docs/src/manual/hlms.md:689: warning: Found unknown command '@insertpiece'
-/github/workspace/Docs/src/manual/hlms.md:735: warning: Found unknown command '@set'
+/github/workspace/Docs/src/manual/compositor.md:1086: warning: Unsupported xml/html tag <factor> found
+/github/workspace/Docs/src/manual/compositor.md:1086: warning: Unsupported xml/html tag <factor> found
+/github/workspace/Docs/src/manual/hlms.md:350: warning: Found unknown command '@end'
+/github/workspace/Docs/src/manual/hlms.md:673: warning: Found unknown command '@counter'
+/github/workspace/Docs/src/manual/hlms.md:673: warning: Found unknown command '@value'
+/github/workspace/Docs/src/manual/hlms.md:762: warning: Found unknown command '@insertpiece'
+/github/workspace/Docs/src/manual/hlms.md:808: warning: Found unknown command '@set'
+/github/workspace/Docs/src/manual/compositor.md:1086: warning: Unsupported xml/html tag <factor> found
+/github/workspace/Docs/src/manual/compositor.md:1086: warning: Unsupported xml/html tag <factor> found
+/github/workspace/Docs/src/manual/hlms.md:350: warning: Found unknown command '@end'
+/github/workspace/Docs/src/manual/hlms.md:673: warning: Found unknown command '@counter'
+/github/workspace/Docs/src/manual/hlms.md:673: warning: Found unknown command '@value'
+/github/workspace/Docs/src/manual/hlms.md:762: warning: Found unknown command '@insertpiece'
+/github/workspace/Docs/src/manual/hlms.md:808: warning: Found unknown command '@set'
 /github/workspace/RenderSystems/Direct3D11/include/OgreD3D11HlmsPso.h:43: warning: Found unknown command '@See'
 /github/workspace/RenderSystems/GL3Plus/include/OgreGL3PlusHlmsPso.h:43: warning: Found unknown command '@See'
 /github/workspace/RenderSystems/GLES2/include/OgreGLES2HlmsPso.h:43: warning: Found unknown command '@See'
@@ -3622,8 +3621,8 @@ warning: Inheritance graph for 'Ogre::ParamCommand' not generated, too many node
 /github/workspace/OgreMain/include/OgreRenderable.h:81: warning: Found unknown command '@See'
 /github/workspace/OgreMain/include/OgreRenderable.h:74: warning: Found unknown command '@See'
 /github/workspace/OgreMain/include/OgreRenderable.h:427: warning: Found unknown command '@See'
-/github/workspace/OgreMain/include/OgreRenderQueue.h:278: warning: argument 'bSort' of command @param is not found in the argument list of Ogre::RenderQueue::setSortRenderQueue(uint8 rqId, RqSortMode sortMode)
-/github/workspace/OgreMain/include/OgreRenderQueue.h:286: warning: The following parameter of Ogre::RenderQueue::setSortRenderQueue(uint8 rqId, RqSortMode sortMode) is not documented:
+/github/workspace/OgreMain/include/OgreRenderQueue.h:282: warning: argument 'bSort' of command @param is not found in the argument list of Ogre::RenderQueue::setSortRenderQueue(uint8 rqId, RqSortMode sortMode)
+/github/workspace/OgreMain/include/OgreRenderQueue.h:290: warning: The following parameter of Ogre::RenderQueue::setSortRenderQueue(uint8 rqId, RqSortMode sortMode) is not documented:
   parameter 'sortMode'
 /github/workspace/OgreMain/include/OgreRenderQueueListener.h:73: warning: The following parameter of Ogre::RenderQueueListener::renderQueueStarted(RenderQueue *rq, uint8 queueGroupId, const String &invocation, bool &skipThisInvocation) is not documented:
   parameter 'rq'
