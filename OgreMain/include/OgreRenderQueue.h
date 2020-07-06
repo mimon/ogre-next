@@ -83,7 +83,12 @@ namespace Ogre {
             v1::Rectangle2D:    110
             ParticleSystem:     110
             [.. more unlisted ..]
-
+        @remarks
+            By default, the render queues have the following mode set:
+            0-99:    FAST
+            100-199: V1_FAST
+            200-224: FAST
+            225-255: V1_FAST
     */
     class _OgreExport RenderQueue : public RenderQueueAlloc
     {

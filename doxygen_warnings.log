@@ -3621,8 +3621,8 @@ warning: Inheritance graph for 'Ogre::ParamCommand' not generated, too many node
 /github/workspace/OgreMain/include/OgreRenderable.h:81: warning: Found unknown command '@See'
 /github/workspace/OgreMain/include/OgreRenderable.h:74: warning: Found unknown command '@See'
 /github/workspace/OgreMain/include/OgreRenderable.h:427: warning: Found unknown command '@See'
-/github/workspace/OgreMain/include/OgreRenderQueue.h:282: warning: argument 'bSort' of command @param is not found in the argument list of Ogre::RenderQueue::setSortRenderQueue(uint8 rqId, RqSortMode sortMode)
-/github/workspace/OgreMain/include/OgreRenderQueue.h:290: warning: The following parameter of Ogre::RenderQueue::setSortRenderQueue(uint8 rqId, RqSortMode sortMode) is not documented:
+/github/workspace/OgreMain/include/OgreRenderQueue.h:287: warning: argument 'bSort' of command @param is not found in the argument list of Ogre::RenderQueue::setSortRenderQueue(uint8 rqId, RqSortMode sortMode)
+/github/workspace/OgreMain/include/OgreRenderQueue.h:295: warning: The following parameter of Ogre::RenderQueue::setSortRenderQueue(uint8 rqId, RqSortMode sortMode) is not documented:
   parameter 'sortMode'
 /github/workspace/OgreMain/include/OgreRenderQueueListener.h:73: warning: The following parameter of Ogre::RenderQueueListener::renderQueueStarted(RenderQueue *rq, uint8 queueGroupId, const String &invocation, bool &skipThisInvocation) is not documented:
   parameter 'rq'
